@@ -18,11 +18,22 @@ if (fs.existsSync(localEnvPath) && localEnvPath !== rootEnvPath) {
   dotenv.config({ path: localEnvPath, override: true });
 }
 
+import { queryClient } from './db/index.js';
+
 export const app = new Hono();
 
-app.get('/health', (c) => {
+app.get('/health', async (c) => {
+  let dbStatus = 'disconnected';
+  try {
+    await queryClient`SELECT 1`;
+    dbStatus = 'connected';
+  } catch (err) {
+    dbStatus = `error: ${(err as Error).message}`;
+  }
+
   return c.json({
     status: 'ok',
+    database: dbStatus,
     timestamp: new Date().toISOString(),
   });
 });
