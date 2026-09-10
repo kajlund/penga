@@ -1,0 +1,969 @@
+import { LitElement, html, css, nothing } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
+import { AccountType, type AccountTreeNode } from '@penga/shared';
+
+@customElement('penga-accounts')
+export class PengaAccounts extends LitElement {
+  static override styles = css`
+    :host {
+      display: block;
+      padding: 2rem 2.5rem 4rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      font-family: var(--font-sans);
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .header-title h2 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--text-primary);
+    }
+
+    .header-title p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.25rem;
+      border-radius: var(--radius-md);
+      background: var(--color-primary);
+      color: #ffffff;
+      border: 1px solid transparent;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+      transition: all var(--transition-fast);
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+    }
+
+    .filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      user-select: none;
+    }
+
+    .filter-pill:hover {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .filter-pill.active {
+      background: var(--color-primary-subtle);
+      border-color: var(--color-primary-border);
+      color: var(--color-primary-text);
+      font-weight: 600;
+    }
+
+    .badge-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 0.35rem;
+      border-radius: var(--radius-full);
+      background: var(--bg-muted);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .filter-pill.active .badge-count {
+      background: var(--color-primary);
+      color: #ffffff;
+    }
+
+    /* Tree Container Card */
+    .tree-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+
+    .tree-header {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      padding: 0.85rem 1.5rem;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .tree-list {
+      list-style: none;
+      margin: 0;
+      padding: 0.5rem 0;
+    }
+
+    /* Tree Node */
+    .tree-node {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .node-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background-color var(--transition-fast);
+      gap: 1rem;
+    }
+
+    .node-row:hover {
+      background: var(--bg-subtle);
+    }
+
+    .node-row:hover .node-actions {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .node-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .toggle-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      transition: transform var(--transition-fast), color var(--transition-fast);
+      padding: 0;
+    }
+
+    .toggle-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-muted);
+    }
+
+    .toggle-btn.collapsed svg {
+      transform: rotate(-90deg);
+    }
+
+    .toggle-placeholder {
+      width: 22px;
+      height: 22px;
+      display: inline-block;
+    }
+
+    .account-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .account-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      min-width: 0;
+    }
+
+    .account-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .account-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .type-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 0.2rem 0.55rem;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+    }
+
+    .type-badge.asset {
+      background: var(--color-asset-bg);
+      color: var(--color-asset);
+      border: 1px solid var(--color-asset-border);
+    }
+
+    .type-badge.liability {
+      background: var(--color-liability-bg);
+      color: var(--color-liability);
+      border: 1px solid var(--color-liability-border);
+    }
+
+    .type-badge.income {
+      background: var(--color-income-bg);
+      color: var(--color-income);
+      border: 1px solid var(--color-income-border);
+    }
+
+    .type-badge.expense {
+      background: var(--color-expense-bg);
+      color: var(--color-expense);
+      border: 1px solid var(--color-expense-border);
+    }
+
+    .node-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: all var(--transition-fast);
+    }
+
+    .action-icon-btn {
+      padding: 0.35rem 0.55rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all var(--transition-fast);
+    }
+
+    .action-icon-btn:hover {
+      background: var(--bg-muted);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .action-icon-btn.delete:hover {
+      background: var(--color-expense-bg);
+      color: var(--color-expense);
+      border-color: var(--color-expense-border);
+    }
+
+    .children-container {
+      position: relative;
+      padding-left: 2rem;
+    }
+
+    .children-container::before {
+      content: '';
+      position: absolute;
+      left: 2.2rem;
+      top: 0;
+      bottom: 0.75rem;
+      width: 1px;
+      background: var(--border-subtle);
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 520px;
+      overflow: hidden;
+      animation: modalFadeIn 0.2s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+      background: var(--bg-subtle);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .form-input,
+    .form-select {
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-md);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      outline: none;
+      transition: all var(--transition-fast);
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-primary-subtle);
+    }
+
+    .quick-emojis {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-top: 0.35rem;
+    }
+
+    .emoji-pill {
+      font-size: 1.1rem;
+      padding: 0.3rem 0.5rem;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .emoji-pill:hover {
+      background: var(--bg-muted);
+      transform: scale(1.1);
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      background: var(--bg-subtle);
+    }
+
+    .btn-secondary {
+      padding: 0.65rem 1.15rem;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-muted);
+      color: var(--text-primary);
+    }
+
+    .empty-state {
+      padding: 4rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state h4 {
+      margin: 0.5rem 0 0.25rem;
+      color: var(--text-primary);
+      font-size: 1.1rem;
+    }
+
+    .loading-state {
+      padding: 4rem 2rem;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+  `;
+
+  @state()
+  private treeNodes: AccountTreeNode[] = [];
+
+  @state()
+  private isLoading = true;
+
+  @state()
+  private errorMessage: string | null = null;
+
+  @state()
+  private selectedFilter: 'ALL' | AccountType = 'ALL';
+
+  @state()
+  private collapsedNodes = new Set<string>();
+
+  @state()
+  private isCreateModalOpen = false;
+
+  @state()
+  private createName = '';
+
+  @state()
+  private createType: AccountType = 'ASSET';
+
+  @state()
+  private createParentId = '';
+
+  @state()
+  private createIcon = '🏦';
+
+  @state()
+  private createColor = '#0d9488';
+
+  @state()
+  private flatAccounts: { id: string; name: string; type: AccountType }[] = [];
+
+  private emojiPresets = ['🏦', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.fetchAccounts();
+  }
+
+  async fetchAccounts() {
+    this.isLoading = true;
+    this.errorMessage = null;
+
+    try {
+      const res = await fetch('/api/accounts/tree');
+      if (!res.ok) {
+        throw new Error(`Failed to load accounts: ${res.statusText}`);
+      }
+      const json = await res.json();
+      this.treeNodes = json.data || [];
+      this.extractFlatList(this.treeNodes);
+    } catch (err: any) {
+      this.errorMessage = err.message || 'Error fetching accounts';
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  private extractFlatList(nodes: AccountTreeNode[]) {
+    const list: { id: string; name: string; type: AccountType }[] = [];
+    const traverse = (items: AccountTreeNode[]) => {
+      for (const item of items) {
+        list.push({ id: item.id, name: item.name, type: item.type });
+        if (item.children && item.children.length > 0) {
+          traverse(item.children);
+        }
+      }
+    };
+    traverse(nodes);
+    this.flatAccounts = list;
+  }
+
+  private toggleCollapse(id: string) {
+    const next = new Set(this.collapsedNodes);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this.collapsedNodes = next;
+  }
+
+  private openCreateModal(preselectedParentId?: string, preselectedType?: AccountType) {
+    this.createName = '';
+    this.createParentId = preselectedParentId || '';
+
+    if (preselectedParentId) {
+      const parentAcc = this.flatAccounts.find((a) => a.id === preselectedParentId);
+      if (parentAcc) {
+        this.createType = parentAcc.type;
+      }
+    } else {
+      this.createType = preselectedType || 'ASSET';
+    }
+
+    this.createIcon = this.createType === 'EXPENSE' ? '🛒' : '🏦';
+    this.createColor = this.getDefaultColor(this.createType);
+    this.isCreateModalOpen = true;
+  }
+
+  private getDefaultColor(type: AccountType): string {
+    switch (type) {
+      case 'ASSET':
+        return '#0d9488';
+      case 'LIABILITY':
+        return '#d97706';
+      case 'INCOME':
+        return '#2563eb';
+      case 'EXPENSE':
+        return '#e11d48';
+    }
+  }
+
+  private handleTypeChange(e: Event) {
+    const val = (e.target as HTMLSelectElement).value as AccountType;
+    this.createType = val;
+    this.createColor = this.getDefaultColor(val);
+  }
+
+  private async submitCreate(e: Event) {
+    e.preventDefault();
+    if (!this.createName.trim()) {
+      alert('Account name is required');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: this.createName.trim(),
+        type: this.createType,
+        parentId: this.createParentId || null,
+        icon: this.createIcon.trim() || null,
+        color: this.createColor.trim() || null,
+      };
+
+      const res = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to create account');
+      }
+
+      this.isCreateModalOpen = false;
+      await this.fetchAccounts();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
+  private async deleteAccount(node: AccountTreeNode) {
+    const hasChildren = node.children && node.children.length > 0;
+    const confirmPrompt = hasChildren
+      ? `Account "${node.name}" has ${node.children.length} sub-account(s). Deleting it will also delete its sub-accounts! Proceed?`
+      : `Delete account "${node.name}"?`;
+
+    if (!confirm(confirmPrompt)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/accounts/${node.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to delete account');
+      }
+
+      await this.fetchAccounts();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
+  private renderNode(node: AccountTreeNode, depth = 0): unknown {
+    const hasChildren = node.children && node.children.length > 0;
+    const isCollapsed = this.collapsedNodes.has(node.id);
+
+    // If filtered by type and this node doesn't match and has no matching descendants
+    if (this.selectedFilter !== 'ALL' && node.type !== this.selectedFilter) {
+      const hasMatchingChild = this.hasChildMatchingType(node, this.selectedFilter);
+      if (!hasMatchingChild) {
+        return nothing;
+      }
+    }
+
+    return html`
+      <li class="tree-node">
+        <div class="node-row" style="padding-left: ${1.5 + depth * 1.5}rem;">
+          <div class="node-main">
+            ${hasChildren
+              ? html`
+                  <button
+                    class="toggle-btn ${isCollapsed ? 'collapsed' : ''}"
+                    @click="${() => this.toggleCollapse(node.id)}"
+                    aria-label="${isCollapsed ? 'Expand' : 'Collapse'} ${node.name}"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                `
+              : html`<span class="toggle-placeholder"></span>`}
+
+            <div class="account-icon" style="color: ${node.color || 'inherit'}; border-color: ${node.color ? `${node.color}40` : 'var(--border-subtle)'}">
+              ${node.icon || '📁'}
+            </div>
+
+            <div class="account-info">
+              <span class="account-name">${node.name}</span>
+              <div class="account-meta">
+                <span class="type-badge ${node.type.toLowerCase()}">${node.type}</span>
+                ${hasChildren ? html`<span>• ${node.children.length} sub-accounts</span>` : nothing}
+              </div>
+            </div>
+          </div>
+
+          <div class="node-actions">
+            <button
+              class="action-icon-btn"
+              @click="${() => this.openCreateModal(node.id, node.type)}"
+              title="Add Sub-Account under ${node.name}"
+            >
+              <span>+ Sub-Account</span>
+            </button>
+            <button
+              class="action-icon-btn delete"
+              @click="${() => this.deleteAccount(node)}"
+              title="Delete ${node.name}"
+            >
+              <span>Delete</span>
+            </button>
+          </div>
+        </div>
+
+        ${hasChildren && !isCollapsed
+          ? html`
+              <ul class="tree-list children-container">
+                ${node.children.map((child) => this.renderNode(child, depth + 1))}
+              </ul>
+            `
+          : nothing}
+      </li>
+    `;
+  }
+
+  private hasChildMatchingType(node: AccountTreeNode, type: AccountType): boolean {
+    if (node.type === type) return true;
+    if (!node.children) return false;
+    return node.children.some((child) => this.hasChildMatchingType(child, type));
+  }
+
+  override render() {
+    const totalCount = this.flatAccounts.length;
+    const assetCount = this.flatAccounts.filter((a) => a.type === 'ASSET').length;
+    const liabilityCount = this.flatAccounts.filter((a) => a.type === 'LIABILITY').length;
+    const incomeCount = this.flatAccounts.filter((a) => a.type === 'INCOME').length;
+    const expenseCount = this.flatAccounts.filter((a) => a.type === 'EXPENSE').length;
+
+    return html`
+      <div class="page-header">
+        <div class="header-title">
+          <h2>Accounts & Categories</h2>
+          <p>Hierarchical double-entry ledger tree with custom icons and rollups</p>
+        </div>
+        <button class="btn-primary" @click="${() => this.openCreateModal()}">
+          <span>+</span>
+          <span>New Account</span>
+        </button>
+      </div>
+
+      <!-- Type Filter Tabs -->
+      <div class="filter-bar">
+        <button
+          class="filter-pill ${this.selectedFilter === 'ALL' ? 'active' : ''}"
+          @click="${() => (this.selectedFilter = 'ALL')}"
+        >
+          <span>All Categories</span>
+          <span class="badge-count">${totalCount}</span>
+        </button>
+        <button
+          class="filter-pill ${this.selectedFilter === 'ASSET' ? 'active' : ''}"
+          @click="${() => (this.selectedFilter = 'ASSET')}"
+        >
+          <span>Assets</span>
+          <span class="badge-count">${assetCount}</span>
+        </button>
+        <button
+          class="filter-pill ${this.selectedFilter === 'LIABILITY' ? 'active' : ''}"
+          @click="${() => (this.selectedFilter = 'LIABILITY')}"
+        >
+          <span>Liabilities</span>
+          <span class="badge-count">${liabilityCount}</span>
+        </button>
+        <button
+          class="filter-pill ${this.selectedFilter === 'INCOME' ? 'active' : ''}"
+          @click="${() => (this.selectedFilter = 'INCOME')}"
+        >
+          <span>Income</span>
+          <span class="badge-count">${incomeCount}</span>
+        </button>
+        <button
+          class="filter-pill ${this.selectedFilter === 'EXPENSE' ? 'active' : ''}"
+          @click="${() => (this.selectedFilter = 'EXPENSE')}"
+        >
+          <span>Expenses</span>
+          <span class="badge-count">${expenseCount}</span>
+        </button>
+      </div>
+
+      <!-- Account Tree Content -->
+      <div class="tree-card">
+        <div class="tree-header">
+          <span>Account Hierarchy</span>
+          <span>Actions</span>
+        </div>
+
+        ${this.isLoading
+          ? html`<div class="loading-state">Loading accounts from PostgreSQL...</div>`
+          : this.errorMessage
+          ? html`<div class="empty-state"><h4>Error Loading Accounts</h4><p>${this.errorMessage}</p></div>`
+          : this.treeNodes.length === 0
+          ? html`
+              <div class="empty-state">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📂</div>
+                <h4>No Accounts Found</h4>
+                <p>Create your first account or run the database seed script.</p>
+              </div>
+            `
+          : html`
+              <ul class="tree-list">
+                ${this.treeNodes.map((node) => this.renderNode(node))}
+              </ul>
+            `}
+      </div>
+
+      <!-- Create Account Modal -->
+      ${this.isCreateModalOpen
+        ? html`
+            <div class="modal-backdrop" @click="${(e: MouseEvent) => {
+              if (e.target === e.currentTarget) this.isCreateModalOpen = false;
+            }}">
+              <div class="modal-box">
+                <div class="modal-header">
+                  <h3>${this.createParentId ? 'Add Sub-Account' : 'New Account / Category'}</h3>
+                  <button class="modal-close" @click="${() => (this.isCreateModalOpen = false)}">✕</button>
+                </div>
+
+                <form @submit="${this.submitCreate}">
+                  <div class="modal-body">
+                    <div class="form-group">
+                      <label class="form-label">Account Name</label>
+                      <input
+                        type="text"
+                        class="form-input"
+                        placeholder="e.g. Vacation Savings or Fuel"
+                        .value="${this.createName}"
+                        @input="${(e: any) => (this.createName = e.target.value)}"
+                        required
+                        autofocus
+                      />
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Account Type</label>
+                      <select
+                        class="form-select"
+                        .value="${this.createType}"
+                        @change="${this.handleTypeChange}"
+                        ?disabled="${Boolean(this.createParentId)}"
+                      >
+                        <option value="ASSET">ASSET (Liquid, cash, checking)</option>
+                        <option value="LIABILITY">LIABILITY (Debt, credit cards)</option>
+                        <option value="INCOME">INCOME (Salary, dividends)</option>
+                        <option value="EXPENSE">EXPENSE (Groceries, transport)</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Parent Account (Tree Hierarchy)</label>
+                      <select
+                        class="form-select"
+                        .value="${this.createParentId}"
+                        @change="${(e: any) => (this.createParentId = e.target.value)}"
+                      >
+                        <option value="">None (Top-Level Account)</option>
+                        ${this.flatAccounts.map(
+                          (acc) => html`
+                            <option value="${acc.id}">
+                              ${acc.name} (${acc.type})
+                            </option>
+                          `
+                        )}
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Icon / Emoji</label>
+                      <input
+                        type="text"
+                        class="form-input"
+                        .value="${this.createIcon}"
+                        @input="${(e: any) => (this.createIcon = e.target.value)}"
+                      />
+                      <div class="quick-emojis">
+                        ${this.emojiPresets.map(
+                          (emoji) => html`
+                            <button
+                              type="button"
+                              class="emoji-pill"
+                              @click="${() => (this.createIcon = emoji)}"
+                            >
+                              ${emoji}
+                            </button>
+                          `
+                        )}
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Badge Color</label>
+                      <input
+                        type="color"
+                        class="form-input"
+                        style="height: 42px; cursor: pointer;"
+                        .value="${this.createColor}"
+                        @input="${(e: any) => (this.createColor = e.target.value)}"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="modal-footer">
+                    <button
+                      type="button"
+                      class="btn-secondary"
+                      @click="${() => (this.isCreateModalOpen = false)}"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" class="btn-primary">
+                      Create Account
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          `
+        : nothing}
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'penga-accounts': PengaAccounts;
+  }
+}

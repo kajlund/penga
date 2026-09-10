@@ -1,24 +1,41 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { AccountType } from '@penga/shared';
 import './components/theme-toggle.js';
+import './components/penga-sidebar.js';
+import './components/penga-accounts.js';
+import type { NavView } from './components/penga-sidebar.js';
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
   static override styles = css`
     :host {
-      display: block;
+      display: flex;
       min-height: 100vh;
       background-color: var(--bg-base);
       color: var(--text-primary);
       transition: background-color var(--transition-normal), color var(--transition-normal);
+      font-family: var(--font-sans);
     }
 
-    .header {
+    .app-layout {
+      display: flex;
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    .main-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background-color: var(--bg-base);
+    }
+
+    .top-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.85rem 2rem;
+      padding: 0.85rem 2.5rem;
       background: var(--bg-glass);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
@@ -29,39 +46,17 @@ export class PengaApp extends LitElement {
       transition: background var(--transition-normal), border-color var(--transition-normal);
     }
 
-    .brand-section {
+    .header-breadcrumb {
       display: flex;
       align-items: center;
-      gap: 0.85rem;
-    }
-
-    .brand-logo {
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius-md);
-      background: linear-gradient(135deg, var(--color-primary) 0%, #047857 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 1.15rem;
-      color: #ffffff;
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
-    }
-
-    .brand-text h1 {
-      margin: 0;
-      font-size: 1.15rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      color: var(--text-primary);
-    }
-
-    .brand-text p {
-      margin: 0;
-      font-size: 0.72rem;
+      gap: 0.5rem;
+      font-size: 0.85rem;
       color: var(--text-muted);
-      font-weight: 500;
+    }
+
+    .header-breadcrumb strong {
+      color: var(--text-primary);
+      font-weight: 600;
     }
 
     .header-actions {
@@ -91,175 +86,113 @@ export class PengaApp extends LitElement {
       box-shadow: 0 0 6px var(--color-primary);
     }
 
-    .main-container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 2.5rem 1.5rem 4rem;
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
+    .content-area {
+      flex: 1;
+      min-width: 0;
     }
 
-    .hero-card {
+    .placeholder-view {
+      padding: 3rem 2.5rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .placeholder-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      padding: 2.25rem;
+      padding: 3rem;
+      text-align: center;
       box-shadow: var(--shadow-card);
-      transition: background-color var(--transition-normal), border-color var(--transition-normal);
     }
 
-    .hero-card h2 {
+    .placeholder-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .placeholder-card h3 {
       margin: 0 0 0.5rem 0;
-      font-size: 1.65rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      letter-spacing: -0.025em;
       color: var(--text-primary);
     }
 
-    .hero-card p {
-      margin: 0 0 1.75rem 0;
+    .placeholder-card p {
+      margin: 0 0 1.5rem 0;
       color: var(--text-secondary);
-      font-size: 0.95rem;
       line-height: 1.6;
-      max-width: 700px;
     }
 
-    .section-title {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      margin-bottom: 0.85rem;
-      font-weight: 600;
-    }
-
-    .categories-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
-    }
-
-    .category-card {
-      padding: 1.15rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      transition: transform var(--transition-fast), border-color var(--transition-fast);
-    }
-
-    .category-card:hover {
-      transform: translateY(-2px);
-    }
-
-    .category-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .category-tag {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 0.2rem 0.55rem;
-      border-radius: var(--radius-sm);
-    }
-
-    .category-tag.asset {
-      background: var(--color-asset-bg);
-      color: var(--color-asset);
-      border: 1px solid var(--color-asset-border);
-    }
-
-    .category-tag.liability {
-      background: var(--color-liability-bg);
-      color: var(--color-liability);
-      border: 1px solid var(--color-liability-border);
-    }
-
-    .category-tag.income {
-      background: var(--color-income-bg);
-      color: var(--color-income);
-      border: 1px solid var(--color-income-border);
-    }
-
-    .category-tag.expense {
-      background: var(--color-expense-bg);
-      color: var(--color-expense);
-      border: 1px solid var(--color-expense-border);
-    }
-
-    .amount-preview {
-      font-family: var(--font-mono);
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-top: 0.25rem;
-    }
-
-    .category-desc {
+    .phase-badge {
+      display: inline-block;
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-subtle);
+      border: 1px solid var(--color-primary-border);
+      color: var(--color-primary-text);
       font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin: 0;
+      font-weight: 600;
     }
   `;
 
   @state()
-  private previewAccounts = [
-    { type: AccountType.ASSET, name: 'Main Checking Account', balance: '$8,420.50', desc: 'Liquid assets & checking' },
-    { type: AccountType.LIABILITY, name: 'Credit Card (Travel Rewards)', balance: '-$412.30', desc: 'Short-term debt liabilities' },
-    { type: AccountType.INCOME, name: 'Salary & Consulting', balance: '+$5,800.00', desc: 'Inflow revenue ledger' },
-    { type: AccountType.EXPENSE, name: 'Vehicle > Fuel & Parking', balance: '-$145.20', desc: 'Nested expense category' },
-  ];
+  private currentView: NavView = 'accounts';
+
+  private handleNavigation = (e: CustomEvent<{ view: NavView }>) => {
+    this.currentView = e.detail.view;
+  };
 
   override render() {
     return html`
-      <header class="header">
-        <div class="brand-section">
-          <div class="brand-logo">P</div>
-          <div class="brand-text">
-            <h1>Penga</h1>
-            <p>Personal Finance Manager</p>
-          </div>
-        </div>
+      <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <penga-sidebar
+          .activeView="${this.currentView}"
+          @navigate="${this.handleNavigation}"
+        ></penga-sidebar>
 
-        <div class="header-actions">
-          <div class="status-badge">
-            <span class="status-dot"></span>
-            <span>Local Engine Active</span>
-          </div>
-          <theme-toggle></theme-toggle>
-        </div>
-      </header>
+        <!-- Main Viewport -->
+        <div class="main-viewport">
+          <header class="top-header">
+            <div class="header-breadcrumb">
+              <span>Penga</span>
+              <span>/</span>
+              <strong style="text-transform: capitalize;">${this.currentView}</strong>
+            </div>
 
-      <main class="main-container">
-        <section class="hero-card">
-          <h2>Financial Ledger & Category Hierarchy</h2>
-          <p>
-            Designed with a warm parchment aesthetic by day and charcoal dark mode by night.
-            Every movement balances using exact integer cents and hierarchical account trees.
-          </p>
+            <div class="header-actions">
+              <div class="status-badge">
+                <span class="status-dot"></span>
+                <span>Postgres Connected</span>
+              </div>
+              <theme-toggle></theme-toggle>
+            </div>
+          </header>
 
-          <div class="section-title">Core Account Types & Preview</div>
-          <div class="categories-grid">
-            ${this.previewAccounts.map(
-              (acc) => html`
-                <div class="category-card">
-                  <div class="category-header">
-                    <span class="category-tag ${acc.type.toLowerCase()}">${acc.type}</span>
+          <main class="content-area">
+            ${this.currentView === 'accounts'
+              ? html`<penga-accounts></penga-accounts>`
+              : html`
+                  <div class="placeholder-view">
+                    <div class="placeholder-card">
+                      <div class="placeholder-icon">
+                        ${this.currentView === 'transactions' ? '💸' :
+                          this.currentView === 'dashboard' ? '📊' :
+                          this.currentView === 'reconciliation' ? '📑' : '🎯'}
+                      </div>
+                      <h3 style="text-transform: capitalize;">${this.currentView} View</h3>
+                      <p>
+                        This module will be introduced in subsequent roadmap phases.
+                        Manage accounts and nested categories in the <strong>Accounts & Tree</strong> view.
+                      </p>
+                      <span class="phase-badge">Scheduled Next</span>
+                    </div>
                   </div>
-                  <div class="amount-preview">${acc.balance}</div>
-                  <p class="category-desc">${acc.name}</p>
-                </div>
-              `
-            )}
-          </div>
-        </section>
-      </main>
+                `}
+          </main>
+        </div>
+      </div>
     `;
   }
 }
