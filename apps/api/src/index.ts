@@ -1,8 +1,40 @@
-import { AccountType } from '@penga/shared';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+import { serve } from '@hono/node-server';
+import { Hono } from 'hono';
 
-export function startServer(): void {
-  console.log('Starting Penga API server...');
-  console.log('Supported account types:', Object.values(AccountType));
+// Load .env from repository root if it exists, and allow local apps/api/.env overrides
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRootDir = path.resolve(currentDir, '../../..');
+const rootEnvPath = path.join(repoRootDir, '.env');
+const localEnvPath = path.resolve(process.cwd(), '.env');
+
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+}
+if (fs.existsSync(localEnvPath) && localEnvPath !== rootEnvPath) {
+  dotenv.config({ path: localEnvPath, override: true });
 }
 
-startServer();
+export const app = new Hono();
+
+app.get('/health', (c) => {
+  return c.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+const port = Number(process.env.PORT) || 3000;
+
+if (process.env.NODE_ENV !== 'test') {
+  console.log(`Penga API server starting on port ${port}...`);
+  serve({
+    fetch: app.fetch,
+    port,
+  });
+}
+
+export default app;
