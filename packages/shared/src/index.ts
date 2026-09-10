@@ -45,6 +45,8 @@ export interface Transaction {
   payee: string | null;
   isCleared: boolean;
   note: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface Split {
@@ -52,4 +54,28 @@ export interface Split {
   transactionId: string;
   accountId: string;
   amountCents: number;
+  createdAt?: string | Date;
+}
+
+export interface SplitInput {
+  accountId: string;
+  amountCents: number;
+}
+
+export interface TransactionWithSplits extends Transaction {
+  splits: (Split & {
+    accountName?: string;
+    accountType?: AccountType;
+    accountIcon?: string | null;
+    accountColor?: string | null;
+  })[];
+}
+
+export interface CreateTransactionInput {
+  transactionDate: string;
+  sortOrder?: number;
+  payee?: string | null;
+  isCleared?: boolean;
+  note?: string | null;
+  splits: SplitInput[];
 }

@@ -20,6 +20,7 @@ if (fs.existsSync(localEnvPath) && localEnvPath !== rootEnvPath) {
 
 import { queryClient } from './db/index.js';
 import { accountsRoute } from './routes/accounts.js';
+import { transactionsRoute } from './routes/transactions.js';
 
 export const app = new Hono();
 
@@ -45,6 +46,10 @@ app.get('/api/health', healthHandler);
 // Mount accounts routes
 app.route('/api/accounts', accountsRoute);
 app.route('/accounts', accountsRoute);
+
+// Mount transactions routes
+app.route('/api/transactions', transactionsRoute);
+app.route('/transactions', transactionsRoute);
 
 const port = Number(process.env.PORT) || 3000;
 
