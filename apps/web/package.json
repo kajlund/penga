@@ -4,11 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "dev": "node --watch src/index.ts",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@penga/shared": "*"
+    "@penga/shared": "*",
+    "lit": "^3.3.3"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
   }
 }
