@@ -13,6 +13,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "dev": "tsc -w --preserveWatchOutput",
     "typecheck": "tsc --noEmit"
   }
 }

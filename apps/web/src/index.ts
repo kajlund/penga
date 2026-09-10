@@ -5,6 +5,4 @@ export function renderApp(): void {
   console.log('Account types available to UI:', Object.keys(AccountType));
 }
 
-if (typeof window !== 'undefined') {
-  renderApp();
-}
+renderApp();

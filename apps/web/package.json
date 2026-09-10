@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "dev": "node --watch src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
