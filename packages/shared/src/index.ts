@@ -14,6 +14,28 @@ export interface Account {
   parentId: string | null;
   icon: string | null;
   color: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+export interface AccountTreeNode extends Account {
+  children: AccountTreeNode[];
+}
+
+export interface CreateAccountInput {
+  name: string;
+  type: AccountType;
+  parentId?: string | null;
+  icon?: string | null;
+  color?: string | null;
+}
+
+export interface UpdateAccountInput {
+  name?: string;
+  type?: AccountType;
+  parentId?: string | null;
+  icon?: string | null;
+  color?: string | null;
 }
 
 export interface Transaction {

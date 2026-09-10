@@ -19,10 +19,11 @@ if (fs.existsSync(localEnvPath) && localEnvPath !== rootEnvPath) {
 }
 
 import { queryClient } from './db/index.js';
+import { accountsRoute } from './routes/accounts.js';
 
 export const app = new Hono();
 
-app.get('/health', async (c) => {
+const healthHandler = async (c: any) => {
   let dbStatus = 'disconnected';
   try {
     await queryClient`SELECT 1`;
@@ -36,7 +37,14 @@ app.get('/health', async (c) => {
     database: dbStatus,
     timestamp: new Date().toISOString(),
   });
-});
+};
+
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
+
+// Mount accounts routes
+app.route('/api/accounts', accountsRoute);
+app.route('/accounts', accountsRoute);
 
 const port = Number(process.env.PORT) || 3000;
 
