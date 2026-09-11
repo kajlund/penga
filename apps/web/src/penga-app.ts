@@ -2,12 +2,14 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './components/theme-toggle.js';
 import './components/penga-sidebar.js';
+import './components/penga-dashboard.js';
 import './components/penga-accounts.js';
 import './components/penga-transactions.js';
 import './components/transaction-form.js';
 import type { NavView } from './components/penga-sidebar.js';
 import type { PengaTransactions } from './components/penga-transactions.js';
 import type { PengaAccounts } from './components/penga-accounts.js';
+import type { PengaDashboard } from './components/penga-dashboard.js';
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
@@ -164,7 +166,7 @@ export class PengaApp extends LitElement {
   `;
 
   @state()
-  private currentView: NavView = 'accounts';
+  private currentView: NavView = 'dashboard';
 
   @state()
   private isTransactionModalOpen = false;
@@ -175,6 +177,12 @@ export class PengaApp extends LitElement {
 
   private handleTransactionCreated = () => {
     this.isTransactionModalOpen = false;
+
+    // Refresh dashboard view if mounted
+    const dashView = this.shadowRoot?.querySelector('penga-dashboard') as PengaDashboard | null;
+    if (dashView) {
+      dashView.fetchSummary();
+    }
 
     // Refresh transactions view if mounted
     const txView = this.shadowRoot?.querySelector('penga-transactions') as PengaTransactions | null;
@@ -228,7 +236,14 @@ export class PengaApp extends LitElement {
           </header>
 
           <main class="content-area">
-            ${this.currentView === 'accounts'
+            ${this.currentView === 'dashboard'
+              ? html`
+                  <penga-dashboard
+                    @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
+                    @navigate="${this.handleNavigation}"
+                  ></penga-dashboard>
+                `
+              : this.currentView === 'accounts'
               ? html`<penga-accounts></penga-accounts>`
               : this.currentView === 'transactions'
               ? html`
@@ -240,8 +255,7 @@ export class PengaApp extends LitElement {
                   <div class="placeholder-view">
                     <div class="placeholder-card">
                       <div class="placeholder-icon">
-                        ${this.currentView === 'dashboard' ? '📊' :
-                          this.currentView === 'reconciliation' ? '📑' : '🎯'}
+                        ${this.currentView === 'reconciliation' ? '📑' : '🎯'}
                       </div>
                       <h3 style="text-transform: capitalize;">${this.currentView} View</h3>
                       <p>

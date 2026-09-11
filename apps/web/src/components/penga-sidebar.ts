@@ -167,9 +167,9 @@ export class PengaSidebar extends LitElement {
   activeView: NavView = 'accounts';
 
   private navItems: NavItem[] = [
-    { id: 'accounts', label: 'Accounts & Tree', icon: '🌳', badge: 'Active' },
-    { id: 'transactions', label: 'Transactions', icon: '💸', phase: 'Step 8' },
-    { id: 'dashboard', label: 'Dashboard', icon: '📊', phase: 'Step 10' },
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'accounts', label: 'Accounts & Tree', icon: '🌳' },
+    { id: 'transactions', label: 'Transactions', icon: '💸' },
     { id: 'reconciliation', label: 'Reconciliation', icon: '📑', phase: 'Step 11' },
     { id: 'budgets', label: 'Budgets & Rules', icon: '🎯', phase: 'Step 12' },
   ];

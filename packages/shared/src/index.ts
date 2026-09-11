@@ -79,3 +79,27 @@ export interface CreateTransactionInput {
   note?: string | null;
   splits: SplitInput[];
 }
+
+export interface AccountBalanceSummary {
+  id: string;
+  name: string;
+  type: AccountType;
+  parentId: string | null;
+  icon: string | null;
+  color: string | null;
+  balanceCents: number;
+  clearedBalanceCents: number;
+  splitCount: number;
+  rollupBalanceCents: number;
+}
+
+export interface DashboardSummary {
+  totalAssetsCents: number;
+  totalLiabilitiesCents: number;
+  netAvailableCents: number;
+  totalIncomeCents: number;
+  totalExpensesCents: number;
+  accountBalances: AccountBalanceSummary[];
+  recentTransactions: TransactionWithSplits[];
+}
+
