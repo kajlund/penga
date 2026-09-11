@@ -3,7 +3,11 @@ import { customElement, state } from 'lit/decorators.js';
 import './components/theme-toggle.js';
 import './components/penga-sidebar.js';
 import './components/penga-accounts.js';
+import './components/penga-transactions.js';
+import './components/transaction-form.js';
 import type { NavView } from './components/penga-sidebar.js';
+import type { PengaTransactions } from './components/penga-transactions.js';
+import type { PengaAccounts } from './components/penga-accounts.js';
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
@@ -63,6 +67,29 @@ export class PengaApp extends LitElement {
       display: flex;
       align-items: center;
       gap: 0.75rem;
+    }
+
+    .btn-quick-tx {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-full);
+      background: var(--color-primary);
+      color: #ffffff;
+      border: 1px solid transparent;
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+      transition: all var(--transition-fast);
+    }
+
+    .btn-quick-tx:hover {
+      background: var(--color-primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(5, 150, 105, 0.3);
     }
 
     .status-badge {
@@ -139,8 +166,27 @@ export class PengaApp extends LitElement {
   @state()
   private currentView: NavView = 'accounts';
 
+  @state()
+  private isTransactionModalOpen = false;
+
   private handleNavigation = (e: CustomEvent<{ view: NavView }>) => {
     this.currentView = e.detail.view;
+  };
+
+  private handleTransactionCreated = () => {
+    this.isTransactionModalOpen = false;
+
+    // Refresh transactions view if mounted
+    const txView = this.shadowRoot?.querySelector('penga-transactions') as PengaTransactions | null;
+    if (txView) {
+      txView.fetchTransactions();
+    }
+
+    // Refresh accounts view if mounted
+    const accView = this.shadowRoot?.querySelector('penga-accounts') as PengaAccounts | null;
+    if (accView) {
+      accView.fetchAccounts();
+    }
   };
 
   override render() {
@@ -162,10 +208,21 @@ export class PengaApp extends LitElement {
             </div>
 
             <div class="header-actions">
+              <button
+                type="button"
+                class="btn-quick-tx"
+                @click="${() => (this.isTransactionModalOpen = true)}"
+                title="Record new split transaction"
+              >
+                <span>+</span>
+                <span>New Transaction</span>
+              </button>
+
               <div class="status-badge">
                 <span class="status-dot"></span>
                 <span>Postgres Connected</span>
               </div>
+
               <theme-toggle></theme-toggle>
             </div>
           </header>
@@ -173,18 +230,23 @@ export class PengaApp extends LitElement {
           <main class="content-area">
             ${this.currentView === 'accounts'
               ? html`<penga-accounts></penga-accounts>`
+              : this.currentView === 'transactions'
+              ? html`
+                  <penga-transactions
+                    @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
+                  ></penga-transactions>
+                `
               : html`
                   <div class="placeholder-view">
                     <div class="placeholder-card">
                       <div class="placeholder-icon">
-                        ${this.currentView === 'transactions' ? '💸' :
-                          this.currentView === 'dashboard' ? '📊' :
+                        ${this.currentView === 'dashboard' ? '📊' :
                           this.currentView === 'reconciliation' ? '📑' : '🎯'}
                       </div>
                       <h3 style="text-transform: capitalize;">${this.currentView} View</h3>
                       <p>
                         This module will be introduced in subsequent roadmap phases.
-                        Manage accounts and nested categories in the <strong>Accounts & Tree</strong> view.
+                        Manage transactions in the <strong>Transactions</strong> view or account hierarchies in <strong>Accounts & Tree</strong>.
                       </p>
                       <span class="phase-badge">Scheduled Next</span>
                     </div>
@@ -193,6 +255,13 @@ export class PengaApp extends LitElement {
           </main>
         </div>
       </div>
+
+      <!-- Transaction Split Entry Modal -->
+      <transaction-form
+        .isOpen="${this.isTransactionModalOpen}"
+        @close="${() => (this.isTransactionModalOpen = false)}"
+        @transaction-created="${this.handleTransactionCreated}"
+      ></transaction-form>
     `;
   }
 }
