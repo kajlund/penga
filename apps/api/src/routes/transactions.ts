@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, desc, asc, inArray, and } from 'drizzle-orm';
 import { db, transactions, splits, accounts } from '../db/index.js';
-import type { CreateTransactionInput, SplitInput } from '@penga/shared';
+import type { CreateTransactionInput, SplitInput, UpdateTransactionInput, ReorderTransactionsInput } from '@penga/shared';
 
 export const transactionsRoute = new Hono();
 
@@ -242,6 +242,128 @@ transactionsRoute.get('/:id', async (c) => {
   return c.json({
     data: {
       ...tx,
+      splits: splitRows,
+    },
+  });
+});
+
+/**
+ * PATCH /api/transactions/reorder
+ * Batch updates the sortOrder for multiple transactions.
+ */
+transactionsRoute.patch('/reorder', async (c) => {
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON request body' }, 400);
+  }
+
+  const { items } = body as ReorderTransactionsInput;
+  if (!Array.isArray(items) || items.length === 0) {
+    return c.json({ error: 'Field "items" must be a non-empty array of { id, sortOrder }' }, 400);
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item.id || typeof item.id !== 'string') {
+      return c.json({ error: `Item at index ${i} missing valid "id"` }, 400);
+    }
+    if (!Number.isInteger(item.sortOrder)) {
+      return c.json({ error: `Item at index ${i} "sortOrder" must be an integer` }, 400);
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    for (const item of items) {
+      await tx
+        .update(transactions)
+        .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
+        .where(eq(transactions.id, item.id));
+    }
+  });
+
+  return c.json({ success: true, updatedCount: items.length });
+});
+
+/**
+ * PATCH /api/transactions/:id
+ * Partially updates a transaction (isCleared toggle, sortOrder, payee, note, transactionDate).
+ */
+transactionsRoute.patch('/:id', async (c) => {
+  const id = c.req.param('id');
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON request body' }, 400);
+  }
+
+  const [existing] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+  if (!existing) {
+    return c.json({ error: 'Transaction not found' }, 404);
+  }
+
+  const updateData: Partial<typeof transactions.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+
+  if (body.isCleared !== undefined) {
+    updateData.isCleared = Boolean(body.isCleared);
+  }
+
+  if (body.sortOrder !== undefined) {
+    if (!Number.isInteger(body.sortOrder)) {
+      return c.json({ error: 'Field "sortOrder" must be an integer' }, 400);
+    }
+    updateData.sortOrder = body.sortOrder;
+  }
+
+  if (body.payee !== undefined) {
+    updateData.payee = typeof body.payee === 'string' && body.payee.trim() ? body.payee.trim() : null;
+  }
+
+  if (body.note !== undefined) {
+    updateData.note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
+  }
+
+  if (body.transactionDate !== undefined) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (
+      typeof body.transactionDate !== 'string' ||
+      !dateRegex.test(body.transactionDate) ||
+      isNaN(Date.parse(body.transactionDate))
+    ) {
+      return c.json({ error: 'Field "transactionDate" must be a valid date in YYYY-MM-DD format' }, 400);
+    }
+    updateData.transactionDate = body.transactionDate;
+  }
+
+  const [updated] = await db
+    .update(transactions)
+    .set(updateData)
+    .where(eq(transactions.id, id))
+    .returning();
+
+  const splitRows = await db
+    .select({
+      id: splits.id,
+      transactionId: splits.transactionId,
+      accountId: splits.accountId,
+      amountCents: splits.amountCents,
+      createdAt: splits.createdAt,
+      accountName: accounts.name,
+      accountType: accounts.type,
+      accountIcon: accounts.icon,
+      accountColor: accounts.color,
+    })
+    .from(splits)
+    .innerJoin(accounts, eq(splits.accountId, accounts.id))
+    .where(eq(splits.transactionId, id));
+
+  return c.json({
+    data: {
+      ...updated,
       splits: splitRows,
     },
   });

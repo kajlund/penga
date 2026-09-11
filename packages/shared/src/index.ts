@@ -103,3 +103,16 @@ export interface DashboardSummary {
   recentTransactions: TransactionWithSplits[];
 }
 
+export interface UpdateTransactionInput {
+  isCleared?: boolean;
+  sortOrder?: number;
+  payee?: string | null;
+  note?: string | null;
+  transactionDate?: string;
+}
+
+export interface ReorderTransactionsInput {
+  items: { id: string; sortOrder: number }[];
+}
+
+

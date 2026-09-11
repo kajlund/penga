@@ -251,16 +251,21 @@ export class PengaApp extends LitElement {
                     @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
                   ></penga-transactions>
                 `
+              : this.currentView === 'reconciliation'
+              ? html`
+                  <penga-transactions
+                    .reconciliationMode="${true}"
+                    @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
+                  ></penga-transactions>
+                `
               : html`
                   <div class="placeholder-view">
                     <div class="placeholder-card">
-                      <div class="placeholder-icon">
-                        ${this.currentView === 'reconciliation' ? '📑' : '🎯'}
-                      </div>
-                      <h3 style="text-transform: capitalize;">${this.currentView} View</h3>
+                      <div class="placeholder-icon">🎯</div>
+                      <h3 style="text-transform: capitalize;">Budgets & Rules View</h3>
                       <p>
                         This module will be introduced in subsequent roadmap phases.
-                        Manage transactions in the <strong>Transactions</strong> view or account hierarchies in <strong>Accounts & Tree</strong>.
+                        Manage transactions in the <strong>Transactions</strong> view or reconcile in <strong>Reconciliation</strong>.
                       </p>
                       <span class="phase-badge">Scheduled Next</span>
                     </div>
