@@ -115,4 +115,51 @@ export interface ReorderTransactionsInput {
   items: { id: string; sortOrder: number }[];
 }
 
+export interface Budget {
+  id: string;
+  accountId: string;
+  targetAmountCents: number;
+  periodYear?: number | null;
+  periodMonth?: number | null;
+  notes?: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+export interface BudgetProgressItem {
+  budgetId?: string | null;
+  accountId: string;
+  accountName: string;
+  accountIcon?: string | null;
+  accountColor?: string | null;
+  targetAmountCents: number;
+  actualSpentCents: number;
+  remainingCents: number;
+  progressPercent: number;
+  projectedMonthEndCents: number;
+  rolling3MonthAvgCents: number;
+  rolling12MonthAvgCents: number;
+  suggestedTargetCents: number;
+  notes?: string | null;
+}
+
+export interface MonthlyBudgetReport {
+  year: number;
+  month: number;
+  totalBudgetedCents: number;
+  totalSpentCents: number;
+  totalRemainingCents: number;
+  overallProgressPercent: number;
+  items: BudgetProgressItem[];
+}
+
+export interface SetBudgetInput {
+  accountId: string;
+  targetAmountCents: number;
+  periodYear?: number | null;
+  periodMonth?: number | null;
+  notes?: string | null;
+}
+
+
 

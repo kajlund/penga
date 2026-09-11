@@ -22,6 +22,7 @@ import { queryClient } from './db/index.js';
 import { accountsRoute } from './routes/accounts.js';
 import { transactionsRoute } from './routes/transactions.js';
 import { reportsRoute } from './routes/reports.js';
+import { budgetsRoute } from './routes/budgets.js';
 
 export const app = new Hono();
 
@@ -57,6 +58,11 @@ app.route('/api/reports', reportsRoute);
 app.route('/api/dashboard', reportsRoute);
 app.route('/reports', reportsRoute);
 app.route('/dashboard', reportsRoute);
+
+// Mount budgets routes
+app.route('/api/budgets', budgetsRoute);
+app.route('/budgets', budgetsRoute);
+
 
 const port = Number(process.env.PORT) || 3000;
 

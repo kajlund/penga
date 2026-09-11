@@ -54,6 +54,19 @@ export const splits = pgTable('splits', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const budgets = pgTable('budgets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  accountId: uuid('account_id')
+    .references(() => accounts.id, { onDelete: 'cascade' })
+    .notNull(),
+  targetAmountCents: integer('target_amount_cents').notNull(),
+  periodYear: integer('period_year'),
+  periodMonth: integer('period_month'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // Drizzle Relations
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
   parent: one(accounts, {
@@ -65,6 +78,7 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
     relationName: 'account_hierarchy',
   }),
   splits: many(splits),
+  budgets: many(budgets),
 }));
 
 export const transactionsRelations = relations(transactions, ({ many }) => ({
@@ -82,6 +96,13 @@ export const splitsRelations = relations(splits, ({ one }) => ({
   }),
 }));
 
+export const budgetsRelations = relations(budgets, ({ one }) => ({
+  account: one(accounts, {
+    fields: [budgets.accountId],
+    references: [accounts.id],
+  }),
+}));
+
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 
@@ -90,3 +111,7 @@ export type NewTransaction = typeof transactions.$inferInsert;
 
 export type Split = typeof splits.$inferSelect;
 export type NewSplit = typeof splits.$inferInsert;
+
+export type Budget = typeof budgets.$inferSelect;
+export type NewBudget = typeof budgets.$inferInsert;
+

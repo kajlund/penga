@@ -3,6 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import './components/theme-toggle.js';
 import './components/penga-sidebar.js';
 import './components/penga-dashboard.js';
+import './components/penga-budgets.js';
 import './components/penga-accounts.js';
 import './components/penga-transactions.js';
 import './components/transaction-form.js';
@@ -10,6 +11,7 @@ import type { NavView } from './components/penga-sidebar.js';
 import type { PengaTransactions } from './components/penga-transactions.js';
 import type { PengaAccounts } from './components/penga-accounts.js';
 import type { PengaDashboard } from './components/penga-dashboard.js';
+import type { PengaBudgets } from './components/penga-budgets.js';
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
@@ -195,6 +197,12 @@ export class PengaApp extends LitElement {
     if (accView) {
       accView.fetchAccounts();
     }
+
+    // Refresh budgets view if mounted
+    const budgetView = this.shadowRoot?.querySelector('penga-budgets') as PengaBudgets | null;
+    if (budgetView) {
+      budgetView.fetchBudgetReport();
+    }
   };
 
   override render() {
@@ -258,14 +266,15 @@ export class PengaApp extends LitElement {
                     @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
                   ></penga-transactions>
                 `
+              : this.currentView === 'budgets'
+              ? html`<penga-budgets></penga-budgets>`
               : html`
                   <div class="placeholder-view">
                     <div class="placeholder-card">
                       <div class="placeholder-icon">🎯</div>
-                      <h3 style="text-transform: capitalize;">Budgets & Rules View</h3>
+                      <h3 style="text-transform: capitalize;">${this.currentView} View</h3>
                       <p>
                         This module will be introduced in subsequent roadmap phases.
-                        Manage transactions in the <strong>Transactions</strong> view or reconcile in <strong>Reconciliation</strong>.
                       </p>
                       <span class="phase-badge">Scheduled Next</span>
                     </div>

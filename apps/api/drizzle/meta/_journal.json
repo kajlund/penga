@@ -15,6 +15,13 @@
       "when": 1789061173602,
       "tag": "0001_medical_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789126648331,
+      "tag": "0002_striped_chat",
+      "breakpoints": true
     }
   ]
 }
