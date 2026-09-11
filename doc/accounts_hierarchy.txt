@@ -1,0 +1,56 @@
+📁 ASSETS (Type: ASSET)
+ ├── 💳 OP Debit (Checking) [Icon: 🏦]
+ ├── 💰 OP Debit Siblings (Savings) [Icon: 💰]
+ ├── 💳 S-Bank Debit [Icon: 🏦]
+ └── 💵 Wallet (Cash) [Icon: 💵]
+
+📁 LIABILITIES (Type: LIABILITY)
+ ├── 💳 OP Visa Penga [Icon: 💳]
+ ├── 💳 S-Visa [Icon: 💳]
+ ├── 💳 Mastercard [Icon: 💳]
+ └── 🚗 Toyota Finance (Car Mortgage Principal) [Icon: 🚗]
+
+📁 INCOME (Type: INCOME)
+ ├── 💼 Salary [Icon: 💼]
+ ├── 💳 S-Bonus Card / Cashback [Icon: 🎁]
+ ├── 📈 Dividends & Investments [Icon: 📈]
+ └── 💸 Tax Returns (Income Tax Refund) [Icon: 📋]
+
+📁 EXPENSES (Type: EXPENSE)
+ ├── 🏠 Housing & Living [Icon: 🏠]
+ │    ├── 📄 Rent
+ │    ├── 💡 Utilities (Electricity, heating, water home insurance) [Icon: 💡]
+ │    ├── 🧽 Household Items & Hygiene (Detergents, paper goods...) [Icon: 🧽]
+ │    └── 🛋️ Inventory & Furnishings (Furniture, appliances, gear) [Icon: 🛋️]
+ ├── 🍏 Food & Groceries [Icon: 🍏]
+ │    ├── 🛒 Basic Groceries (Essentials)
+ │    └── 🍫 Treats & Snacks (Candy, sodas, chips) -> [Tagged: #Unnecessary]
+ ├── 🍽️ Dining Out & Cafes [Icon: 🍽️]
+ ├── 🚗 Vehicle & Transport [Icon: 🚗]
+ │    ├── ⛽ Fuel
+ │    ├── 🛠️ Service & Repairs
+ │    ├── 🅿️ Parking, Tolls & Tickets (Includes wrong parking fees) [Icon: 🅿️]
+ │    ├── 🛴 Alternative Transit (Electric scooters, taxis) [Icon: 🛴]
+ │    └── 📋 Car Insurance [Icon: 📋]
+ ├── 🏃 Lifestyle, Hobbies & Fitness [Icon: 🏃]
+ │    ├── 🏋️ Gym Memberships & Classes
+ │    ├── 👟 Workout Gear (Running shoes, jackets, shorts)
+ │    └── 🎨 Hobbies & General Recreation
+ ├── 👕 Clothing & Personal Care [Icon: 👕]
+ │    ├── 👔 Everyday Clothes & Accessories
+ │    └── 🧴 Personal Hygiene Products (Haircuts/care, Skincare, cosmetics)
+ ├── 💊 Healthcare & Wellness [Icon: 💊]
+ │    ├── 💊 Prescription Drugs
+ │    └── 🌿 Supplements & Health Products
+ ├── 🎁 Gifts & Donations [Icon: 🎁]
+ │    └── 👤 Personal Gifts
+ ├── 🎟️ Entertainment & Media [Icon: 🎟️]
+ │    ├── 🎬 Streaming Services (Movies, TV)
+ │    └── 📚 Audiobooks & E-books
+ ├── 🎓 Education & Professional Development [Icon: 🎓]
+ │    └── 📖 Books, Courses & Materials -> [Tagged: #TaxDeductible]
+ ├── 🏦 Financial Fees & Interest [Icon: 🏦]
+ │    ├── 💳 Credit Card Interest & Overdraft Fees
+ │    └── 📄 Misc Banking Fees & Account Costs
+ └── 🏛️ Taxes & Government [Icon: 🏛️]
+      └── 📋 Property Tax
