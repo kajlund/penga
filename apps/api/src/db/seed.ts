@@ -1,4 +1,4 @@
-import { db, queryClient, accounts } from './index.js';
+import { db, queryClient, accounts, transactions, splits, budgets } from './index.js';
 import { eq, and } from 'drizzle-orm';
 import type { AccountType } from '@penga/shared';
 
@@ -264,8 +264,22 @@ async function upsertAccount(
   return inserted.id;
 }
 
+async function clearData() {
+  console.log('Clearing existing data...');
+  // Delete dependent tables first to respect foreign key constraints
+  await db.delete(splits);
+  await db.delete(transactions);
+  await db.delete(budgets);
+  // Clear any self-referencing accounts parentId before deleting accounts
+  await db.update(accounts).set({ parentId: null });
+  await db.delete(accounts);
+  console.log('✓ Existing data cleared successfully.\n');
+}
+
 async function seed() {
   console.log('=== Seeding Real-World Penga Account Tree ===\n');
+
+  await clearData();
 
   let totalAccounts = 0;
 
