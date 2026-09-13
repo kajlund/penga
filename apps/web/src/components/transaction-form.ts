@@ -1,5 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
+import { live } from 'lit/directives/live.js';
 import type { Account, CreateTransactionInput } from '@penga/shared';
 
 interface SplitRowState {
@@ -40,7 +42,7 @@ export class TransactionForm extends LitElement {
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg);
       width: 100%;
-      max-width: 780px;
+      max-width: 860px;
       max-height: 90vh;
       display: flex;
       flex-direction: column;
@@ -107,6 +109,7 @@ export class TransactionForm extends LitElement {
     .modal-body {
       padding: 1.5rem 1.75rem;
       overflow-y: auto;
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
       gap: 1.4rem;
@@ -122,6 +125,7 @@ export class TransactionForm extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 0.35rem;
+      min-width: 0;
     }
 
     .form-label {
@@ -140,7 +144,30 @@ export class TransactionForm extends LitElement {
       font-family: var(--font-sans);
       font-size: 0.9rem;
       outline: none;
+      box-sizing: border-box;
       transition: all var(--transition-fast);
+    }
+
+    .form-select {
+      min-width: 0;
+      width: 100%;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .form-select optgroup {
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+    }
+
+    .form-select option {
+      font-weight: 500;
+      color: var(--text-primary);
+      background: var(--bg-surface);
+      padding: 0.35rem 0.5rem;
     }
 
     .form-input:focus,
@@ -169,6 +196,8 @@ export class TransactionForm extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 1rem;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .splits-header {
@@ -270,28 +299,51 @@ export class TransactionForm extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 0.65rem;
+      min-width: 0;
+    }
+
+    .split-rows-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 0.85rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
     }
 
     .split-row {
       display: grid;
-      grid-template-columns: 1fr 140px auto auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.75rem;
       background: var(--bg-surface);
       padding: 0.65rem 0.85rem;
       border-radius: var(--radius-md);
       border: 1px solid var(--border-subtle);
       transition: border-color var(--transition-fast);
+      min-width: 0;
     }
 
     .split-row:hover {
       border-color: var(--border-strong);
     }
 
+    .split-row-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
     .amount-input-wrap {
       position: relative;
       display: flex;
       align-items: center;
+      width: 140px;
+      flex-shrink: 0;
     }
 
     .currency-symbol {
@@ -313,16 +365,18 @@ export class TransactionForm extends LitElement {
       font-size: 0.9rem;
       font-weight: 600;
       width: 100%;
+      box-sizing: border-box;
       outline: none;
       text-align: right;
     }
 
     .amount-input:focus {
       border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-primary-subtle);
     }
 
     .btn-auto-balance {
-      padding: 0.45rem 0.65rem;
+      padding: 0.52rem 0.75rem;
       border-radius: var(--radius-sm);
       background: var(--bg-subtle);
       border: 1px solid var(--border-subtle);
@@ -332,6 +386,7 @@ export class TransactionForm extends LitElement {
       font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
+      flex-shrink: 0;
       transition: all var(--transition-fast);
     }
 
@@ -346,12 +401,14 @@ export class TransactionForm extends LitElement {
       border: none;
       color: var(--text-muted);
       cursor: pointer;
-      padding: 0.35rem;
+      width: 32px;
+      height: 32px;
       border-radius: var(--radius-sm);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1rem;
+      flex-shrink: 0;
       transition: all var(--transition-fast);
     }
 
@@ -386,6 +443,59 @@ export class TransactionForm extends LitElement {
       background: var(--bg-muted);
       color: var(--text-primary);
       border-color: var(--color-primary);
+    }
+
+    @media (max-width: 680px) {
+      .modal-backdrop {
+        padding: 0.75rem;
+      }
+      .modal-card {
+        max-height: 94vh;
+      }
+      .modal-header {
+        padding: 1rem 1.25rem;
+      }
+      .modal-body {
+        padding: 1.25rem;
+        gap: 1rem;
+      }
+      .grid-2 {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+      .split-rows-header {
+        display: none;
+      }
+      .split-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+      .split-row-controls {
+        width: 100%;
+      }
+      .amount-input-wrap {
+        flex: 1;
+        width: auto;
+      }
+      .modal-footer {
+        padding: 1rem 1.25rem;
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+        align-items: stretch;
+      }
+      .keyboard-hint {
+        justify-content: center;
+      }
+      .footer-actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+      .btn-cancel,
+      .btn-submit {
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+      }
     }
 
     /* Modal Footer */
@@ -551,7 +661,14 @@ export class TransactionForm extends LitElement {
     }
   }
 
-  public open(preselectedAccountId?: string) {
+  override updated(changedProps: Map<string, any>) {
+    if (changedProps.has('isOpen') && this.isOpen && !changedProps.get('isOpen')) {
+      this.fetchAccounts();
+      this.resetForm();
+    }
+  }
+
+  private resetForm(preselectedAccountId?: string) {
     this.transactionDate = new Date().toISOString().slice(0, 10);
     this.payee = '';
     this.note = '';
@@ -562,10 +679,14 @@ export class TransactionForm extends LitElement {
     const destAccId = this.availableAccounts.find((a) => a.id !== sourceAccId)?.id || '';
 
     this.splitRows = [
-      { id: 'row-1', accountId: sourceAccId, amount: '' },
-      { id: 'row-2', accountId: destAccId, amount: '' },
+      { id: `row-1-${Date.now()}`, accountId: sourceAccId, amount: '' },
+      { id: `row-2-${Date.now()}`, accountId: destAccId, amount: '' },
     ];
+  }
 
+  public open(preselectedAccountId?: string) {
+    this.fetchAccounts();
+    this.resetForm(preselectedAccountId);
     this.isOpen = true;
     this.requestUpdate();
   }
@@ -575,18 +696,36 @@ export class TransactionForm extends LitElement {
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
   }
 
-  // Parses user input string (e.g. "-45.50", "45.5", "100") into integer cents
-  private parseCents(val: string): number {
-    if (!val || val.trim() === '' || val === '-' || val === '+') return 0;
-    const clean = val.replace(/,/g, '').trim();
+  // Parses user input string (e.g. "-45.50", "45,50", "100") into integer cents
+  private parseCents(val: string | number): number {
+    if (typeof val === 'number') return Math.round(val * 100);
+    if (!val) return 0;
+    let clean = String(val).trim();
+    if (clean === '' || clean === '-' || clean === '+') return 0;
+
+    // Handle European comma formatting (e.g. "50,50" -> "50.50", "1.250,50" -> "1250.50")
+    if (clean.includes(',') && clean.includes('.')) {
+      if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) {
+        // "1.250,50": dot is thousands separator, comma is decimal
+        clean = clean.replace(/\./g, '').replace(',', '.');
+      } else {
+        // "1,250.50": comma is thousands separator, dot is decimal
+        clean = clean.replace(/,/g, '');
+      }
+    } else if (clean.includes(',')) {
+      // Only commas present: "50,00" -> "50.00"
+      clean = clean.replace(',', '.');
+    }
+
     const num = parseFloat(clean);
     if (isNaN(num)) return 0;
     return Math.round(num * 100);
   }
 
   private formatCentsToDecimal(cents: number): string {
-    const isNegative = cents < 0;
-    const abs = Math.abs(cents);
+    const rounded = Math.round(cents);
+    const isNegative = rounded < 0;
+    const abs = Math.abs(rounded);
     const dollars = Math.floor(abs / 100);
     const remainder = abs % 100;
     const decStr = `${dollars}.${remainder.toString().padStart(2, '0')}`;
@@ -597,64 +736,90 @@ export class TransactionForm extends LitElement {
     return this.splitRows.reduce((sum, r) => sum + this.parseCents(r.amount), 0);
   }
 
+  private getValidationState(): { isValid: boolean; message: string } {
+    if (!this.payee.trim()) {
+      return { isValid: false, message: 'Please enter a Payee / Entity name' };
+    }
+    if (!this.transactionDate) {
+      return { isValid: false, message: 'Please select a Transaction Date' };
+    }
+    if (this.splitRows.length < 2) {
+      return { isValid: false, message: 'At least 2 split lines are required' };
+    }
+
+    const unselectedAccount = this.splitRows.some((r) => !r.accountId);
+    if (unselectedAccount) {
+      return { isValid: false, message: 'Please select an account for all split lines' };
+    }
+
+    const emptyOrZero = this.splitRows.some(
+      (r) => !r.amount || this.parseCents(r.amount) === 0
+    );
+    if (emptyOrZero) {
+      return { isValid: false, message: 'Every split row must have a non-zero amount ($0.00 is not allowed)' };
+    }
+
+    const netImbalance = this.getNetImbalanceCents();
+    if (netImbalance !== 0) {
+      const isNeg = netImbalance < 0;
+      const formatted = (Math.abs(netImbalance) / 100).toFixed(2);
+      return {
+        isValid: false,
+        message: `Transaction is unbalanced. Remaining to balance: ${isNeg ? '+' : '-'}$${formatted}`,
+      };
+    }
+
+    return { isValid: true, message: 'Transaction Perfectly Balanced' };
+  }
+
   private canSubmit(): boolean {
     if (this.isSubmitting) return false;
-    if (!this.payee.trim()) return false;
-    if (!this.transactionDate) return false;
-    if (this.splitRows.length < 2) return false;
-
-    // Must be balanced to exactly 0
-    if (this.getNetImbalanceCents() !== 0) return false;
-
-    // All rows must have valid account and non-zero amount
-    return this.splitRows.every(
-      (r) => Boolean(r.accountId) && this.parseCents(r.amount) !== 0
-    );
+    return this.getValidationState().isValid;
   }
 
   private addSplitRow() {
-    const newId = `row-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const newId = `row-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     this.splitRows = [
       ...this.splitRows,
       { id: newId, accountId: this.availableAccounts[0]?.id || '', amount: '' },
     ];
   }
 
-  private removeSplitRow(index: number) {
+  private removeSplitRow(rowId: string) {
     if (this.splitRows.length <= 2) return;
-    this.splitRows = this.splitRows.filter((_, i) => i !== index);
+    this.splitRows = this.splitRows.filter((r) => r.id !== rowId);
   }
 
-  private autoBalanceRow(targetIndex: number) {
+  private autoBalanceRow(targetId: string) {
     let otherSumCents = 0;
-    for (let i = 0; i < this.splitRows.length; i++) {
-      if (i !== targetIndex) {
-        otherSumCents += this.parseCents(this.splitRows[i].amount);
+    for (const row of this.splitRows) {
+      if (row.id !== targetId) {
+        otherSumCents += this.parseCents(row.amount);
       }
     }
 
     // Needed to balance = - otherSumCents
     const requiredCents = -otherSumCents;
-    this.splitRows = this.splitRows.map((row, i) => {
-      if (i === targetIndex) {
+    this.splitRows = this.splitRows.map((row) => {
+      if (row.id === targetId) {
         return { ...row, amount: this.formatCentsToDecimal(requiredCents) };
       }
       return row;
     });
   }
 
-  private handleAmountInput(index: number, value: string) {
-    this.splitRows = this.splitRows.map((row, i) => {
-      if (i === index) {
+  private handleAmountInput(rowId: string, value: string) {
+    this.splitRows = this.splitRows.map((row) => {
+      if (row.id === rowId) {
         return { ...row, amount: value };
       }
       return row;
     });
   }
 
-  private handleAccountSelect(index: number, accountId: string) {
-    this.splitRows = this.splitRows.map((row, i) => {
-      if (i === index) {
+  private handleAccountSelect(rowId: string, accountId: string) {
+    this.splitRows = this.splitRows.map((row) => {
+      if (row.id === rowId) {
         return { ...row, accountId };
       }
       return row;
@@ -738,11 +903,55 @@ export class TransactionForm extends LitElement {
     `;
   }
 
+  private renderAccountOptions(selectedId: string) {
+    const groups: { label: string; type: string; icon: string }[] = [
+      { label: 'Assets', type: 'ASSET', icon: '🏦' },
+      { label: 'Liabilities (Debt & Cards)', type: 'LIABILITY', icon: '💳' },
+      { label: 'Income', type: 'INCOME', icon: '💼' },
+      { label: 'Expenses', type: 'EXPENSE', icon: '🏷️' },
+    ];
+
+    const renderedTypeSet = new Set(groups.map((g) => g.type));
+    const others = this.availableAccounts.filter((a) => !renderedTypeSet.has(a.type));
+
+    return html`
+      ${groups.map((g) => {
+        const groupAccounts = this.availableAccounts.filter((a) => a.type === g.type);
+        if (groupAccounts.length === 0) return nothing;
+
+        return html`
+          <optgroup label="${g.label}">
+            ${groupAccounts.map(
+              (acc) => html`
+                <option value="${acc.id}" ?selected="${acc.id === selectedId}">
+                  ${acc.icon || g.icon} ${acc.name}
+                </option>
+              `
+            )}
+          </optgroup>
+        `;
+      })}
+      ${others.length > 0
+        ? html`
+            <optgroup label="Other Accounts">
+              ${others.map(
+                (acc) => html`
+                  <option value="${acc.id}" ?selected="${acc.id === selectedId}">
+                    ${acc.icon || '📁'} ${acc.name}
+                  </option>
+                `
+              )}
+            </optgroup>
+          `
+        : nothing}
+    `;
+  }
+
   override render() {
     if (!this.isOpen) return nothing;
 
+    const validation = this.getValidationState();
     const netImbalance = this.getNetImbalanceCents();
-    const isBalanced = netImbalance === 0 && this.splitRows.every((r) => this.parseCents(r.amount) !== 0);
 
     return html`
       <div
@@ -833,15 +1042,17 @@ export class TransactionForm extends LitElement {
               </div>
 
               <!-- Double-entry balance status banner -->
-              <div class="balance-banner ${isBalanced ? 'balanced' : 'unbalanced'}">
+              <div class="balance-banner ${validation.isValid ? 'balanced' : 'unbalanced'}">
                 <div class="balance-indicator">
-                  <span>${isBalanced ? '✓' : '⚠️'}</span>
-                  <span>${isBalanced ? 'Transaction Perfectly Balanced' : 'Unbalanced Transaction'}</span>
+                  <span>${validation.isValid ? '✓' : '⚠️'}</span>
+                  <span>${validation.message}</span>
                 </div>
                 <div class="balance-badge">
-                  ${isBalanced
+                  ${validation.isValid
                     ? '$0.00'
-                    : `Remaining to Balance: ${netImbalance > 0 ? '-' : '+'}$${(Math.abs(netImbalance) / 100).toFixed(2)}`}
+                    : netImbalance === 0
+                    ? 'Incomplete'
+                    : `Remaining: ${netImbalance > 0 ? '-' : '+'}$${(Math.abs(netImbalance) / 100).toFixed(2)}`}
                 </div>
               </div>
 
@@ -850,57 +1061,63 @@ export class TransactionForm extends LitElement {
 
               <!-- Split rows list -->
               <div class="split-rows-list">
-                ${this.splitRows.map(
-                  (row, index) => html`
+                <div class="split-rows-header">
+                  <span>Account / Category</span>
+                  <span>Amount & Actions</span>
+                </div>
+
+                ${repeat(
+                  this.splitRows,
+                  (row) => row.id,
+                  (row) => html`
                     <div class="split-row">
                       <!-- Account Select -->
                       <select
                         class="form-select"
                         .value="${row.accountId}"
-                        @change="${(e: any) => this.handleAccountSelect(index, e.target.value)}"
+                        @change="${(e: any) => this.handleAccountSelect(row.id, e.target.value)}"
+                        aria-label="Split account selection"
                       >
-                        <option value="" disabled>Select Account / Category</option>
-                        ${this.availableAccounts.map(
-                          (acc) => html`
-                            <option value="${acc.id}" ?selected="${acc.id === row.accountId}">
-                              ${acc.icon || '📁'} ${acc.name} (${acc.type})
-                            </option>
-                          `
-                        )}
+                        <option value="" disabled ?selected="${!row.accountId}">Select Account / Category</option>
+                        ${this.renderAccountOptions(row.accountId)}
                       </select>
 
-                      <!-- Amount input -->
-                      <div class="amount-input-wrap">
-                        <span class="currency-symbol">$</span>
-                        <input
-                          type="text"
-                          class="amount-input"
-                          placeholder="0.00"
-                          .value="${row.amount}"
-                          @input="${(e: any) => this.handleAmountInput(index, e.target.value)}"
-                        />
+                      <!-- Amount input & Actions Controls -->
+                      <div class="split-row-controls">
+                        <div class="amount-input-wrap">
+                          <span class="currency-symbol">$</span>
+                          <input
+                            type="text"
+                            class="amount-input"
+                            placeholder="0.00"
+                            .value="${live(row.amount)}"
+                            @input="${(e: any) => this.handleAmountInput(row.id, e.target.value)}"
+                            aria-label="Split amount"
+                          />
+                        </div>
+
+                        <!-- Auto-balance helper button -->
+                        <button
+                          type="button"
+                          class="btn-auto-balance"
+                          @click="${() => this.autoBalanceRow(row.id)}"
+                          title="Auto-fill remainder needed to balance"
+                        >
+                          Balance
+                        </button>
+
+                        <!-- Remove row button -->
+                        <button
+                          type="button"
+                          class="btn-remove-row"
+                          @click="${() => this.removeSplitRow(row.id)}"
+                          ?disabled="${this.splitRows.length <= 2}"
+                          title="${this.splitRows.length <= 2 ? 'At least 2 splits are required' : 'Remove split line'}"
+                          aria-label="Remove split row"
+                        >
+                          ✕
+                        </button>
                       </div>
-
-                      <!-- Auto-balance helper button -->
-                      <button
-                        type="button"
-                        class="btn-auto-balance"
-                        @click="${() => this.autoBalanceRow(index)}"
-                        title="Auto-fill remainder needed to balance"
-                      >
-                        Balance
-                      </button>
-
-                      <!-- Remove row button -->
-                      <button
-                        type="button"
-                        class="btn-remove-row"
-                        @click="${() => this.removeSplitRow(index)}"
-                        ?disabled="${this.splitRows.length <= 2}"
-                        title="${this.splitRows.length <= 2 ? 'At least 2 splits are required' : 'Remove split line'}"
-                      >
-                        ✕
-                      </button>
                     </div>
                   `
                 )}
@@ -925,6 +1142,7 @@ export class TransactionForm extends LitElement {
                 class="btn-submit"
                 @click="${this.submitTransaction}"
                 ?disabled="${!this.canSubmit()}"
+                title="${validation.isValid ? 'Record transaction (Ctrl+Enter)' : validation.message}"
               >
                 ${this.isSubmitting ? 'Recording...' : 'Record Transaction'}
               </button>
