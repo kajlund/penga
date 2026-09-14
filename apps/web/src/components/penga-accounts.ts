@@ -128,7 +128,7 @@ export class PengaAccounts extends LitElement {
 
     .tree-header {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr 40px;
       padding: 0.85rem 1.5rem;
       background: var(--bg-subtle);
       border-bottom: 1px solid var(--border-subtle);
@@ -137,6 +137,7 @@ export class PengaAccounts extends LitElement {
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--text-muted);
+      align-items: center;
     }
 
     .tree-list {
@@ -153,21 +154,17 @@ export class PengaAccounts extends LitElement {
 
     .node-row {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr 40px;
       align-items: center;
       padding: 0.75rem 1.5rem;
       border-bottom: 1px solid var(--border-subtle);
       transition: background-color var(--transition-fast);
       gap: 1rem;
+      position: relative;
     }
 
     .node-row:hover {
       background: var(--bg-subtle);
-    }
-
-    .node-row:hover .node-actions {
-      opacity: 1;
-      visibility: visible;
     }
 
     .node-main {
@@ -281,37 +278,100 @@ export class PengaAccounts extends LitElement {
     .node-actions {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
-      opacity: 0;
-      visibility: hidden;
-      transition: all var(--transition-fast);
+      justify-content: flex-end;
+      position: relative;
     }
 
-    .action-icon-btn {
-      padding: 0.35rem 0.55rem;
+    .actions-dropdown-container {
+      position: relative;
+      display: inline-flex;
+      justify-content: flex-end;
+    }
+
+    .btn-actions-trigger {
+      width: 28px;
+      height: 28px;
       border-radius: var(--radius-sm);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-size: 0.75rem;
-      font-weight: 500;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      line-height: 1;
       transition: all var(--transition-fast);
+      user-select: none;
     }
 
-    .action-icon-btn:hover {
-      background: var(--bg-muted);
+    .btn-actions-trigger:hover,
+    .btn-actions-trigger.active {
+      background: var(--bg-subtle);
+      border-color: var(--border-subtle);
       color: var(--text-primary);
-      border-color: var(--border-strong);
     }
 
-    .action-icon-btn.delete:hover {
+    .actions-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 100;
+      min-width: 175px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+      padding: 0.35rem 0;
+      display: flex;
+      flex-direction: column;
+      animation: menuFadeIn var(--transition-fast) ease-out;
+    }
+
+    @keyframes menuFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .actions-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.55rem 0.9rem;
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      background: transparent;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+      transition: background var(--transition-fast);
+    }
+
+    .actions-menu-item:hover:not(:disabled) {
+      background: var(--bg-subtle);
+      color: var(--color-primary-text);
+    }
+
+    .actions-menu-item.danger:hover {
       background: var(--color-expense-bg);
       color: var(--color-expense);
-      border-color: var(--color-expense-border);
+    }
+
+    .actions-menu-divider {
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 0.35rem 0;
     }
 
     .children-container {
@@ -520,6 +580,12 @@ export class PengaAccounts extends LitElement {
   private isCreateModalOpen = false;
 
   @state()
+  private openMenuAccountId: string | null = null;
+
+  @state()
+  private editingAccountId: string | null = null;
+
+  @state()
   private createName = '';
 
   @state()
@@ -539,9 +605,34 @@ export class PengaAccounts extends LitElement {
 
   private emojiPresets = ['🏦', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
 
+  private handleWindowClick = (e: MouseEvent) => {
+    if (!this.openMenuAccountId) return;
+    const path = e.composedPath();
+    const isMenuClick = path.some(
+      (el) => el instanceof HTMLElement && (el.classList.contains('actions-dropdown-container') || el.classList.contains('actions-menu'))
+    );
+    if (!isMenuClick) {
+      this.openMenuAccountId = null;
+    }
+  };
+
+  private handleWindowKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      this.openMenuAccountId = null;
+    }
+  };
+
   override connectedCallback() {
     super.connectedCallback();
     this.fetchAccounts();
+    window.addEventListener('click', this.handleWindowClick);
+    window.addEventListener('keydown', this.handleWindowKeyDown);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('click', this.handleWindowClick);
+    window.removeEventListener('keydown', this.handleWindowKeyDown);
   }
 
   async fetchAccounts() {
@@ -587,7 +678,18 @@ export class PengaAccounts extends LitElement {
     this.collapsedNodes = next;
   }
 
+  private toggleMenu(accountId: string, e: Event) {
+    e.stopPropagation();
+    this.openMenuAccountId = this.openMenuAccountId === accountId ? null : accountId;
+  }
+
+  private closeMenu() {
+    this.openMenuAccountId = null;
+  }
+
   private openCreateModal(preselectedParentId?: string, preselectedType?: AccountType) {
+    this.closeMenu();
+    this.editingAccountId = null;
     this.createName = '';
     this.createParentId = preselectedParentId || '';
 
@@ -602,6 +704,17 @@ export class PengaAccounts extends LitElement {
 
     this.createIcon = this.createType === 'EXPENSE' ? '🛒' : '🏦';
     this.createColor = this.getDefaultColor(this.createType);
+    this.isCreateModalOpen = true;
+  }
+
+  private openEditModal(node: AccountTreeNode) {
+    this.closeMenu();
+    this.editingAccountId = node.id;
+    this.createName = node.name;
+    this.createType = node.type;
+    this.createParentId = node.parentId || '';
+    this.createIcon = node.icon || (node.type === 'EXPENSE' ? '🛒' : '🏦');
+    this.createColor = node.color || this.getDefaultColor(node.type);
     this.isCreateModalOpen = true;
   }
 
@@ -624,6 +737,17 @@ export class PengaAccounts extends LitElement {
     this.createColor = this.getDefaultColor(val);
   }
 
+  private handleParentChange(e: Event) {
+    const parentId = (e.target as HTMLSelectElement).value;
+    this.createParentId = parentId;
+    if (parentId) {
+      const parentAcc = this.flatAccounts.find((a) => a.id === parentId);
+      if (parentAcc) {
+        this.createType = parentAcc.type;
+      }
+    }
+  }
+
   private async submitCreate(e: Event) {
     e.preventDefault();
     if (!this.createName.trim()) {
@@ -640,18 +764,24 @@ export class PengaAccounts extends LitElement {
         color: this.createColor.trim() || null,
       };
 
-      const res = await fetch('/api/accounts', {
-        method: 'POST',
+      const url = this.editingAccountId
+        ? `/api/accounts/${this.editingAccountId}`
+        : '/api/accounts';
+      const method = this.editingAccountId ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to create account');
+        throw new Error(errJson.error || `Failed to ${this.editingAccountId ? 'update' : 'create'} account`);
       }
 
       this.isCreateModalOpen = false;
+      this.editingAccountId = null;
       await this.fetchAccounts();
     } catch (err: any) {
       alert(err.message);
@@ -728,20 +858,50 @@ export class PengaAccounts extends LitElement {
           </div>
 
           <div class="node-actions">
-            <button
-              class="action-icon-btn"
-              @click="${() => this.openCreateModal(node.id, node.type)}"
-              title="Add Sub-Account under ${node.name}"
-            >
-              <span>+ Sub-Account</span>
-            </button>
-            <button
-              class="action-icon-btn delete"
-              @click="${() => this.deleteAccount(node)}"
-              title="Delete ${node.name}"
-            >
-              <span>Delete</span>
-            </button>
+            <div class="actions-dropdown-container">
+              <button
+                class="btn-actions-trigger ${this.openMenuAccountId === node.id ? 'active' : ''}"
+                @click="${(e: Event) => this.toggleMenu(node.id, e)}"
+                title="Account actions"
+                aria-label="Actions for ${node.name}"
+              >
+                ···
+              </button>
+              ${this.openMenuAccountId === node.id
+                ? html`
+                    <div class="actions-menu">
+                      <button
+                        class="actions-menu-item"
+                        @click="${() => this.openEditModal(node)}"
+                      >
+                        <span>✏️</span>
+                        <span>Edit Account</span>
+                      </button>
+                      <button
+                        class="actions-menu-item"
+                        @click="${() => {
+                          this.closeMenu();
+                          this.openCreateModal(node.id, node.type);
+                        }}"
+                      >
+                        <span>➕</span>
+                        <span>Add Sub-Account</span>
+                      </button>
+                      <div class="actions-menu-divider"></div>
+                      <button
+                        class="actions-menu-item danger"
+                        @click="${() => {
+                          this.closeMenu();
+                          this.deleteAccount(node);
+                        }}"
+                      >
+                        <span>🗑️</span>
+                        <span>Delete Account</span>
+                      </button>
+                    </div>
+                  `
+                : nothing}
+            </div>
           </div>
         </div>
 
@@ -846,16 +1006,31 @@ export class PengaAccounts extends LitElement {
             `}
       </div>
 
-      <!-- Create Account Modal -->
+      <!-- Create / Edit Account Modal -->
       ${this.isCreateModalOpen
         ? html`
             <div class="modal-backdrop" @click="${(e: MouseEvent) => {
-              if (e.target === e.currentTarget) this.isCreateModalOpen = false;
+              if (e.target === e.currentTarget) {
+                this.isCreateModalOpen = false;
+                this.editingAccountId = null;
+              }
             }}">
               <div class="modal-box">
                 <div class="modal-header">
-                  <h3>${this.createParentId ? 'Add Sub-Account' : 'New Account / Category'}</h3>
-                  <button class="modal-close" @click="${() => (this.isCreateModalOpen = false)}">✕</button>
+                  <h3>
+                    ${this.editingAccountId
+                      ? 'Edit Account / Category'
+                      : (this.createParentId ? 'Add Sub-Account' : 'New Account / Category')}
+                  </h3>
+                  <button
+                    class="modal-close"
+                    @click="${() => {
+                      this.isCreateModalOpen = false;
+                      this.editingAccountId = null;
+                    }}"
+                  >
+                    ✕
+                  </button>
                 </div>
 
                 <form @submit="${this.submitCreate}">
@@ -893,16 +1068,18 @@ export class PengaAccounts extends LitElement {
                       <select
                         class="form-select"
                         .value="${this.createParentId}"
-                        @change="${(e: any) => (this.createParentId = e.target.value)}"
+                        @change="${this.handleParentChange}"
                       >
                         <option value="">None (Top-Level Account)</option>
-                        ${this.flatAccounts.map(
-                          (acc) => html`
-                            <option value="${acc.id}">
-                              ${acc.name} (${acc.type})
-                            </option>
-                          `
-                        )}
+                        ${this.flatAccounts
+                          .filter((acc) => !this.editingAccountId || acc.id !== this.editingAccountId)
+                          .map(
+                            (acc) => html`
+                              <option value="${acc.id}">
+                                ${acc.name} (${acc.type})
+                              </option>
+                            `
+                          )}
                       </select>
                     </div>
 
@@ -945,12 +1122,15 @@ export class PengaAccounts extends LitElement {
                     <button
                       type="button"
                       class="btn-secondary"
-                      @click="${() => (this.isCreateModalOpen = false)}"
+                      @click="${() => {
+                        this.isCreateModalOpen = false;
+                        this.editingAccountId = null;
+                      }}"
                     >
                       Cancel
                     </button>
                     <button type="submit" class="btn-primary">
-                      Create Account
+                      ${this.editingAccountId ? 'Save Changes' : 'Create Account'}
                     </button>
                   </div>
                 </form>
