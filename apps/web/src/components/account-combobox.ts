@@ -154,6 +154,13 @@ export class AccountCombobox extends LitElement {
       overflow: hidden;
     }
 
+    .account-details {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+
     .account-icon {
       font-size: 1rem;
       flex-shrink: 0;
@@ -166,6 +173,15 @@ export class AccountCombobox extends LitElement {
       text-overflow: ellipsis;
       font-size: 0.85rem;
       color: var(--text-primary);
+    }
+
+    .account-combobox-desc {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
     }
 
     .highlight-match {
@@ -279,6 +295,7 @@ export class AccountCombobox extends LitElement {
     return this.accounts.filter(
       (a) =>
         a.name.toLowerCase().includes(q) ||
+        (a.description && a.description.toLowerCase().includes(q)) ||
         a.type.toLowerCase().includes(q)
     );
   }
@@ -479,11 +496,20 @@ export class AccountCombobox extends LitElement {
                             @click="${() => this.selectAccount(acc)}"
                             @mouseenter="${() => (this.highlightedIndex = flatIndex)}"
                           >
-                            <div class="account-label">
+                            <div class="account-label" title="${acc.description ? `${acc.name} — ${acc.description}` : acc.name}">
                               <span class="account-icon">${acc.icon || '📁'}</span>
-                              <span class="account-name">
-                                ${this.renderHighlightedName(acc.name)}
-                              </span>
+                              <div class="account-details">
+                                <span class="account-name">
+                                  ${this.renderHighlightedName(acc.name)}
+                                </span>
+                                ${acc.description
+                                  ? html`
+                                      <span class="account-combobox-desc">
+                                        ${this.renderHighlightedName(acc.description)}
+                                      </span>
+                                    `
+                                  : nothing}
+                              </div>
                             </div>
                             <span class="type-badge ${acc.type}">${acc.type}</span>
                           </div>

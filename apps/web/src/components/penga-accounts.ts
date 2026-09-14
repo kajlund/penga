@@ -234,6 +234,17 @@ export class PengaAccounts extends LitElement {
       text-overflow: ellipsis;
     }
 
+    .account-description {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.35;
+      white-space: normal;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
     .account-meta {
       font-size: 0.75rem;
       color: var(--text-muted);
@@ -474,7 +485,8 @@ export class PengaAccounts extends LitElement {
     }
 
     .form-input,
-    .form-select {
+    .form-select,
+    .form-textarea {
       padding: 0.65rem 0.85rem;
       border-radius: var(--radius-md);
       background: var(--bg-subtle);
@@ -486,8 +498,15 @@ export class PengaAccounts extends LitElement {
       transition: all var(--transition-fast);
     }
 
+    .form-textarea {
+      resize: vertical;
+      min-height: 60px;
+      line-height: 1.4;
+    }
+
     .form-input:focus,
-    .form-select:focus {
+    .form-select:focus,
+    .form-textarea:focus {
       border-color: var(--color-primary);
       box-shadow: 0 0 0 2px var(--color-primary-subtle);
     }
@@ -589,6 +608,9 @@ export class PengaAccounts extends LitElement {
   private createName = '';
 
   @state()
+  private createDescription = '';
+
+  @state()
   private createType: AccountType = 'ASSET';
 
   @state()
@@ -601,7 +623,7 @@ export class PengaAccounts extends LitElement {
   private createColor = '#0d9488';
 
   @state()
-  private flatAccounts: { id: string; name: string; type: AccountType }[] = [];
+  private flatAccounts: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
 
   private emojiPresets = ['🏦', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
 
@@ -655,10 +677,10 @@ export class PengaAccounts extends LitElement {
   }
 
   private extractFlatList(nodes: AccountTreeNode[]) {
-    const list: { id: string; name: string; type: AccountType }[] = [];
+    const list: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
     const traverse = (items: AccountTreeNode[]) => {
       for (const item of items) {
-        list.push({ id: item.id, name: item.name, type: item.type });
+        list.push({ id: item.id, name: item.name, description: item.description, type: item.type });
         if (item.children && item.children.length > 0) {
           traverse(item.children);
         }
@@ -691,6 +713,7 @@ export class PengaAccounts extends LitElement {
     this.closeMenu();
     this.editingAccountId = null;
     this.createName = '';
+    this.createDescription = '';
     this.createParentId = preselectedParentId || '';
 
     if (preselectedParentId) {
@@ -711,6 +734,7 @@ export class PengaAccounts extends LitElement {
     this.closeMenu();
     this.editingAccountId = node.id;
     this.createName = node.name;
+    this.createDescription = node.description || '';
     this.createType = node.type;
     this.createParentId = node.parentId || '';
     this.createIcon = node.icon || (node.type === 'EXPENSE' ? '🛒' : '🏦');
@@ -758,6 +782,7 @@ export class PengaAccounts extends LitElement {
     try {
       const payload = {
         name: this.createName.trim(),
+        description: this.createDescription.trim() || null,
         type: this.createType,
         parentId: this.createParentId || null,
         icon: this.createIcon.trim() || null,
@@ -848,8 +873,9 @@ export class PengaAccounts extends LitElement {
               ${node.icon || '📁'}
             </div>
 
-            <div class="account-info">
+            <div class="account-info" title="${node.description ? `${node.name} — ${node.description}` : node.name}">
               <span class="account-name">${node.name}</span>
+              ${node.description ? html`<span class="account-description">${node.description}</span>` : nothing}
               <div class="account-meta">
                 <span class="type-badge ${node.type.toLowerCase()}">${node.type}</span>
                 ${hasChildren ? html`<span>• ${node.children.length} sub-accounts</span>` : nothing}
@@ -1046,6 +1072,17 @@ export class PengaAccounts extends LitElement {
                         required
                         autofocus
                       />
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Description (Optional)</label>
+                      <textarea
+                        class="form-textarea"
+                        rows="2"
+                        placeholder="Detailed info about the intent and scope of this account..."
+                        .value="${this.createDescription}"
+                        @input="${(e: any) => (this.createDescription = e.target.value)}"
+                      ></textarea>
                     </div>
 
                     <div class="form-group">

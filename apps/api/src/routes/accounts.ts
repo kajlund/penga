@@ -18,6 +18,7 @@ export function buildAccountTree(allAccounts: Account[]): AccountTreeNode[] {
     nodeMap.set(acc.id, {
       id: acc.id,
       name: acc.name,
+      description: acc.description,
       type: acc.type as AccountType,
       parentId: acc.parentId,
       icon: acc.icon,
@@ -140,7 +141,7 @@ accountsRoute.post('/', async (c) => {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  const { name, type, parentId, icon, color } = body;
+  const { name, description, type, parentId, icon, color } = body;
 
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return c.json({ error: 'Field "name" is required and must be a non-empty string' }, 400);
@@ -173,6 +174,7 @@ accountsRoute.post('/', async (c) => {
     .insert(accounts)
     .values({
       name: name.trim(),
+      description: typeof description === 'string' && description.trim() ? description.trim() : null,
       type: normalizedType as AccountType,
       parentId: parentId || null,
       icon: typeof icon === 'string' && icon.trim() ? icon.trim() : null,
@@ -211,6 +213,11 @@ accountsRoute.patch('/:id', async (c) => {
       return c.json({ error: 'Field "name" cannot be empty' }, 400);
     }
     updateValues.name = body.name.trim();
+  }
+
+  if (body.description !== undefined) {
+    updateValues.description =
+      typeof body.description === 'string' && body.description.trim() ? body.description.trim() : null;
   }
 
   if (body.type !== undefined) {

@@ -21,6 +21,7 @@ export const accountTypeEnum = pgEnum('account_type', [
 export const accounts = pgTable('accounts', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
+  description: text('description'),
   type: accountTypeEnum('type').notNull(),
   parentId: uuid('parent_id').references((): AnyPgColumn => accounts.id, {
     onDelete: 'cascade',

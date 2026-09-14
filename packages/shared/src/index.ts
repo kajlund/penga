@@ -10,6 +10,7 @@ export type AccountType = (typeof AccountType)[keyof typeof AccountType];
 export interface Account {
   id: string;
   name: string;
+  description?: string | null;
   type: AccountType;
   parentId: string | null;
   icon: string | null;
@@ -24,6 +25,7 @@ export interface AccountTreeNode extends Account {
 
 export interface CreateAccountInput {
   name: string;
+  description?: string | null;
   type: AccountType;
   parentId?: string | null;
   icon?: string | null;
@@ -32,6 +34,7 @@ export interface CreateAccountInput {
 
 export interface UpdateAccountInput {
   name?: string;
+  description?: string | null;
   type?: AccountType;
   parentId?: string | null;
   icon?: string | null;
@@ -83,6 +86,7 @@ export interface CreateTransactionInput {
 export interface AccountBalanceSummary {
   id: string;
   name: string;
+  description?: string | null;
   type: AccountType;
   parentId: string | null;
   icon: string | null;
