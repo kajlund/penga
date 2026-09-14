@@ -501,6 +501,29 @@ export class PengaDashboard extends LitElement {
       font-weight: 700;
     }
 
+    .btn-edit-tx-dash {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .btn-edit-tx-dash:hover {
+      background: var(--color-primary-subtle);
+      border-color: var(--color-primary-border);
+      color: var(--color-primary-text);
+      transform: scale(1.05);
+    }
+
     /* States */
     .loading-state,
     .empty-state {
@@ -589,6 +612,16 @@ export class PengaDashboard extends LitElement {
   private handleRecordTx() {
     this.dispatchEvent(
       new CustomEvent('open-transaction-modal', {
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private handleEditTx(tx: TransactionWithSplits) {
+    this.dispatchEvent(
+      new CustomEvent('edit-transaction', {
+        detail: { transaction: tx },
         bubbles: true,
         composed: true,
       })
@@ -865,6 +898,15 @@ export class PengaDashboard extends LitElement {
                             ${this.formatCents(amount)}
                           </div>
                         </div>
+
+                        <button
+                          type="button"
+                          class="btn-edit-tx-dash"
+                          @click="${() => this.handleEditTx(tx)}"
+                          title="Edit transaction and splits"
+                        >
+                          ✏️
+                        </button>
                       </div>
                     `;
                   })}

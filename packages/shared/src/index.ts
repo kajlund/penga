@@ -109,6 +109,7 @@ export interface UpdateTransactionInput {
   payee?: string | null;
   note?: string | null;
   transactionDate?: string;
+  splits?: SplitInput[];
 }
 
 export interface ReorderTransactionsInput {

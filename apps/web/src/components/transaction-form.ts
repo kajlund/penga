@@ -2,7 +2,8 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { live } from 'lit/directives/live.js';
-import type { Account, CreateTransactionInput } from '@penga/shared';
+import type { Account, CreateTransactionInput, TransactionWithSplits } from '@penga/shared';
+import './account-combobox.js';
 
 interface SplitRowState {
   id: string;
@@ -197,7 +198,7 @@ export class TransactionForm extends LitElement {
       flex-direction: column;
       gap: 1rem;
       min-width: 0;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .splits-header {
@@ -325,6 +326,11 @@ export class TransactionForm extends LitElement {
       border: 1px solid var(--border-subtle);
       transition: border-color var(--transition-fast);
       min-width: 0;
+      position: relative;
+    }
+
+    .split-row:focus-within {
+      z-index: 20;
     }
 
     .split-row:hover {
@@ -583,6 +589,9 @@ export class TransactionForm extends LitElement {
   @property({ type: Boolean })
   isOpen = false;
 
+  @property({ type: Object })
+  transactionToEdit: TransactionWithSplits | null = null;
+
   @state()
   private transactionDate = new Date().toISOString().slice(0, 10);
 
@@ -662,13 +671,33 @@ export class TransactionForm extends LitElement {
   }
 
   override updated(changedProps: Map<string, any>) {
-    if (changedProps.has('isOpen') && this.isOpen && !changedProps.get('isOpen')) {
+    if (changedProps.has('transactionToEdit') && this.transactionToEdit) {
+      this.populateForEdit(this.transactionToEdit);
+    } else if (changedProps.has('isOpen') && this.isOpen && !changedProps.get('isOpen')) {
       this.fetchAccounts();
-      this.resetForm();
+      if (!this.transactionToEdit) {
+        this.resetForm();
+      }
     }
   }
 
+  private populateForEdit(tx: TransactionWithSplits) {
+    this.transactionToEdit = tx;
+    this.transactionDate = tx.transactionDate;
+    this.payee = tx.payee || '';
+    this.note = tx.note || '';
+    this.isCleared = tx.isCleared;
+    this.isSubmitting = false;
+
+    this.splitRows = (tx.splits || []).map((s, idx) => ({
+      id: s.id || `split-${idx}-${Date.now()}`,
+      accountId: s.accountId,
+      amount: this.formatCentsToDecimal(s.amountCents),
+    }));
+  }
+
   private resetForm(preselectedAccountId?: string) {
+    this.transactionToEdit = null;
     this.transactionDate = new Date().toISOString().slice(0, 10);
     this.payee = '';
     this.note = '';
@@ -691,8 +720,16 @@ export class TransactionForm extends LitElement {
     this.requestUpdate();
   }
 
+  public edit(tx: TransactionWithSplits) {
+    this.fetchAccounts();
+    this.populateForEdit(tx);
+    this.isOpen = true;
+    this.requestUpdate();
+  }
+
   public closeModal() {
     this.isOpen = false;
+    this.transactionToEdit = null;
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
   }
 
@@ -831,7 +868,13 @@ export class TransactionForm extends LitElement {
     this.isSubmitting = true;
 
     try {
-      const payload: CreateTransactionInput = {
+      const isEditing = Boolean(this.transactionToEdit);
+      const url = isEditing
+        ? `/api/transactions/${this.transactionToEdit!.id}`
+        : '/api/transactions';
+      const method = isEditing ? 'PATCH' : 'POST';
+
+      const payload = {
         transactionDate: this.transactionDate,
         payee: this.payee.trim(),
         note: this.note.trim() || null,
@@ -842,20 +885,21 @@ export class TransactionForm extends LitElement {
         })),
       };
 
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || 'Failed to record transaction');
+        throw new Error(errJson.error || `Failed to ${isEditing ? 'update' : 'record'} transaction`);
       }
 
       const json = await res.json();
+      const eventName = isEditing ? 'transaction-updated' : 'transaction-created';
       this.dispatchEvent(
-        new CustomEvent('transaction-created', {
+        new CustomEvent(eventName, {
           detail: { transaction: json.data },
           bubbles: true,
           composed: true,
@@ -903,50 +947,6 @@ export class TransactionForm extends LitElement {
     `;
   }
 
-  private renderAccountOptions(selectedId: string) {
-    const groups: { label: string; type: string; icon: string }[] = [
-      { label: 'Assets', type: 'ASSET', icon: '🏦' },
-      { label: 'Liabilities (Debt & Cards)', type: 'LIABILITY', icon: '💳' },
-      { label: 'Income', type: 'INCOME', icon: '💼' },
-      { label: 'Expenses', type: 'EXPENSE', icon: '🏷️' },
-    ];
-
-    const renderedTypeSet = new Set(groups.map((g) => g.type));
-    const others = this.availableAccounts.filter((a) => !renderedTypeSet.has(a.type));
-
-    return html`
-      ${groups.map((g) => {
-        const groupAccounts = this.availableAccounts.filter((a) => a.type === g.type);
-        if (groupAccounts.length === 0) return nothing;
-
-        return html`
-          <optgroup label="${g.label}">
-            ${groupAccounts.map(
-              (acc) => html`
-                <option value="${acc.id}" ?selected="${acc.id === selectedId}">
-                  ${acc.icon || g.icon} ${acc.name}
-                </option>
-              `
-            )}
-          </optgroup>
-        `;
-      })}
-      ${others.length > 0
-        ? html`
-            <optgroup label="Other Accounts">
-              ${others.map(
-                (acc) => html`
-                  <option value="${acc.id}" ?selected="${acc.id === selectedId}">
-                    ${acc.icon || '📁'} ${acc.name}
-                  </option>
-                `
-              )}
-            </optgroup>
-          `
-        : nothing}
-    `;
-  }
-
   override render() {
     if (!this.isOpen) return nothing;
 
@@ -964,8 +964,12 @@ export class TransactionForm extends LitElement {
           <!-- Header -->
           <div class="modal-header">
             <div class="header-info">
-              <h3>Record Transaction</h3>
-              <p>Double-entry split ledger with real-time balance validation</p>
+              <h3>${this.transactionToEdit ? 'Edit Transaction' : 'Record Transaction'}</h3>
+              <p>
+                ${this.transactionToEdit
+                  ? 'Modify payee, transaction date, notes, and balanced split lines'
+                  : 'Double-entry split ledger with real-time balance validation'}
+              </p>
             </div>
             <button class="close-btn" @click="${this.closeModal}" aria-label="Close modal">✕</button>
           </div>
@@ -1071,16 +1075,13 @@ export class TransactionForm extends LitElement {
                   (row) => row.id,
                   (row) => html`
                     <div class="split-row">
-                      <!-- Account Select -->
-                      <select
-                        class="form-select"
+                      <!-- Account Combobox (Search by typing) -->
+                      <account-combobox
+                        .accounts="${this.availableAccounts}"
                         .value="${row.accountId}"
-                        @change="${(e: any) => this.handleAccountSelect(row.id, e.target.value)}"
-                        aria-label="Split account selection"
-                      >
-                        <option value="" disabled ?selected="${!row.accountId}">Select Account / Category</option>
-                        ${this.renderAccountOptions(row.accountId)}
-                      </select>
+                        placeholder="Type to search account..."
+                        @account-selected="${(e: CustomEvent) => this.handleAccountSelect(row.id, e.detail.accountId)}"
+                      ></account-combobox>
 
                       <!-- Amount input & Actions Controls -->
                       <div class="split-row-controls">
@@ -1142,9 +1143,11 @@ export class TransactionForm extends LitElement {
                 class="btn-submit"
                 @click="${this.submitTransaction}"
                 ?disabled="${!this.canSubmit()}"
-                title="${validation.isValid ? 'Record transaction (Ctrl+Enter)' : validation.message}"
+                title="${validation.isValid ? (this.transactionToEdit ? 'Save changes (Ctrl+Enter)' : 'Record transaction (Ctrl+Enter)') : validation.message}"
               >
-                ${this.isSubmitting ? 'Recording...' : 'Record Transaction'}
+                ${this.isSubmitting
+                  ? (this.transactionToEdit ? 'Saving...' : 'Recording...')
+                  : (this.transactionToEdit ? 'Save Changes' : 'Record Transaction')}
               </button>
             </div>
           </div>

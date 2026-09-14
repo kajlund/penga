@@ -209,7 +209,7 @@ export class PengaTransactions extends LitElement {
 
     .ledger-header {
       display: grid;
-      grid-template-columns: 80px 110px 1fr 150px 120px;
+      grid-template-columns: 80px 110px 1fr 140px 100px 90px;
       padding: 0.85rem 1.5rem;
       background: var(--bg-subtle);
       border-bottom: 1px solid var(--border-subtle);
@@ -237,7 +237,7 @@ export class PengaTransactions extends LitElement {
 
     .tx-main {
       display: grid;
-      grid-template-columns: 80px 110px 1fr 150px 120px;
+      grid-template-columns: 80px 110px 1fr 140px 100px 90px;
       align-items: center;
       padding: 0.95rem 1.5rem;
       gap: 0.75rem;
@@ -367,6 +367,36 @@ export class PengaTransactions extends LitElement {
       color: var(--text-muted);
       text-align: right;
       font-family: var(--font-mono);
+    }
+
+    .tx-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .btn-edit-tx {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .btn-edit-tx:hover {
+      background: var(--color-primary-subtle);
+      border-color: var(--color-primary-border);
+      color: var(--color-primary-text);
+      transform: translateY(-1px);
     }
 
     /* Nested Splits Detail */
@@ -616,6 +646,16 @@ export class PengaTransactions extends LitElement {
     this.dispatchEvent(new CustomEvent('open-transaction-modal', { bubbles: true, composed: true }));
   }
 
+  private handleEditTransaction(tx: TransactionWithSplits) {
+    this.dispatchEvent(
+      new CustomEvent('edit-transaction', {
+        detail: { transaction: tx },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   private formatCents(cents: number): string {
     const isNeg = cents < 0;
     const abs = Math.abs(cents);
@@ -727,6 +767,7 @@ export class PengaTransactions extends LitElement {
           <span>Payee & Notes</span>
           <span>Reconciliation</span>
           <span style="text-align: right;">Lines</span>
+          <span style="text-align: right;">Actions</span>
         </div>
 
         ${this.isLoading
@@ -811,6 +852,18 @@ export class PengaTransactions extends LitElement {
                         </div>
 
                         <span class="splits-summary">${tx.splits.length} splits</span>
+
+                        <div class="tx-actions">
+                          <button
+                            type="button"
+                            class="btn-edit-tx"
+                            @click="${() => this.handleEditTransaction(tx)}"
+                            title="Edit transaction and splits"
+                          >
+                            <span>✏️</span>
+                            <span>Edit</span>
+                          </button>
+                        </div>
                       </div>
 
                       <!-- Sub-splits details -->

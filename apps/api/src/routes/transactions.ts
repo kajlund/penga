@@ -339,11 +339,82 @@ transactionsRoute.patch('/:id', async (c) => {
     updateData.transactionDate = body.transactionDate;
   }
 
-  const [updated] = await db
-    .update(transactions)
-    .set(updateData)
-    .where(eq(transactions.id, id))
-    .returning();
+  // Validate splits if provided
+  if (body.splits !== undefined) {
+    if (!Array.isArray(body.splits) || body.splits.length < 2) {
+      return c.json({ error: 'Transaction must have at least 2 split lines to balance' }, 400);
+    }
+
+    let totalCents = 0;
+    const referencedAccountIds = new Set<string>();
+
+    for (let i = 0; i < body.splits.length; i++) {
+      const split = body.splits[i];
+      if (!split || typeof split !== 'object') {
+        return c.json({ error: `Split at index ${i} is invalid` }, 400);
+      }
+
+      if (!split.accountId || typeof split.accountId !== 'string') {
+        return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
+      }
+
+      if (!Number.isInteger(split.amountCents)) {
+        return c.json({ error: `Split at index ${i} "amountCents" must be an integer` }, 400);
+      }
+
+      if (split.amountCents === 0) {
+        return c.json({ error: `Split at index ${i} "amountCents" cannot be zero` }, 400);
+      }
+
+      totalCents += split.amountCents;
+      referencedAccountIds.add(split.accountId);
+    }
+
+    if (totalCents !== 0) {
+      return c.json(
+        {
+          error: `Transaction splits must balance to exactly zero. Current net sum: ${totalCents} cents`,
+          imbalanceCents: totalCents,
+        },
+        400
+      );
+    }
+
+    const foundAccounts = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(inArray(accounts.id, Array.from(referencedAccountIds)));
+
+    if (foundAccounts.length !== referencedAccountIds.size) {
+      const foundIds = new Set(foundAccounts.map((a) => a.id));
+      const missingIds = Array.from(referencedAccountIds).filter((accId) => !foundIds.has(accId));
+      return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
+    }
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    const [updatedTx] = await tx
+      .update(transactions)
+      .set(updateData)
+      .where(eq(transactions.id, id))
+      .returning();
+
+    if (body.splits !== undefined) {
+      // Delete existing splits
+      await tx.delete(splits).where(eq(splits.transactionId, id));
+
+      // Insert new splits
+      await tx.insert(splits).values(
+        body.splits.map((s: SplitInput) => ({
+          transactionId: id,
+          accountId: s.accountId,
+          amountCents: s.amountCents,
+        }))
+      );
+    }
+
+    return updatedTx;
+  });
 
   const splitRows = await db
     .select({

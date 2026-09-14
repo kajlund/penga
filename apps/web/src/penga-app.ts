@@ -12,6 +12,7 @@ import type { PengaTransactions } from './components/penga-transactions.js';
 import type { PengaAccounts } from './components/penga-accounts.js';
 import type { PengaDashboard } from './components/penga-dashboard.js';
 import type { PengaBudgets } from './components/penga-budgets.js';
+import type { TransactionWithSplits } from '@penga/shared';
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
@@ -173,13 +174,14 @@ export class PengaApp extends LitElement {
   @state()
   private isTransactionModalOpen = false;
 
+  @state()
+  private editingTransaction: TransactionWithSplits | null = null;
+
   private handleNavigation = (e: CustomEvent<{ view: NavView }>) => {
     this.currentView = e.detail.view;
   };
 
-  private handleTransactionCreated = () => {
-    this.isTransactionModalOpen = false;
-
+  private refreshViews = () => {
     // Refresh dashboard view if mounted
     const dashView = this.shadowRoot?.querySelector('penga-dashboard') as PengaDashboard | null;
     if (dashView) {
@@ -205,6 +207,28 @@ export class PengaApp extends LitElement {
     }
   };
 
+  private handleTransactionCreated = () => {
+    this.isTransactionModalOpen = false;
+    this.editingTransaction = null;
+    this.refreshViews();
+  };
+
+  private handleTransactionUpdated = () => {
+    this.isTransactionModalOpen = false;
+    this.editingTransaction = null;
+    this.refreshViews();
+  };
+
+  private handleOpenCreateModal = () => {
+    this.editingTransaction = null;
+    this.isTransactionModalOpen = true;
+  };
+
+  private handleEditTransaction = (e: CustomEvent<{ transaction: TransactionWithSplits }>) => {
+    this.editingTransaction = e.detail.transaction;
+    this.isTransactionModalOpen = true;
+  };
+
   override render() {
     return html`
       <div class="app-layout">
@@ -227,7 +251,7 @@ export class PengaApp extends LitElement {
               <button
                 type="button"
                 class="btn-quick-tx"
-                @click="${() => (this.isTransactionModalOpen = true)}"
+                @click="${this.handleOpenCreateModal}"
                 title="Record new split transaction"
               >
                 <span>+</span>
@@ -247,7 +271,8 @@ export class PengaApp extends LitElement {
             ${this.currentView === 'dashboard'
               ? html`
                   <penga-dashboard
-                    @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
+                    @open-transaction-modal="${this.handleOpenCreateModal}"
+                    @edit-transaction="${this.handleEditTransaction}"
                     @navigate="${this.handleNavigation}"
                   ></penga-dashboard>
                 `
@@ -256,14 +281,16 @@ export class PengaApp extends LitElement {
               : this.currentView === 'transactions'
               ? html`
                   <penga-transactions
-                    @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
+                    @open-transaction-modal="${this.handleOpenCreateModal}"
+                    @edit-transaction="${this.handleEditTransaction}"
                   ></penga-transactions>
                 `
               : this.currentView === 'reconciliation'
               ? html`
                   <penga-transactions
                     .reconciliationMode="${true}"
-                    @open-transaction-modal="${() => (this.isTransactionModalOpen = true)}"
+                    @open-transaction-modal="${this.handleOpenCreateModal}"
+                    @edit-transaction="${this.handleEditTransaction}"
                   ></penga-transactions>
                 `
               : this.currentView === 'budgets'
@@ -287,8 +314,13 @@ export class PengaApp extends LitElement {
       <!-- Transaction Split Entry Modal -->
       <transaction-form
         .isOpen="${this.isTransactionModalOpen}"
-        @close="${() => (this.isTransactionModalOpen = false)}"
+        .transactionToEdit="${this.editingTransaction}"
+        @close="${() => {
+          this.isTransactionModalOpen = false;
+          this.editingTransaction = null;
+        }}"
         @transaction-created="${this.handleTransactionCreated}"
+        @transaction-updated="${this.handleTransactionUpdated}"
       ></transaction-form>
     `;
   }
