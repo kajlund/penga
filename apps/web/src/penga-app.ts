@@ -147,7 +147,7 @@ export class PengaApp extends LitElement {
     // Refresh transactions view if mounted
     const txView = this.shadowRoot?.querySelector('penga-transactions') as PengaTransactions | null;
     if (txView) {
-      txView.fetchTransactions();
+      txView.fetchData();
     }
 
     // Refresh accounts view if mounted

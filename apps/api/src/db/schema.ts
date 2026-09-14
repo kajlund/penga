@@ -7,6 +7,7 @@ import {
   date,
   integer,
   boolean,
+  primaryKey,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
@@ -68,6 +69,26 @@ export const budgets = pgTable('budgets', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const tags = pgTable('tags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull().unique(),
+  color: text('color'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const transactionTags = pgTable(
+  'transaction_tags',
+  {
+    transactionId: uuid('transaction_id')
+      .references(() => transactions.id, { onDelete: 'cascade' })
+      .notNull(),
+    tagId: uuid('tag_id')
+      .references(() => tags.id, { onDelete: 'cascade' })
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.transactionId, t.tagId] })]
+);
+
 // Drizzle Relations
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
   parent: one(accounts, {
@@ -84,6 +105,7 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
 
 export const transactionsRelations = relations(transactions, ({ many }) => ({
   splits: many(splits),
+  transactionTags: many(transactionTags),
 }));
 
 export const splitsRelations = relations(splits, ({ one }) => ({
@@ -94,6 +116,21 @@ export const splitsRelations = relations(splits, ({ one }) => ({
   account: one(accounts, {
     fields: [splits.accountId],
     references: [accounts.id],
+  }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  transactionTags: many(transactionTags),
+}));
+
+export const transactionTagsRelations = relations(transactionTags, ({ one }) => ({
+  transaction: one(transactions, {
+    fields: [transactionTags.transactionId],
+    references: [transactions.id],
+  }),
+  tag: one(tags, {
+    fields: [transactionTags.tagId],
+    references: [tags.id],
   }),
 }));
 
@@ -115,4 +152,10 @@ export type NewSplit = typeof splits.$inferInsert;
 
 export type Budget = typeof budgets.$inferSelect;
 export type NewBudget = typeof budgets.$inferInsert;
+
+export type Tag = typeof tags.$inferSelect;
+export type NewTag = typeof tags.$inferInsert;
+
+export type TransactionTag = typeof transactionTags.$inferSelect;
+export type NewTransactionTag = typeof transactionTags.$inferInsert;
 

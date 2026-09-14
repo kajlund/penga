@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { TransactionWithSplits, Account } from '@penga/shared';
+import type { TransactionWithSplits, Account, Tag } from '@penga/shared';
 
 @customElement('penga-transactions')
 export class PengaTransactions extends LitElement {
@@ -313,6 +313,14 @@ export class PengaTransactions extends LitElement {
       min-width: 0;
     }
 
+    .tx-payee-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
     .tx-payee {
       font-size: 0.95rem;
       font-weight: 600;
@@ -320,6 +328,27 @@ export class PengaTransactions extends LitElement {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .tx-tags-list {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    .tx-tag-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--radius-full);
+      background: color-mix(in srgb, var(--tag-color, #6366f1) 15%, transparent);
+      color: var(--tag-color, #6366f1);
+      border: 1px solid color-mix(in srgb, var(--tag-color, #6366f1) 30%, transparent);
+      letter-spacing: 0.01em;
+      line-height: 1.2;
     }
 
     .tx-note {
@@ -586,10 +615,16 @@ export class PengaTransactions extends LitElement {
   private accounts: Account[] = [];
 
   @state()
+  private tags: Tag[] = [];
+
+  @state()
   private selectedFilter: 'ALL' | 'UNCLEARED' | 'CLEARED' = 'ALL';
 
   @state()
   private selectedAccountId = '';
+
+  @state()
+  private selectedTagId = '';
 
   @state()
   private isLoading = true;
@@ -671,7 +706,7 @@ export class PengaTransactions extends LitElement {
   }
 
   public async fetchData() {
-    await Promise.all([this.fetchTransactions(), this.fetchAccounts()]);
+    await Promise.all([this.fetchTransactions(), this.fetchAccounts(), this.fetchTags()]);
   }
 
   public async fetchAccounts() {
@@ -686,14 +721,29 @@ export class PengaTransactions extends LitElement {
     }
   }
 
+  public async fetchTags() {
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) {
+        const json = await res.json();
+        this.tags = json.data || [];
+      }
+    } catch {
+      // Non-blocking
+    }
+  }
+
   public async fetchTransactions() {
     this.isLoading = true;
     this.errorMessage = null;
 
     try {
-      const url = this.selectedAccountId
-        ? `/api/transactions?accountId=${encodeURIComponent(this.selectedAccountId)}`
-        : '/api/transactions';
+      const params = new URLSearchParams();
+      if (this.selectedAccountId) params.append('accountId', this.selectedAccountId);
+      if (this.selectedTagId) params.append('tagId', this.selectedTagId);
+
+      const queryString = params.toString();
+      const url = queryString ? `/api/transactions?${queryString}` : '/api/transactions';
 
       const res = await fetch(url);
       if (!res.ok) {
@@ -711,6 +761,12 @@ export class PengaTransactions extends LitElement {
   private handleAccountFilterChange(e: Event) {
     const target = e.target as HTMLSelectElement;
     this.selectedAccountId = target.value;
+    this.fetchTransactions();
+  }
+
+  private handleTagFilterChange(e: Event) {
+    const target = e.target as HTMLSelectElement;
+    this.selectedTagId = target.value;
     this.fetchTransactions();
   }
 
@@ -1001,7 +1057,7 @@ export class PengaTransactions extends LitElement {
           </div>
         </div>
 
-        <div>
+        <div style="display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap;">
           <select
             class="account-select"
             .value="${this.selectedAccountId}"
@@ -1014,6 +1070,20 @@ export class PengaTransactions extends LitElement {
                 <option value="${acc.id}">
                   ${acc.icon || '📁'} ${acc.name} (${acc.type})
                 </option>
+              `
+            )}
+          </select>
+
+          <select
+            class="account-select"
+            .value="${this.selectedTagId}"
+            @change="${this.handleTagFilterChange}"
+            aria-label="Filter by tag"
+          >
+            <option value="">All Tags</option>
+            ${this.tags.map(
+              (tag) => html`
+                <option value="${tag.id}">🏷️ #${tag.name}</option>
               `
             )}
           </select>
@@ -1122,7 +1192,25 @@ export class PengaTransactions extends LitElement {
                         <span class="tx-date">${tx.transactionDate}</span>
 
                         <div class="tx-payee-group">
-                          <span class="tx-payee">${tx.payee || 'Unnamed Event'}</span>
+                          <div class="tx-payee-row">
+                            <span class="tx-payee">${tx.payee || 'Unnamed Event'}</span>
+                            ${tx.tags && tx.tags.length > 0
+                              ? html`
+                                  <div class="tx-tags-list">
+                                    ${tx.tags.map(
+                                      (tag) => html`
+                                        <span
+                                          class="tx-tag-badge"
+                                          style="--tag-color: ${tag.color || '#6366f1'};"
+                                        >
+                                          #${tag.name}
+                                        </span>
+                                      `
+                                    )}
+                                  </div>
+                                `
+                              : nothing}
+                          </div>
                           ${tx.note ? html`<span class="tx-note">${tx.note}</span>` : nothing}
                         </div>
 

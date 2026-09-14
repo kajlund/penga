@@ -1,4 +1,4 @@
-import { db, queryClient, accounts, transactions, splits, budgets } from './index.js';
+import { db, queryClient, accounts, transactions, splits, budgets, tags, transactionTags } from './index.js';
 import { eq, and } from 'drizzle-orm';
 import type { AccountType } from '@penga/shared';
 
@@ -267,6 +267,8 @@ async function upsertAccount(
 async function clearData() {
   console.log('Clearing existing data...');
   // Delete dependent tables first to respect foreign key constraints
+  await db.delete(transactionTags);
+  await db.delete(tags);
   await db.delete(splits);
   await db.delete(transactions);
   await db.delete(budgets);
@@ -307,7 +309,20 @@ async function seed() {
     }
   }
 
-  console.log(`\n✓ Seeding finished successfully. Total ${totalAccounts} accounts processed.`);
+  console.log('\nSeeding starter tags...');
+  const starterTags = [
+    { name: 'tax-deductible', color: '#6366f1' },
+    { name: 'vacation', color: '#ec4899' },
+    { name: 'reimbursable', color: '#f59e0b' },
+    { name: 'groceries', color: '#10b981' },
+    { name: 'subscription', color: '#8b5cf6' },
+  ];
+  for (const t of starterTags) {
+    await db.insert(tags).values(t).onConflictDoNothing();
+    console.log(`  [+ Tag] #${t.name} (${t.color})`);
+  }
+
+  console.log(`\n✓ Seeding finished successfully. Total ${totalAccounts} accounts and ${starterTags.length} tags processed.`);
   await queryClient.end();
 }
 

@@ -65,6 +65,18 @@ export interface SplitInput {
   amountCents: number;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  color?: string | null;
+  createdAt?: string | Date;
+}
+
+export interface CreateTagInput {
+  name: string;
+  color?: string | null;
+}
+
 export interface TransactionWithSplits extends Transaction {
   splits: (Split & {
     accountName?: string;
@@ -72,6 +84,7 @@ export interface TransactionWithSplits extends Transaction {
     accountIcon?: string | null;
     accountColor?: string | null;
   })[];
+  tags?: Tag[];
 }
 
 export interface CreateTransactionInput {
@@ -81,6 +94,7 @@ export interface CreateTransactionInput {
   isCleared?: boolean;
   note?: string | null;
   splits: SplitInput[];
+  tagIds?: string[];
 }
 
 export interface AccountBalanceSummary {
@@ -114,6 +128,7 @@ export interface UpdateTransactionInput {
   note?: string | null;
   transactionDate?: string;
   splits?: SplitInput[];
+  tagIds?: string[];
 }
 
 export interface ReorderTransactionsInput {

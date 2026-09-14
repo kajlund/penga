@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
 import { eq, desc, asc, inArray, and } from 'drizzle-orm';
-import { db, transactions, splits, accounts } from '../db/index.js';
+import { db, transactions, splits, accounts, tags, transactionTags } from '../db/index.js';
 import type { CreateTransactionInput, SplitInput, UpdateTransactionInput, ReorderTransactionsInput } from '@penga/shared';
 
 export const transactionsRoute = new Hono();
 
 /**
  * POST /api/transactions
- * Creates a transaction with balanced double-entry splits.
+ * Creates a transaction with balanced double-entry splits and optional tags.
  */
 transactionsRoute.post('/', async (c) => {
   let body: any;
@@ -17,7 +17,7 @@ transactionsRoute.post('/', async (c) => {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  const { transactionDate, sortOrder, payee, isCleared, note, splits: inputSplits } = body as CreateTransactionInput;
+  const { transactionDate, sortOrder, payee, isCleared, note, splits: inputSplits, tagIds } = body as CreateTransactionInput;
 
   // 1. Validate transaction date (YYYY-MM-DD)
   if (!transactionDate || typeof transactionDate !== 'string') {
@@ -117,9 +117,27 @@ transactionsRoute.post('/', async (c) => {
       };
     });
 
+    if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
+      for (const tagId of tagIds) {
+        await tx.insert(transactionTags).values({
+          transactionId: newTx.id,
+          tagId,
+        }).onConflictDoNothing();
+      }
+    }
+
+    const attachedTags = tagIds && tagIds.length > 0
+      ? await tx
+          .select({ id: tags.id, name: tags.name, color: tags.color })
+          .from(tags)
+          .where(inArray(tags.id, tagIds))
+          .orderBy(asc(tags.name))
+      : [];
+
     return {
       ...newTx,
       splits: enrichedSplits,
+      tags: attachedTags,
     };
   });
 
@@ -128,11 +146,12 @@ transactionsRoute.post('/', async (c) => {
 
 /**
  * GET /api/transactions
- * Lists transactions with their nested splits and account details.
+ * Lists transactions with their nested splits, tags, and account details.
  */
 transactionsRoute.get('/', async (c) => {
   const accountId = c.req.query('accountId');
   const isClearedQuery = c.req.query('isCleared');
+  const tagQuery = c.req.query('tagId') || c.req.query('tag');
   const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), 100);
   const offset = Math.max(Number(c.req.query('offset')) || 0, 0);
 
@@ -150,9 +169,43 @@ transactionsRoute.get('/', async (c) => {
     txIdFilter = Array.from(new Set(matchedSplits.map((s) => s.transactionId)));
   }
 
+  // If filtering by tag, find transaction IDs
+  let tagTxIdFilter: string[] | null = null;
+  if (tagQuery) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tagQuery);
+    const matchedTags = isUuid
+      ? await db
+          .select({ transactionId: transactionTags.transactionId })
+          .from(transactionTags)
+          .where(eq(transactionTags.tagId, tagQuery))
+      : await db
+          .select({ transactionId: transactionTags.transactionId })
+          .from(transactionTags)
+          .innerJoin(tags, eq(transactionTags.tagId, tags.id))
+          .where(eq(tags.name, tagQuery.replace(/^#+/, '').toLowerCase()));
+
+    if (matchedTags.length === 0) {
+      return c.json({ data: [] });
+    }
+    tagTxIdFilter = Array.from(new Set(matchedTags.map((r) => r.transactionId)));
+  }
+
+  let finalTxIdFilter: string[] | null = null;
+  if (txIdFilter && tagTxIdFilter) {
+    const tagSet = new Set(tagTxIdFilter);
+    finalTxIdFilter = txIdFilter.filter((id) => tagSet.has(id));
+    if (finalTxIdFilter.length === 0) {
+      return c.json({ data: [] });
+    }
+  } else if (txIdFilter) {
+    finalTxIdFilter = txIdFilter;
+  } else if (tagTxIdFilter) {
+    finalTxIdFilter = tagTxIdFilter;
+  }
+
   const conditions = [];
-  if (txIdFilter) {
-    conditions.push(inArray(transactions.id, txIdFilter));
+  if (finalTxIdFilter) {
+    conditions.push(inArray(transactions.id, finalTxIdFilter));
   }
   if (isClearedQuery !== undefined) {
     conditions.push(eq(transactions.isCleared, isClearedQuery === 'true'));
@@ -203,9 +256,30 @@ transactionsRoute.get('/', async (c) => {
     splitMap.set(s.transactionId, list);
   }
 
+  // Fetch tags for all returned transactions
+  const tagRows = await db
+    .select({
+      transactionId: transactionTags.transactionId,
+      id: tags.id,
+      name: tags.name,
+      color: tags.color,
+    })
+    .from(transactionTags)
+    .innerJoin(tags, eq(transactionTags.tagId, tags.id))
+    .where(inArray(transactionTags.transactionId, txIds))
+    .orderBy(asc(tags.name));
+
+  const tagMap = new Map<string, any[]>();
+  for (const tr of tagRows) {
+    const list = tagMap.get(tr.transactionId) || [];
+    list.push({ id: tr.id, name: tr.name, color: tr.color });
+    tagMap.set(tr.transactionId, list);
+  }
+
   const data = txRows.map((t) => ({
     ...t,
     splits: splitMap.get(t.id) || [],
+    tags: tagMap.get(t.id) || [],
   }));
 
   return c.json({ data });
@@ -213,7 +287,7 @@ transactionsRoute.get('/', async (c) => {
 
 /**
  * GET /api/transactions/:id
- * Fetches a single transaction with its splits.
+ * Fetches a single transaction with its splits and tags.
  */
 transactionsRoute.get('/:id', async (c) => {
   const id = c.req.param('id');
@@ -239,10 +313,22 @@ transactionsRoute.get('/:id', async (c) => {
     .innerJoin(accounts, eq(splits.accountId, accounts.id))
     .where(eq(splits.transactionId, id));
 
+  const tagRows = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      color: tags.color,
+    })
+    .from(transactionTags)
+    .innerJoin(tags, eq(transactionTags.tagId, tags.id))
+    .where(eq(transactionTags.transactionId, id))
+    .orderBy(asc(tags.name));
+
   return c.json({
     data: {
       ...tx,
       splits: splitRows,
+      tags: tagRows,
     },
   });
 });
@@ -413,6 +499,21 @@ transactionsRoute.patch('/:id', async (c) => {
       );
     }
 
+    if (body.tagIds !== undefined) {
+      // Delete existing tag associations
+      await tx.delete(transactionTags).where(eq(transactionTags.transactionId, id));
+
+      // Insert new tag associations
+      if (Array.isArray(body.tagIds) && body.tagIds.length > 0) {
+        for (const tagId of body.tagIds) {
+          await tx.insert(transactionTags).values({
+            transactionId: id,
+            tagId,
+          }).onConflictDoNothing();
+        }
+      }
+    }
+
     return updatedTx;
   });
 
@@ -432,10 +533,22 @@ transactionsRoute.patch('/:id', async (c) => {
     .innerJoin(accounts, eq(splits.accountId, accounts.id))
     .where(eq(splits.transactionId, id));
 
+  const tagRows = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      color: tags.color,
+    })
+    .from(transactionTags)
+    .innerJoin(tags, eq(transactionTags.tagId, tags.id))
+    .where(eq(transactionTags.transactionId, id))
+    .orderBy(asc(tags.name));
+
   return c.json({
     data: {
       ...updated,
       splits: splitRows,
+      tags: tagRows,
     },
   });
 });

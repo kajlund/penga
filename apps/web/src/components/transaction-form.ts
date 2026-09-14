@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { live } from 'lit/directives/live.js';
-import type { Account, CreateTransactionInput, TransactionWithSplits } from '@penga/shared';
+import type { Account, CreateTransactionInput, TransactionWithSplits, Tag } from '@penga/shared';
 import './account-combobox.js';
 
 interface SplitRowState {
@@ -584,6 +584,153 @@ export class TransactionForm extends LitElement {
       box-shadow: none;
       transform: none;
     }
+
+    /* Tags Input & Chips */
+    .tag-form-group {
+      position: relative;
+    }
+
+    .tag-input-box {
+      min-height: 42px;
+      padding: 0.35rem 0.65rem;
+      border-radius: var(--radius-md);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      cursor: text;
+      transition: all var(--transition-fast);
+      box-sizing: border-box;
+    }
+
+    .tag-input-box:focus-within {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-primary-subtle);
+      background: var(--bg-surface);
+    }
+
+    .selected-tags-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      width: 100%;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid;
+      line-height: 1.2;
+      animation: chipPop 0.15s ease-out;
+      user-select: none;
+    }
+
+    @keyframes chipPop {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .tag-chip-remove {
+      background: transparent;
+      border: none;
+      color: inherit;
+      opacity: 0.6;
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      transition: opacity var(--transition-fast);
+      line-height: 1;
+    }
+
+    .tag-chip-remove:hover {
+      opacity: 1;
+    }
+
+    .tag-inline-input {
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      padding: 0.2rem 0.3rem;
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .tag-inline-input::placeholder {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .tag-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.08);
+      z-index: 1050;
+      max-height: 190px;
+      overflow-y: auto;
+      padding: 0.3rem 0;
+      display: flex;
+      flex-direction: column;
+      animation: menuFadeIn var(--transition-fast) ease-out;
+    }
+
+    .tag-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.85rem;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.825rem;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      width: 100%;
+    }
+
+    .tag-dropdown-item:hover {
+      background: var(--bg-subtle);
+      color: var(--color-primary-text);
+    }
+
+    .tag-dropdown-item.create-new {
+      border-top: 1px solid var(--border-subtle);
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    .tag-dropdown-item.create-new:hover {
+      background: var(--color-primary-subtle);
+    }
+
+    .tag-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
   `;
 
   @property({ type: Boolean })
@@ -608,6 +755,18 @@ export class TransactionForm extends LitElement {
   private availableAccounts: Account[] = [];
 
   @state()
+  private availableTags: Tag[] = [];
+
+  @state()
+  private selectedTagIds = new Set<string>();
+
+  @state()
+  private tagSearchInput = '';
+
+  @state()
+  private isTagDropdownOpen = false;
+
+  @state()
   private splitRows: SplitRowState[] = [
     { id: '1', accountId: '', amount: '-0.00' },
     { id: '2', accountId: '', amount: '0.00' },
@@ -619,12 +778,15 @@ export class TransactionForm extends LitElement {
   override connectedCallback() {
     super.connectedCallback();
     this.fetchAccounts();
+    this.fetchTags();
     window.addEventListener('keydown', this.handleGlobalKeyDown);
+    window.addEventListener('click', this.handleWindowClick);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('keydown', this.handleGlobalKeyDown);
+    window.removeEventListener('click', this.handleWindowClick);
   }
 
   private handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -656,6 +818,99 @@ export class TransactionForm extends LitElement {
     }
   }
 
+  async fetchTags() {
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) {
+        const json = await res.json();
+        this.availableTags = json.data || [];
+      }
+    } catch (err) {
+      console.warn('Could not load tags list for transaction form', err);
+    }
+  }
+
+  private normalizeTagName(val: string): string {
+    return val.replace(/^#+/, '').trim().toLowerCase();
+  }
+
+  private selectTag(tagId: string) {
+    const next = new Set(this.selectedTagIds);
+    next.add(tagId);
+    this.selectedTagIds = next;
+    this.tagSearchInput = '';
+    this.isTagDropdownOpen = false;
+  }
+
+  private removeTag(tagId: string, e?: Event) {
+    e?.stopPropagation();
+    const next = new Set(this.selectedTagIds);
+    next.delete(tagId);
+    this.selectedTagIds = next;
+  }
+
+  private async createAndSelectTag() {
+    const raw = this.normalizeTagName(this.tagSearchInput);
+    if (!raw) return;
+
+    try {
+      const res = await fetch('/api/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: raw }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const tag = json.data as Tag;
+        if (!this.availableTags.some((t) => t.id === tag.id)) {
+          this.availableTags = [...this.availableTags, tag];
+        }
+        this.selectTag(tag.id);
+      }
+    } catch (err) {
+      console.error('Failed to create tag', err);
+    }
+  }
+
+  private handleTagKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const raw = this.normalizeTagName(this.tagSearchInput);
+      if (!raw) return;
+
+      const matched = this.availableTags.find((t) => t.name.toLowerCase() === raw.toLowerCase());
+      if (matched) {
+        this.selectTag(matched.id);
+      } else {
+        this.createAndSelectTag();
+      }
+    } else if (e.key === 'Backspace' && !this.tagSearchInput && this.selectedTagIds.size > 0) {
+      const arr = Array.from(this.selectedTagIds);
+      this.removeTag(arr[arr.length - 1]);
+    } else if (e.key === 'Escape') {
+      this.isTagDropdownOpen = false;
+    }
+  };
+
+  private handleTagSearchInput = (e: Event) => {
+    this.tagSearchInput = (e.target as HTMLInputElement).value;
+    this.isTagDropdownOpen = true;
+  };
+
+  private focusTagInput = () => {
+    const input = this.shadowRoot?.getElementById('tag-input-field') as HTMLInputElement | null;
+    input?.focus();
+    this.isTagDropdownOpen = true;
+  };
+
+  private handleWindowClick = (e: MouseEvent) => {
+    const path = e.composedPath();
+    const isTagClick = path.some((el) => el instanceof HTMLElement && el.classList?.contains('tag-form-group'));
+    if (!isTagClick) {
+      this.isTagDropdownOpen = false;
+    }
+  };
+
   private autoPopulateInitialAccounts() {
     if (this.availableAccounts.length >= 2 && !this.splitRows[0].accountId) {
       const asset = this.availableAccounts.find((a) => a.type === 'ASSET');
@@ -675,6 +930,7 @@ export class TransactionForm extends LitElement {
       this.populateForEdit(this.transactionToEdit);
     } else if (changedProps.has('isOpen') && this.isOpen && !changedProps.get('isOpen')) {
       this.fetchAccounts();
+      this.fetchTags();
       if (!this.transactionToEdit) {
         this.resetForm();
       }
@@ -688,6 +944,9 @@ export class TransactionForm extends LitElement {
     this.note = tx.note || '';
     this.isCleared = tx.isCleared;
     this.isSubmitting = false;
+    this.selectedTagIds = new Set((tx.tags || []).map((t) => t.id));
+    this.tagSearchInput = '';
+    this.isTagDropdownOpen = false;
 
     this.splitRows = (tx.splits || []).map((s, idx) => ({
       id: s.id || `split-${idx}-${Date.now()}`,
@@ -703,6 +962,9 @@ export class TransactionForm extends LitElement {
     this.note = '';
     this.isCleared = false;
     this.isSubmitting = false;
+    this.selectedTagIds = new Set();
+    this.tagSearchInput = '';
+    this.isTagDropdownOpen = false;
 
     const sourceAccId = preselectedAccountId || (this.availableAccounts[0]?.id || '');
     const destAccId = this.availableAccounts.find((a) => a.id !== sourceAccId)?.id || '';
@@ -715,6 +977,7 @@ export class TransactionForm extends LitElement {
 
   public open(preselectedAccountId?: string) {
     this.fetchAccounts();
+    this.fetchTags();
     this.resetForm(preselectedAccountId);
     this.isOpen = true;
     this.requestUpdate();
@@ -722,6 +985,7 @@ export class TransactionForm extends LitElement {
 
   public edit(tx: TransactionWithSplits) {
     this.fetchAccounts();
+    this.fetchTags();
     this.populateForEdit(tx);
     this.isOpen = true;
     this.requestUpdate();
@@ -883,6 +1147,7 @@ export class TransactionForm extends LitElement {
           accountId: r.accountId,
           amountCents: this.parseCents(r.amount),
         })),
+        tagIds: Array.from(this.selectedTagIds),
       };
 
       const res = await fetch(url, {
@@ -1025,6 +1290,89 @@ export class TransactionForm extends LitElement {
                   <span>Mark as Cleared (Statement Reconciled)</span>
                 </label>
               </div>
+            </div>
+
+            <!-- Tags Section -->
+            <div class="form-group tag-form-group">
+              <label class="form-label">Tags (Cross-cutting labels)</label>
+              <div class="tag-input-box" @click="${this.focusTagInput}">
+                <div class="selected-tags-list">
+                  ${Array.from(this.selectedTagIds).map((id) => {
+                    const tag = this.availableTags.find((t) => t.id === id);
+                    if (!tag) return nothing;
+                    const color = tag.color || '#6366f1';
+                    return html`
+                      <span
+                        class="tag-chip"
+                        style="background: ${color}1c; color: ${color}; border-color: ${color}45;"
+                      >
+                        <span>#${tag.name}</span>
+                        <button
+                          type="button"
+                          class="tag-chip-remove"
+                          @click="${(e: Event) => this.removeTag(id, e)}"
+                          title="Remove tag"
+                          aria-label="Remove tag ${tag.name}"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    `;
+                  })}
+                  <input
+                    type="text"
+                    id="tag-input-field"
+                    class="tag-inline-input"
+                    placeholder="${this.selectedTagIds.size === 0 ? 'Type tag name e.g. vacation, tax-deductible...' : 'Add another tag...'}"
+                    .value="${this.tagSearchInput}"
+                    @input="${this.handleTagSearchInput}"
+                    @keydown="${this.handleTagKeyDown}"
+                    @focus="${() => (this.isTagDropdownOpen = true)}"
+                  />
+                </div>
+              </div>
+
+              ${(() => {
+                const rawSearch = this.normalizeTagName(this.tagSearchInput);
+                const unselectedTags = this.availableTags.filter((t) => !this.selectedTagIds.has(t.id));
+                const suggestedTags = rawSearch
+                  ? unselectedTags.filter((t) => t.name.toLowerCase().includes(rawSearch))
+                  : unselectedTags;
+                const exactMatchExists = this.availableTags.some((t) => t.name.toLowerCase() === rawSearch);
+                const canCreateNewTag = rawSearch.length > 0 && !exactMatchExists;
+
+                if (!this.isTagDropdownOpen || (suggestedTags.length === 0 && !canCreateNewTag)) {
+                  return nothing;
+                }
+
+                return html`
+                  <div class="tag-dropdown">
+                    ${suggestedTags.map(
+                      (tag) => html`
+                        <button
+                          type="button"
+                          class="tag-dropdown-item"
+                          @click="${() => this.selectTag(tag.id)}"
+                        >
+                          <span class="tag-dot" style="background: ${tag.color || '#6366f1'};"></span>
+                          <span>#${tag.name}</span>
+                        </button>
+                      `
+                    )}
+                    ${canCreateNewTag
+                      ? html`
+                          <button
+                            type="button"
+                            class="tag-dropdown-item create-new"
+                            @click="${this.createAndSelectTag}"
+                          >
+                            <span>➕ Create new tag "<strong>#${rawSearch}</strong>" (Press Enter)</span>
+                          </button>
+                        `
+                      : nothing}
+                  </div>
+                `;
+              })()}
             </div>
 
             <!-- Splits Ledger -->

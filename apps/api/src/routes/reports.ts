@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { eq, desc, asc, inArray } from 'drizzle-orm';
-import { db, transactions, splits, accounts } from '../db/index.js';
+import { db, transactions, splits, accounts, tags, transactionTags } from '../db/index.js';
 import type { DashboardSummary, AccountBalanceSummary, TransactionWithSplits } from '@penga/shared';
 
 export const reportsRoute = new Hono();
@@ -168,9 +168,29 @@ async function handleSummary(c: any) {
       recentSplitMap.set(s.transactionId, list);
     }
 
+    const recentTagRows = await db
+      .select({
+        transactionId: transactionTags.transactionId,
+        id: tags.id,
+        name: tags.name,
+        color: tags.color,
+      })
+      .from(transactionTags)
+      .innerJoin(tags, eq(transactionTags.tagId, tags.id))
+      .where(inArray(transactionTags.transactionId, txIds))
+      .orderBy(asc(tags.name));
+
+    const recentTagMap = new Map<string, any[]>();
+    for (const tr of recentTagRows) {
+      const list = recentTagMap.get(tr.transactionId) || [];
+      list.push({ id: tr.id, name: tr.name, color: tr.color });
+      recentTagMap.set(tr.transactionId, list);
+    }
+
     recentTransactionsWithSplits = recentTxs.map((t) => ({
       ...t,
       splits: recentSplitMap.get(t.id) || [],
+      tags: recentTagMap.get(t.id) || [],
     }));
   }
 
