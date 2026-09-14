@@ -59,14 +59,23 @@ export class PengaAccounts extends LitElement {
       box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
     }
 
-    /* Filter Bar */
+    /* Filter Bar & Search */
     .filter-bar {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: space-between;
+      gap: 1rem;
       margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-pills {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
       overflow-x: auto;
       padding-bottom: 0.25rem;
+      flex-wrap: wrap;
     }
 
     .filter-pill {
@@ -115,6 +124,83 @@ export class PengaAccounts extends LitElement {
     .filter-pill.active .badge-count {
       background: var(--color-primary);
       color: #ffffff;
+    }
+
+    /* Search Box */
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-width: 250px;
+      max-width: 360px;
+      flex: 1;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.85rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      transition: color var(--transition-fast);
+    }
+
+    .search-box:focus-within .search-icon {
+      color: var(--color-primary);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.45rem 2.2rem 0.45rem 2.4rem;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.825rem;
+      outline: none;
+      transition: all var(--transition-fast);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-input:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-subtle);
+      background: var(--bg-surface);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 0.65rem;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg-muted);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      line-height: 1;
+    }
+
+    .search-clear-btn:hover {
+      background: var(--border-strong);
+      color: var(--text-primary);
+    }
+
+    .search-highlight {
+      background: var(--color-primary-subtle);
+      color: var(--color-primary-text);
+      font-weight: 700;
+      border-radius: 2px;
+      padding: 0 2px;
     }
 
     /* Tree Container Card */
@@ -632,6 +718,9 @@ export class PengaAccounts extends LitElement {
   private selectedFilter: 'ALL' | AccountType = 'ALL';
 
   @state()
+  private searchQuery = '';
+
+  @state()
   private collapsedNodes = new Set<string>();
 
   @state()
@@ -909,17 +998,89 @@ export class PengaAccounts extends LitElement {
     }
   }
 
-  private renderNode(node: AccountTreeNode, depth = 0): unknown {
-    const hasChildren = node.children && node.children.length > 0;
-    const isCollapsed = this.collapsedNodes.has(node.id);
+  private handleSearchInput = (e: Event) => {
+    this.searchQuery = (e.target as HTMLInputElement).value;
+  };
 
-    // If filtered by type and this node doesn't match and has no matching descendants
-    if (this.selectedFilter !== 'ALL' && node.type !== this.selectedFilter) {
-      const hasMatchingChild = this.hasChildMatchingType(node, this.selectedFilter);
-      if (!hasMatchingChild) {
-        return nothing;
-      }
+  private handleSearchKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      this.clearSearch();
     }
+  };
+
+  private clearSearch() {
+    this.searchQuery = '';
+  }
+
+  private nodeMatchesSearch(node: AccountTreeNode, query: string): boolean {
+    if (!query) return true;
+    const nameMatch = node.name.toLowerCase().includes(query);
+    const descMatch = node.description ? node.description.toLowerCase().includes(query) : false;
+    return nameMatch || descMatch;
+  }
+
+  private nodeMatchesType(node: AccountTreeNode): boolean {
+    return this.selectedFilter === 'ALL' || node.type === this.selectedFilter;
+  }
+
+  private shouldShowNode(node: AccountTreeNode, parentSearchMatched = false): boolean {
+    const q = this.searchQuery.trim().toLowerCase();
+    const selfSearch = this.nodeMatchesSearch(node, q);
+    const selfType = this.nodeMatchesType(node);
+    const effectiveSearchMatch = selfSearch || (parentSearchMatched && q.length > 0);
+
+    if (effectiveSearchMatch && selfType) {
+      return true;
+    }
+
+    if (node.children && node.children.length > 0) {
+      return node.children.some((child) =>
+        this.shouldShowNode(child, parentSearchMatched || selfSearch)
+      );
+    }
+
+    return false;
+  }
+
+  private isNodeCollapsed(node: AccountTreeNode): boolean {
+    if (this.searchQuery.trim().length > 0) {
+      return false; // Auto-expand during active search
+    }
+    return this.collapsedNodes.has(node.id);
+  }
+
+  private highlightMatch(text: string, query: string): unknown {
+    if (!query || !text) return text;
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    if (!lowerText.includes(lowerQuery)) return text;
+
+    const parts: unknown[] = [];
+    let cur = 0;
+    while (cur < text.length) {
+      const matchIndex = lowerText.indexOf(lowerQuery, cur);
+      if (matchIndex === -1) {
+        parts.push(text.slice(cur));
+        break;
+      }
+      if (matchIndex > cur) {
+        parts.push(text.slice(cur, matchIndex));
+      }
+      parts.push(html`<mark class="search-highlight">${text.slice(matchIndex, matchIndex + query.length)}</mark>`);
+      cur = matchIndex + query.length;
+    }
+    return html`${parts}`;
+  }
+
+  private renderNode(node: AccountTreeNode, depth = 0, parentSearchMatched = false): unknown {
+    if (!this.shouldShowNode(node, parentSearchMatched)) {
+      return nothing;
+    }
+
+    const q = this.searchQuery.trim().toLowerCase();
+    const selfSearch = this.nodeMatchesSearch(node, q);
+    const hasChildren = node.children && node.children.length > 0;
+    const isCollapsed = this.isNodeCollapsed(node);
 
     return html`
       <li class="tree-node">
@@ -945,10 +1106,10 @@ export class PengaAccounts extends LitElement {
 
             <div class="account-info" title="${node.description ? `${node.name} — ${node.description}` : node.name}">
               <div class="account-title-row">
-                <span class="account-name">${node.name}</span>
+                <span class="account-name">${this.highlightMatch(node.name, q)}</span>
                 ${hasChildren ? html`<span class="subaccount-pill">${node.children.length} sub</span>` : nothing}
               </div>
-              ${node.description ? html`<span class="account-description">${node.description}</span>` : nothing}
+              ${node.description ? html`<span class="account-description">${this.highlightMatch(node.description, q)}</span>` : nothing}
             </div>
           </div>
 
@@ -1007,18 +1168,12 @@ export class PengaAccounts extends LitElement {
         ${hasChildren && !isCollapsed
           ? html`
               <ul class="tree-list children-container">
-                ${node.children.map((child) => this.renderNode(child, depth + 1))}
+                ${node.children.map((child) => this.renderNode(child, depth + 1, parentSearchMatched || selfSearch))}
               </ul>
             `
           : nothing}
       </li>
     `;
-  }
-
-  private hasChildMatchingType(node: AccountTreeNode, type: AccountType): boolean {
-    if (node.type === type) return true;
-    if (!node.children) return false;
-    return node.children.some((child) => this.hasChildMatchingType(child, type));
   }
 
   override render() {
@@ -1027,6 +1182,8 @@ export class PengaAccounts extends LitElement {
     const liabilityCount = this.flatAccounts.filter((a) => a.type === 'LIABILITY').length;
     const incomeCount = this.flatAccounts.filter((a) => a.type === 'INCOME').length;
     const expenseCount = this.flatAccounts.filter((a) => a.type === 'EXPENSE').length;
+
+    const visibleNodes = this.treeNodes.filter((node) => this.shouldShowNode(node));
 
     return html`
       <div class="page-header">
@@ -1040,43 +1197,66 @@ export class PengaAccounts extends LitElement {
         </button>
       </div>
 
-      <!-- Type Filter Tabs -->
+      <!-- Type Filter Tabs & Search -->
       <div class="filter-bar">
-        <button
-          class="filter-pill ${this.selectedFilter === 'ALL' ? 'active' : ''}"
-          @click="${() => (this.selectedFilter = 'ALL')}"
-        >
-          <span>All Categories</span>
-          <span class="badge-count">${totalCount}</span>
-        </button>
-        <button
-          class="filter-pill ${this.selectedFilter === 'ASSET' ? 'active' : ''}"
-          @click="${() => (this.selectedFilter = 'ASSET')}"
-        >
-          <span>Assets</span>
-          <span class="badge-count">${assetCount}</span>
-        </button>
-        <button
-          class="filter-pill ${this.selectedFilter === 'LIABILITY' ? 'active' : ''}"
-          @click="${() => (this.selectedFilter = 'LIABILITY')}"
-        >
-          <span>Liabilities</span>
-          <span class="badge-count">${liabilityCount}</span>
-        </button>
-        <button
-          class="filter-pill ${this.selectedFilter === 'INCOME' ? 'active' : ''}"
-          @click="${() => (this.selectedFilter = 'INCOME')}"
-        >
-          <span>Income</span>
-          <span class="badge-count">${incomeCount}</span>
-        </button>
-        <button
-          class="filter-pill ${this.selectedFilter === 'EXPENSE' ? 'active' : ''}"
-          @click="${() => (this.selectedFilter = 'EXPENSE')}"
-        >
-          <span>Expenses</span>
-          <span class="badge-count">${expenseCount}</span>
-        </button>
+        <div class="filter-pills">
+          <button
+            class="filter-pill ${this.selectedFilter === 'ALL' ? 'active' : ''}"
+            @click="${() => (this.selectedFilter = 'ALL')}"
+          >
+            <span>All Categories</span>
+            <span class="badge-count">${totalCount}</span>
+          </button>
+          <button
+            class="filter-pill ${this.selectedFilter === 'ASSET' ? 'active' : ''}"
+            @click="${() => (this.selectedFilter = 'ASSET')}"
+          >
+            <span>Assets</span>
+            <span class="badge-count">${assetCount}</span>
+          </button>
+          <button
+            class="filter-pill ${this.selectedFilter === 'LIABILITY' ? 'active' : ''}"
+            @click="${() => (this.selectedFilter = 'LIABILITY')}"
+          >
+            <span>Liabilities</span>
+            <span class="badge-count">${liabilityCount}</span>
+          </button>
+          <button
+            class="filter-pill ${this.selectedFilter === 'INCOME' ? 'active' : ''}"
+            @click="${() => (this.selectedFilter = 'INCOME')}"
+          >
+            <span>Income</span>
+            <span class="badge-count">${incomeCount}</span>
+          </button>
+          <button
+            class="filter-pill ${this.selectedFilter === 'EXPENSE' ? 'active' : ''}"
+            @click="${() => (this.selectedFilter = 'EXPENSE')}"
+          >
+            <span>Expenses</span>
+            <span class="badge-count">${expenseCount}</span>
+          </button>
+        </div>
+
+        <div class="search-box">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search accounts or descriptions..."
+            .value="${this.searchQuery}"
+            @input="${this.handleSearchInput}"
+            @keydown="${this.handleSearchKeyDown}"
+            aria-label="Filter accounts"
+          />
+          ${this.searchQuery ? html`
+            <button class="search-clear-btn" @click="${() => this.clearSearch()}" title="Clear search (Esc)" aria-label="Clear search">
+              ✕
+            </button>
+          ` : nothing}
+        </div>
       </div>
 
       <!-- Account Tree Content -->
@@ -1097,6 +1277,17 @@ export class PengaAccounts extends LitElement {
                 <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📂</div>
                 <h4>No Accounts Found</h4>
                 <p>Create your first account or run the database seed script.</p>
+              </div>
+            `
+          : visibleNodes.length === 0
+          ? html`
+              <div class="empty-state">
+                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔍</div>
+                <h4>No Matching Accounts</h4>
+                <p>No accounts found matching "${this.searchQuery}" ${this.selectedFilter !== 'ALL' ? `in ${this.selectedFilter}` : ''}.</p>
+                <button class="btn-secondary" style="margin-top: 0.75rem;" @click="${() => this.clearSearch()}">
+                  Clear Search
+                </button>
               </div>
             `
           : html`

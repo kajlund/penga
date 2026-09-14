@@ -159,7 +159,7 @@ export class ThemeToggle extends LitElement {
                 </svg>
               `}
         </span>
-        <span class="theme-label">${isDark ? 'Dark' : 'Light'}</span>
+        <span class="theme-label">${isDark ? 'Light' : 'Dark'}</span>
       </button>
     `;
   }

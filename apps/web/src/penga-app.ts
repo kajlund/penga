@@ -74,50 +74,6 @@ export class PengaApp extends LitElement {
       gap: 0.75rem;
     }
 
-    .btn-quick-tx {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.45rem 0.9rem;
-      border-radius: var(--radius-full);
-      background: var(--color-primary);
-      color: #ffffff;
-      border: 1px solid transparent;
-      font-family: var(--font-sans);
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
-      transition: all var(--transition-fast);
-    }
-
-    .btn-quick-tx:hover {
-      background: var(--color-primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 10px rgba(5, 150, 105, 0.3);
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.35rem 0.75rem;
-      border-radius: var(--radius-full);
-      background: var(--color-primary-subtle);
-      border: 1px solid var(--color-primary-border);
-      color: var(--color-primary-text);
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background-color: var(--color-primary);
-      box-shadow: 0 0 6px var(--color-primary);
-    }
-
     .content-area {
       flex: 1;
       min-width: 0;
@@ -248,21 +204,6 @@ export class PengaApp extends LitElement {
             </div>
 
             <div class="header-actions">
-              <button
-                type="button"
-                class="btn-quick-tx"
-                @click="${this.handleOpenCreateModal}"
-                title="Record new split transaction"
-              >
-                <span>+</span>
-                <span>New Transaction</span>
-              </button>
-
-              <div class="status-badge">
-                <span class="status-dot"></span>
-                <span>Postgres Connected</span>
-              </div>
-
               <theme-toggle></theme-toggle>
             </div>
           </header>
