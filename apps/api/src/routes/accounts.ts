@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, asc } from 'drizzle-orm';
 import { db, accounts, type Account } from '../db/index.js';
 import { AccountType, type AccountTreeNode } from '@penga/shared';
 
@@ -8,7 +8,8 @@ export const accountsRoute = new Hono();
 const validAccountTypes = new Set<string>(Object.values(AccountType));
 
 /**
- * Builds a hierarchical tree from a flat list of accounts in O(N) time.
+ * Builds a hierarchical tree from a flat list of accounts in O(N) time,
+ * sorted alphabetically by name at every level.
  */
 export function buildAccountTree(allAccounts: Account[]): AccountTreeNode[] {
   const nodeMap = new Map<string, AccountTreeNode>();
@@ -37,6 +38,16 @@ export function buildAccountTree(allAccounts: Account[]): AccountTreeNode[] {
       rootNodes.push(node);
     }
   }
+
+  const sortNodes = (nodes: AccountTreeNode[]) => {
+    nodes.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    for (const n of nodes) {
+      if (n.children && n.children.length > 0) {
+        sortNodes(n.children);
+      }
+    }
+  };
+  sortNodes(rootNodes);
 
   return rootNodes;
 }
@@ -78,7 +89,7 @@ async function wouldCreateCycle(targetId: string, newParentId: string): Promise<
  * Returns accounts organized as a hierarchical tree.
  */
 accountsRoute.get('/tree', async (c) => {
-  const allAccounts = await db.select().from(accounts);
+  const allAccounts = await db.select().from(accounts).orderBy(asc(accounts.name));
   const tree = buildAccountTree(allAccounts);
   return c.json({ data: tree });
 });
@@ -108,8 +119,8 @@ accountsRoute.get('/', async (c) => {
   }
 
   const results = conditions.length > 0
-    ? await query.where(and(...conditions))
-    : await query;
+    ? await query.where(and(...conditions)).orderBy(asc(accounts.name))
+    : await query.orderBy(asc(accounts.name));
 
   return c.json({ data: results });
 });

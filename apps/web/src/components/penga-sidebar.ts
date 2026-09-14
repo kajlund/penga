@@ -168,7 +168,7 @@ export class PengaSidebar extends LitElement {
 
   private navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'accounts', label: 'Accounts & Tree', icon: '🌳' },
+    { id: 'accounts', label: 'Accounts', icon: '🌳' },
     { id: 'transactions', label: 'Transactions', icon: '💸' },
     { id: 'reconciliation', label: 'Reconciliation', icon: '📑' },
     { id: 'budgets', label: 'Budgets & Rules', icon: '🎯' },

@@ -204,7 +204,7 @@ export class PengaTransactions extends LitElement {
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
-      overflow: hidden;
+      overflow: visible;
     }
 
     .ledger-header {
@@ -214,6 +214,7 @@ export class PengaTransactions extends LitElement {
       padding: 0.75rem 0.85rem 0.75rem 0.5rem;
       background: var(--bg-subtle);
       border-bottom: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       font-size: 0.75rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -445,10 +446,27 @@ export class PengaTransactions extends LitElement {
       animation: menuFadeIn var(--transition-fast) ease-out;
     }
 
+    .actions-menu.open-upwards {
+      top: auto;
+      bottom: calc(100% + 4px);
+      animation: menuFadeInUp var(--transition-fast) ease-out;
+    }
+
     @keyframes menuFadeIn {
       from {
         opacity: 0;
         transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes menuFadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
       }
       to {
         opacity: 1;
@@ -594,6 +612,9 @@ export class PengaTransactions extends LitElement {
   @state()
   private openMenuTxId: string | null = null;
 
+  @state()
+  private openMenuUpwards = false;
+
   override connectedCallback() {
     super.connectedCallback();
     if (this.reconciliationMode) {
@@ -613,22 +634,40 @@ export class PengaTransactions extends LitElement {
   private handleWindowClick = () => {
     if (this.openMenuTxId) {
       this.openMenuTxId = null;
+      this.openMenuUpwards = false;
     }
   };
 
   private handleWindowKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape' && this.openMenuTxId) {
       this.openMenuTxId = null;
+      this.openMenuUpwards = false;
     }
   };
 
   private toggleMenu(e: Event, txId: string) {
     e.stopPropagation();
-    this.openMenuTxId = this.openMenuTxId === txId ? null : txId;
+    if (this.openMenuTxId === txId) {
+      this.openMenuTxId = null;
+      this.openMenuUpwards = false;
+      return;
+    }
+
+    const triggerBtn = e.currentTarget as HTMLElement | null;
+    if (triggerBtn) {
+      const rect = triggerBtn.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      this.openMenuUpwards = spaceBelow < 170;
+    } else {
+      this.openMenuUpwards = false;
+    }
+
+    this.openMenuTxId = txId;
   }
 
   private closeMenu() {
     this.openMenuTxId = null;
+    this.openMenuUpwards = false;
   }
 
   public async fetchData() {
@@ -1115,9 +1154,9 @@ export class PengaTransactions extends LitElement {
                               ···
                             </button>
 
-                            ${this.openMenuTxId === tx.id
+                             ${this.openMenuTxId === tx.id
                               ? html`
-                                  <div class="actions-menu" @click="${(e: Event) => e.stopPropagation()}">
+                                  <div class="actions-menu ${this.openMenuUpwards ? 'open-upwards' : ''}" @click="${(e: Event) => e.stopPropagation()}">
                                     <button
                                       type="button"
                                       class="actions-menu-item"

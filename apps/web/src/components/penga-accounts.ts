@@ -123,16 +123,18 @@ export class PengaAccounts extends LitElement {
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-card);
-      overflow: hidden;
+      overflow: visible;
     }
 
     .tree-header {
       display: grid;
-      grid-template-columns: 1fr 40px;
-      padding: 0.85rem 1.5rem;
+      grid-template-columns: 1fr 100px 36px;
+      gap: 0.75rem;
+      padding: 0.65rem 1.25rem;
       background: var(--bg-subtle);
       border-bottom: 1px solid var(--border-subtle);
-      font-size: 0.75rem;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      font-size: 0.72rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -140,10 +142,18 @@ export class PengaAccounts extends LitElement {
       align-items: center;
     }
 
+    .tree-header-type {
+      text-align: center;
+    }
+
+    .tree-header-actions {
+      text-align: right;
+    }
+
     .tree-list {
       list-style: none;
       margin: 0;
-      padding: 0.5rem 0;
+      padding: 0;
     }
 
     /* Tree Node */
@@ -154,12 +164,12 @@ export class PengaAccounts extends LitElement {
 
     .node-row {
       display: grid;
-      grid-template-columns: 1fr 40px;
+      grid-template-columns: 1fr 100px 36px;
+      gap: 0.75rem;
       align-items: center;
-      padding: 0.75rem 1.5rem;
+      padding: 0.45rem 1.25rem;
       border-bottom: 1px solid var(--border-subtle);
       transition: background-color var(--transition-fast);
-      gap: 1rem;
       position: relative;
     }
 
@@ -170,13 +180,13 @@ export class PengaAccounts extends LitElement {
     .node-main {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.6rem;
       min-width: 0;
     }
 
     .toggle-btn {
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       border-radius: var(--radius-sm);
       display: inline-flex;
       align-items: center;
@@ -185,9 +195,10 @@ export class PengaAccounts extends LitElement {
       border: none;
       cursor: pointer;
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       transition: transform var(--transition-fast), color var(--transition-fast);
       padding: 0;
+      flex-shrink: 0;
     }
 
     .toggle-btn:hover {
@@ -200,19 +211,20 @@ export class PengaAccounts extends LitElement {
     }
 
     .toggle-placeholder {
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       display: inline-block;
+      flex-shrink: 0;
     }
 
     .account-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-md);
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.15rem;
+      font-size: 1rem;
       background: var(--bg-subtle);
       border: 1px solid var(--border-subtle);
       flex-shrink: 0;
@@ -221,45 +233,63 @@ export class PengaAccounts extends LitElement {
     .account-info {
       display: flex;
       flex-direction: column;
-      gap: 0.15rem;
+      gap: 0.1rem;
+      min-width: 0;
+    }
+
+    .account-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
       min-width: 0;
     }
 
     .account-name {
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       font-weight: 600;
       color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      line-height: 1.25;
+    }
+
+    .subaccount-pill {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-muted);
+      padding: 0.1rem 0.45rem;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+      flex-shrink: 0;
+      line-height: 1.2;
     }
 
     .account-description {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--text-secondary);
-      line-height: 1.35;
-      white-space: normal;
+      line-height: 1.25;
+      white-space: nowrap;
       overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      text-overflow: ellipsis;
     }
 
-    .account-meta {
-      font-size: 0.75rem;
-      color: var(--text-muted);
+    .node-type {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
     }
 
     .type-badge {
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       font-weight: 700;
       letter-spacing: 0.04em;
-      padding: 0.2rem 0.55rem;
+      padding: 0.15rem 0.5rem;
       border-radius: var(--radius-sm);
       text-transform: uppercase;
+      text-align: center;
+      line-height: 1.3;
     }
 
     .type-badge.asset {
@@ -341,10 +371,27 @@ export class PengaAccounts extends LitElement {
       animation: menuFadeIn var(--transition-fast) ease-out;
     }
 
+    .actions-menu.open-upwards {
+      top: auto;
+      bottom: calc(100% + 4px);
+      animation: menuFadeInUp var(--transition-fast) ease-out;
+    }
+
     @keyframes menuFadeIn {
       from {
         opacity: 0;
         transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes menuFadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
       }
       to {
         opacity: 1;
@@ -387,17 +434,9 @@ export class PengaAccounts extends LitElement {
 
     .children-container {
       position: relative;
-      padding-left: 2rem;
-    }
-
-    .children-container::before {
-      content: '';
-      position: absolute;
-      left: 2.2rem;
-      top: 0;
-      bottom: 0.75rem;
-      width: 1px;
-      background: var(--border-subtle);
+      margin: 0;
+      padding: 0;
+      list-style: none;
     }
 
     /* Modal Styles */
@@ -602,6 +641,9 @@ export class PengaAccounts extends LitElement {
   private openMenuAccountId: string | null = null;
 
   @state()
+  private openMenuUpwards = false;
+
+  @state()
   private editingAccountId: string | null = null;
 
   @state()
@@ -635,12 +677,14 @@ export class PengaAccounts extends LitElement {
     );
     if (!isMenuClick) {
       this.openMenuAccountId = null;
+      this.openMenuUpwards = false;
     }
   };
 
   private handleWindowKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       this.openMenuAccountId = null;
+      this.openMenuUpwards = false;
     }
   };
 
@@ -667,13 +711,22 @@ export class PengaAccounts extends LitElement {
         throw new Error(`Failed to load accounts: ${res.statusText}`);
       }
       const json = await res.json();
-      this.treeNodes = json.data || [];
+      this.treeNodes = this.sortTreeNodes(json.data || []);
       this.extractFlatList(this.treeNodes);
     } catch (err: any) {
       this.errorMessage = err.message || 'Error fetching accounts';
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private sortTreeNodes(nodes: AccountTreeNode[]): AccountTreeNode[] {
+    return [...nodes]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+      .map((node) => ({
+        ...node,
+        children: node.children ? this.sortTreeNodes(node.children) : [],
+      }));
   }
 
   private extractFlatList(nodes: AccountTreeNode[]) {
@@ -702,11 +755,28 @@ export class PengaAccounts extends LitElement {
 
   private toggleMenu(accountId: string, e: Event) {
     e.stopPropagation();
-    this.openMenuAccountId = this.openMenuAccountId === accountId ? null : accountId;
+    if (this.openMenuAccountId === accountId) {
+      this.openMenuAccountId = null;
+      this.openMenuUpwards = false;
+      return;
+    }
+
+    const triggerBtn = e.currentTarget as HTMLElement | null;
+    if (triggerBtn) {
+      const rect = triggerBtn.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 170px space below the trigger button, pop upwards
+      this.openMenuUpwards = spaceBelow < 170;
+    } else {
+      this.openMenuUpwards = false;
+    }
+
+    this.openMenuAccountId = accountId;
   }
 
   private closeMenu() {
     this.openMenuAccountId = null;
+    this.openMenuUpwards = false;
   }
 
   private openCreateModal(preselectedParentId?: string, preselectedType?: AccountType) {
@@ -853,7 +923,7 @@ export class PengaAccounts extends LitElement {
 
     return html`
       <li class="tree-node">
-        <div class="node-row" style="padding-left: ${1.5 + depth * 1.5}rem;">
+        <div class="node-row" style="padding-left: ${1.25 + depth * 1.5}rem;">
           <div class="node-main">
             ${hasChildren
               ? html`
@@ -862,7 +932,7 @@ export class PengaAccounts extends LitElement {
                     @click="${() => this.toggleCollapse(node.id)}"
                     aria-label="${isCollapsed ? 'Expand' : 'Collapse'} ${node.name}"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <path d="m6 9 6 6 6-6" />
                     </svg>
                   </button>
@@ -874,13 +944,16 @@ export class PengaAccounts extends LitElement {
             </div>
 
             <div class="account-info" title="${node.description ? `${node.name} — ${node.description}` : node.name}">
-              <span class="account-name">${node.name}</span>
-              ${node.description ? html`<span class="account-description">${node.description}</span>` : nothing}
-              <div class="account-meta">
-                <span class="type-badge ${node.type.toLowerCase()}">${node.type}</span>
-                ${hasChildren ? html`<span>• ${node.children.length} sub-accounts</span>` : nothing}
+              <div class="account-title-row">
+                <span class="account-name">${node.name}</span>
+                ${hasChildren ? html`<span class="subaccount-pill">${node.children.length} sub</span>` : nothing}
               </div>
+              ${node.description ? html`<span class="account-description">${node.description}</span>` : nothing}
             </div>
+          </div>
+
+          <div class="node-type">
+            <span class="type-badge ${node.type.toLowerCase()}">${node.type}</span>
           </div>
 
           <div class="node-actions">
@@ -895,7 +968,7 @@ export class PengaAccounts extends LitElement {
               </button>
               ${this.openMenuAccountId === node.id
                 ? html`
-                    <div class="actions-menu">
+                    <div class="actions-menu ${this.openMenuUpwards ? 'open-upwards' : ''}">
                       <button
                         class="actions-menu-item"
                         @click="${() => this.openEditModal(node)}"
@@ -1010,7 +1083,8 @@ export class PengaAccounts extends LitElement {
       <div class="tree-card">
         <div class="tree-header">
           <span>Account Hierarchy</span>
-          <span>Actions</span>
+          <span class="tree-header-type">Type</span>
+          <span class="tree-header-actions">Actions</span>
         </div>
 
         ${this.isLoading
