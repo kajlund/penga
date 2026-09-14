@@ -209,8 +209,9 @@ export class PengaTransactions extends LitElement {
 
     .ledger-header {
       display: grid;
-      grid-template-columns: 80px 110px 1fr 140px 100px 90px;
-      padding: 0.85rem 1.5rem;
+      grid-template-columns: 24px 105px 1fr 115px 75px 32px;
+      gap: 0.75rem;
+      padding: 0.75rem 0.85rem 0.75rem 0.5rem;
       background: var(--bg-subtle);
       border-bottom: 1px solid var(--border-subtle);
       font-size: 0.75rem;
@@ -218,13 +219,15 @@ export class PengaTransactions extends LitElement {
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--text-muted);
+      align-items: center;
     }
 
     .transaction-row {
       display: flex;
       flex-direction: column;
       border-bottom: 1px solid var(--border-subtle);
-      transition: background-color var(--transition-fast);
+      transition: background-color var(--transition-fast), border var(--transition-fast);
+      position: relative;
     }
 
     .transaction-row:last-child {
@@ -235,54 +238,64 @@ export class PengaTransactions extends LitElement {
       background: var(--bg-subtle);
     }
 
+    .transaction-row.dragging {
+      opacity: 0.35;
+      background: var(--bg-subtle);
+    }
+
+    .transaction-row.drag-over-top {
+      border-top: 2px solid var(--color-primary);
+    }
+
+    .transaction-row.drag-over-bottom {
+      border-bottom: 2px solid var(--color-primary);
+    }
+
     .tx-main {
       display: grid;
-      grid-template-columns: 80px 110px 1fr 140px 100px 90px;
+      grid-template-columns: 24px 105px 1fr 115px 75px 32px;
       align-items: center;
-      padding: 0.95rem 1.5rem;
+      padding: 0.85rem 0.85rem 0.85rem 0.5rem;
       gap: 0.75rem;
     }
 
-    /* Intraday reorder controls */
-    .reorder-controls {
+    /* Drag Handle */
+    .drag-handle-cell {
       display: flex;
       align-items: center;
-      gap: 0.2rem;
+      justify-content: center;
     }
 
-    .btn-reorder {
-      width: 26px;
-      height: 26px;
-      padding: 0;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      border: 1px solid var(--border-subtle);
-      color: var(--text-muted);
-      cursor: pointer;
+    .drag-handle {
+      width: 24px;
+      height: 24px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.75rem;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 1rem;
+      line-height: 1;
+      user-select: none;
       transition: all var(--transition-fast);
     }
 
-    .btn-reorder:hover:not(:disabled) {
+    .drag-handle.draggable {
+      cursor: grab;
+    }
+
+    .drag-handle.draggable:hover {
       background: var(--bg-muted);
       color: var(--text-primary);
-      border-color: var(--border-default);
     }
 
-    .btn-reorder:disabled {
-      opacity: 0.3;
+    .drag-handle.draggable:active {
+      cursor: grabbing;
+    }
+
+    .drag-handle.disabled {
+      opacity: 0.2;
       cursor: not-allowed;
-    }
-
-    .sort-indicator {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      min-width: 14px;
-      text-align: center;
     }
 
     .tx-date {
@@ -309,22 +322,30 @@ export class PengaTransactions extends LitElement {
     }
 
     .tx-note {
-      font-size: 0.78rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    .status-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     /* Interactive Cleared Toggle Button */
     .cleared-toggle {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 0.45rem;
-      padding: 0.35rem 0.75rem;
+      padding: 0.32rem 0.75rem;
       border-radius: var(--radius-full);
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 600;
+      min-width: 96px;
       width: fit-content;
       cursor: pointer;
       border: 1px solid transparent;
@@ -363,9 +384,9 @@ export class PengaTransactions extends LitElement {
     }
 
     .splits-summary {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
-      text-align: right;
+      text-align: center;
       font-family: var(--font-mono);
     }
 
@@ -373,35 +394,104 @@ export class PengaTransactions extends LitElement {
       display: flex;
       justify-content: flex-end;
       align-items: center;
+      position: relative;
     }
 
-    .btn-edit-tx {
+    .actions-dropdown-container {
+      position: relative;
+      display: inline-flex;
+      justify-content: flex-end;
+    }
+
+    .btn-actions-trigger {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      padding: 0.35rem 0.65rem;
-      border-radius: var(--radius-sm);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      line-height: 1;
       transition: all var(--transition-fast);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      user-select: none;
     }
 
-    .btn-edit-tx:hover {
-      background: var(--color-primary-subtle);
-      border-color: var(--color-primary-border);
+    .btn-actions-trigger:hover,
+    .btn-actions-trigger.active {
+      background: var(--bg-subtle);
+      border-color: var(--border-subtle);
+      color: var(--text-primary);
+    }
+
+    .actions-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 100;
+      min-width: 175px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+      padding: 0.35rem 0;
+      display: flex;
+      flex-direction: column;
+      animation: menuFadeIn var(--transition-fast) ease-out;
+    }
+
+    @keyframes menuFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .actions-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.5rem 0.85rem;
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      background: transparent;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+      transition: background var(--transition-fast);
+    }
+
+    .actions-menu-item:hover:not(:disabled) {
+      background: var(--bg-subtle);
       color: var(--color-primary-text);
-      transform: translateY(-1px);
+    }
+
+    .actions-menu-item:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .actions-menu-divider {
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 0.35rem 0;
     }
 
     /* Nested Splits Detail */
     .splits-detail-list {
-      padding: 0.65rem 1.5rem 1rem 4rem;
+      padding: 0.65rem 0.85rem 0.85rem 2.25rem;
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
@@ -413,7 +503,7 @@ export class PengaTransactions extends LitElement {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 0.825rem;
+      font-size: 0.85rem;
       color: var(--text-secondary);
       padding: 0.2rem 0;
     }
@@ -426,7 +516,7 @@ export class PengaTransactions extends LitElement {
 
     .split-amount {
       font-family: var(--font-mono);
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       font-weight: 600;
     }
 
@@ -492,12 +582,53 @@ export class PengaTransactions extends LitElement {
   @state()
   private updatingTxId: string | null = null;
 
+  @state()
+  private draggedTxId: string | null = null;
+
+  @state()
+  private dragOverTxId: string | null = null;
+
+  @state()
+  private dragOverPosition: 'top' | 'bottom' | null = null;
+
+  @state()
+  private openMenuTxId: string | null = null;
+
   override connectedCallback() {
     super.connectedCallback();
     if (this.reconciliationMode) {
       this.selectedFilter = 'ALL';
     }
     this.fetchData();
+    window.addEventListener('click', this.handleWindowClick);
+    window.addEventListener('keydown', this.handleWindowKeyDown);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('click', this.handleWindowClick);
+    window.removeEventListener('keydown', this.handleWindowKeyDown);
+  }
+
+  private handleWindowClick = () => {
+    if (this.openMenuTxId) {
+      this.openMenuTxId = null;
+    }
+  };
+
+  private handleWindowKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && this.openMenuTxId) {
+      this.openMenuTxId = null;
+    }
+  };
+
+  private toggleMenu(e: Event, txId: string) {
+    e.stopPropagation();
+    this.openMenuTxId = this.openMenuTxId === txId ? null : txId;
+  }
+
+  private closeMenu() {
+    this.openMenuTxId = null;
   }
 
   public async fetchData() {
@@ -642,6 +773,125 @@ export class PengaTransactions extends LitElement {
     }
   }
 
+  private handleDragStart(e: DragEvent, tx: TransactionWithSplits, canReorder: boolean) {
+    if (!canReorder) {
+      e.preventDefault();
+      return;
+    }
+    this.draggedTxId = tx.id;
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', tx.id);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  private handleDragOver(e: DragEvent, targetTx: TransactionWithSplits) {
+    if (!this.draggedTxId || this.draggedTxId === targetTx.id) return;
+
+    const draggedTx = this.transactions.find((t) => t.id === this.draggedTxId);
+    if (!draggedTx || draggedTx.transactionDate !== targetTx.transactionDate) {
+      return;
+    }
+
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? 'top' : 'bottom';
+
+    if (this.dragOverTxId !== targetTx.id || this.dragOverPosition !== position) {
+      this.dragOverTxId = targetTx.id;
+      this.dragOverPosition = position;
+    }
+  }
+
+  private handleDragLeave(e: DragEvent, targetTx: TransactionWithSplits) {
+    const related = e.relatedTarget as HTMLElement | null;
+    const current = e.currentTarget as HTMLElement;
+    if (!related || !current.contains(related)) {
+      if (this.dragOverTxId === targetTx.id) {
+        this.dragOverTxId = null;
+        this.dragOverPosition = null;
+      }
+    }
+  }
+
+  private async handleDrop(e: DragEvent, targetTx: TransactionWithSplits) {
+    e.preventDefault();
+    const draggedId = this.draggedTxId;
+    const position = this.dragOverPosition;
+
+    this.draggedTxId = null;
+    this.dragOverTxId = null;
+    this.dragOverPosition = null;
+
+    if (!draggedId || draggedId === targetTx.id) return;
+
+    const draggedTx = this.transactions.find((t) => t.id === draggedId);
+    if (!draggedTx || draggedTx.transactionDate !== targetTx.transactionDate) return;
+
+    // Get all transactions on this date ordered by current sortOrder
+    const sameDateTxs = this.transactions
+      .filter((t) => t.transactionDate === targetTx.transactionDate)
+      .slice();
+
+    const fromIndex = sameDateTxs.findIndex((t) => t.id === draggedId);
+    if (fromIndex === -1) return;
+
+    // Remove dragged item
+    const [moved] = sameDateTxs.splice(fromIndex, 1);
+
+    // Find new insertion index
+    let toIndex = sameDateTxs.findIndex((t) => t.id === targetTx.id);
+    if (toIndex === -1) return;
+
+    if (position === 'bottom') {
+      toIndex += 1;
+    }
+
+    sameDateTxs.splice(toIndex, 0, moved);
+
+    // Reassign sortOrder sequentially
+    const updatedMap = new Map<string, number>();
+    sameDateTxs.forEach((t, idx) => {
+      t.sortOrder = idx;
+      updatedMap.set(t.id, idx);
+    });
+
+    // Optimistic UI update
+    this.transactions = this.transactions
+      .map((t) => (updatedMap.has(t.id) ? { ...t, sortOrder: updatedMap.get(t.id)! } : t))
+      .sort((a, b) => {
+        if (a.transactionDate !== b.transactionDate) {
+          return b.transactionDate.localeCompare(a.transactionDate);
+        }
+        return a.sortOrder - b.sortOrder;
+      });
+
+    // Persist via backend batch reorder API
+    try {
+      await fetch('/api/transactions/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: sameDateTxs.map((t) => ({ id: t.id, sortOrder: t.sortOrder })),
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to persist drag reordering:', err);
+      this.fetchTransactions();
+    }
+  }
+
+  private handleDragEnd = () => {
+    this.draggedTxId = null;
+    this.dragOverTxId = null;
+    this.dragOverPosition = null;
+  };
+
   private handleOpenCreate() {
     this.dispatchEvent(new CustomEvent('open-transaction-modal', { bubbles: true, composed: true }));
   }
@@ -762,12 +1012,12 @@ export class PengaTransactions extends LitElement {
       <!-- Ledger Table -->
       <div class="ledger-card">
         <div class="ledger-header">
-          <span>Sort</span>
+          <span style="text-align: center; color: var(--text-muted); opacity: 0.4; font-size: 0.85rem;" title="Drag handle to reorder within date">⠿</span>
           <span>Date</span>
           <span>Payee & Notes</span>
-          <span>Reconciliation</span>
-          <span style="text-align: right;">Lines</span>
-          <span style="text-align: right;">Actions</span>
+          <span style="text-align: center;">Status</span>
+          <span style="text-align: center;">Lines</span>
+          <span></span>
         </div>
 
         ${this.isLoading
@@ -808,26 +1058,26 @@ export class PengaTransactions extends LitElement {
                   const isLast = sameDateIndex === sameDateTxs.length - 1;
 
                   return html`
-                    <div class="transaction-row">
+                    <div
+                      class="transaction-row ${this.draggedTxId === tx.id ? 'dragging' : ''} ${this.dragOverTxId === tx.id ? `drag-over-${this.dragOverPosition}` : ''}"
+                      @dragover="${(e: DragEvent) => this.handleDragOver(e, tx)}"
+                      @dragleave="${(e: DragEvent) => this.handleDragLeave(e, tx)}"
+                      @drop="${(e: DragEvent) => this.handleDrop(e, tx)}"
+                    >
                       <div class="tx-main">
-                        <!-- Intraday sort controls -->
-                        <div class="reorder-controls">
-                          <button
-                            class="btn-reorder"
-                            title="Move transaction earlier on this date"
-                            ?disabled="${!canReorder || isFirst}"
-                            @click="${() => this.moveTransaction(tx, 'up')}"
+                        <!-- Intraday drag handle -->
+                        <div
+                          class="drag-handle-cell"
+                          title="${canReorder ? 'Drag to reorder within this date' : 'Single transaction on this date'}"
+                        >
+                          <div
+                            class="drag-handle ${canReorder ? 'draggable' : 'disabled'}"
+                            draggable="${canReorder ? 'true' : 'false'}"
+                            @dragstart="${(e: DragEvent) => this.handleDragStart(e, tx, canReorder)}"
+                            @dragend="${this.handleDragEnd}"
                           >
-                            ▲
-                          </button>
-                          <button
-                            class="btn-reorder"
-                            title="Move transaction later on this date"
-                            ?disabled="${!canReorder || isLast}"
-                            @click="${() => this.moveTransaction(tx, 'down')}"
-                          >
-                            ▼
-                          </button>
+                            ⠿
+                          </div>
                         </div>
 
                         <span class="tx-date">${tx.transactionDate}</span>
@@ -838,7 +1088,7 @@ export class PengaTransactions extends LitElement {
                         </div>
 
                         <!-- One-click Reconciliation Toggle -->
-                        <div>
+                        <div class="status-cell">
                           <button
                             type="button"
                             class="cleared-toggle ${tx.isCleared ? 'cleared' : 'pending'}"
@@ -854,15 +1104,75 @@ export class PengaTransactions extends LitElement {
                         <span class="splits-summary">${tx.splits.length} splits</span>
 
                         <div class="tx-actions">
-                          <button
-                            type="button"
-                            class="btn-edit-tx"
-                            @click="${() => this.handleEditTransaction(tx)}"
-                            title="Edit transaction and splits"
-                          >
-                            <span>✏️</span>
-                            <span>Edit</span>
-                          </button>
+                          <div class="actions-dropdown-container">
+                            <button
+                              type="button"
+                              class="btn-actions-trigger ${this.openMenuTxId === tx.id ? 'active' : ''}"
+                              @click="${(e: Event) => this.toggleMenu(e, tx.id)}"
+                              title="Transaction actions"
+                              aria-label="Actions"
+                            >
+                              ···
+                            </button>
+
+                            ${this.openMenuTxId === tx.id
+                              ? html`
+                                  <div class="actions-menu" @click="${(e: Event) => e.stopPropagation()}">
+                                    <button
+                                      type="button"
+                                      class="actions-menu-item"
+                                      @click="${() => {
+                                        this.closeMenu();
+                                        this.handleEditTransaction(tx);
+                                      }}"
+                                    >
+                                      <span>✏️</span>
+                                      <span>Edit Transaction</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      class="actions-menu-item"
+                                      @click="${() => {
+                                        this.closeMenu();
+                                        this.toggleCleared(tx);
+                                      }}"
+                                    >
+                                      <span>${tx.isCleared ? '○' : '✓'}</span>
+                                      <span>Mark as ${tx.isCleared ? 'Uncleared' : 'Cleared'}</span>
+                                    </button>
+
+                                    <div class="actions-menu-divider"></div>
+
+                                    <button
+                                      type="button"
+                                      class="actions-menu-item"
+                                      ?disabled="${!canReorder || isFirst}"
+                                      @click="${() => {
+                                        this.closeMenu();
+                                        this.moveTransaction(tx, 'up');
+                                      }}"
+                                    >
+                                      <span>▲</span>
+                                      <span>Move Earlier</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      class="actions-menu-item"
+                                      ?disabled="${!canReorder || isLast}"
+                                      @click="${() => {
+                                        this.closeMenu();
+                                        this.moveTransaction(tx, 'down');
+                                      }}"
+                                    >
+                                      <span>▼</span>
+                                      <span>Move Later</span>
+                                    </button>
+                                  </div>
+                                `
+                              : nothing}
+                          </div>
                         </div>
                       </div>
 
