@@ -116,6 +116,8 @@ async function handleSummary(c: any) {
     } else if (acc.type === 'EXPENSE') {
       // Expense splits are positive debits
       totalExpensesCents += Math.abs(directBal);
+    } else if (acc.type === 'EQUITY') {
+      // Equity accounts track capital, opening balances, and net worth adjustments without polluting income or expense flow
     }
 
     return {

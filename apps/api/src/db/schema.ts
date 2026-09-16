@@ -15,6 +15,7 @@ import { relations } from 'drizzle-orm';
 export const accountTypeEnum = pgEnum('account_type', [
   'ASSET',
   'LIABILITY',
+  'EQUITY',
   'INCOME',
   'EXPENSE',
 ]);

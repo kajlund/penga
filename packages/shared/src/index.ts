@@ -1,6 +1,7 @@
 export const AccountType = {
   ASSET: 'ASSET',
   LIABILITY: 'LIABILITY',
+  EQUITY: 'EQUITY',
   INCOME: 'INCOME',
   EXPENSE: 'EXPENSE',
 } as const;
@@ -30,6 +31,8 @@ export interface CreateAccountInput {
   parentId?: string | null;
   icon?: string | null;
   color?: string | null;
+  initialBalanceCents?: number;
+  initialBalanceDate?: string;
 }
 
 export interface UpdateAccountInput {

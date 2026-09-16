@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and, isNull, asc } from 'drizzle-orm';
-import { db, accounts, type Account } from '../db/index.js';
-import { AccountType, type AccountTreeNode } from '@penga/shared';
+import { db, accounts, transactions, splits, type Account } from '../db/index.js';
+import { AccountType, type AccountTreeNode, type CreateAccountInput } from '@penga/shared';
 
 export const accountsRoute = new Hono();
 
@@ -152,7 +152,7 @@ accountsRoute.post('/', async (c) => {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  const { name, description, type, parentId, icon, color } = body;
+  const { name, description, type, parentId, icon, color, initialBalanceCents, initialBalanceDate } = body as CreateAccountInput;
 
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return c.json({ error: 'Field "name" is required and must be a non-empty string' }, 400);
@@ -181,17 +181,76 @@ accountsRoute.post('/', async (c) => {
     }
   }
 
-  const [created] = await db
-    .insert(accounts)
-    .values({
-      name: name.trim(),
-      description: typeof description === 'string' && description.trim() ? description.trim() : null,
-      type: normalizedType as AccountType,
-      parentId: parentId || null,
-      icon: typeof icon === 'string' && icon.trim() ? icon.trim() : null,
-      color: typeof color === 'string' && color.trim() ? color.trim() : null,
-    })
-    .returning();
+  const created = await db.transaction(async (tx) => {
+    const [acc] = await tx
+      .insert(accounts)
+      .values({
+        name: name.trim(),
+        description: typeof description === 'string' && description.trim() ? description.trim() : null,
+        type: normalizedType as AccountType,
+        parentId: parentId || null,
+        icon: typeof icon === 'string' && icon.trim() ? icon.trim() : null,
+        color: typeof color === 'string' && color.trim() ? color.trim() : null,
+      })
+      .returning();
+
+    // If an initial balance was specified for an ASSET or LIABILITY account, record an opening balance transaction
+    if (
+      typeof initialBalanceCents === 'number' &&
+      initialBalanceCents !== 0 &&
+      (normalizedType === 'ASSET' || normalizedType === 'LIABILITY')
+    ) {
+      // Find or create default Equity:Opening Balances account
+      let [openingEquityAcc] = await tx
+        .select()
+        .from(accounts)
+        .where(and(eq(accounts.name, 'Opening Balances'), eq(accounts.type, 'EQUITY')))
+        .limit(1);
+
+      if (!openingEquityAcc) {
+        [openingEquityAcc] = await tx
+          .insert(accounts)
+          .values({
+            name: 'Opening Balances',
+            type: 'EQUITY',
+            icon: '⚖️',
+            color: '#8b5cf6',
+            description: 'Equity account for starting balances and capital adjustments',
+          })
+          .returning();
+      }
+
+      const dateStr =
+        initialBalanceDate && /^\d{4}-\d{2}-\d{2}$/.test(initialBalanceDate)
+          ? initialBalanceDate
+          : new Date().toISOString().slice(0, 10);
+
+      const [initTx] = await tx
+        .insert(transactions)
+        .values({
+          transactionDate: dateStr,
+          payee: 'Opening Balance',
+          note: `Starting balance for ${name.trim()}`,
+          isCleared: true,
+        })
+        .returning();
+
+      await tx.insert(splits).values([
+        {
+          transactionId: initTx.id,
+          accountId: acc.id,
+          amountCents: initialBalanceCents,
+        },
+        {
+          transactionId: initTx.id,
+          accountId: openingEquityAcc.id,
+          amountCents: -initialBalanceCents,
+        },
+      ]);
+    }
+
+    return acc;
+  });
 
   return c.json({ data: created }, 201);
 });

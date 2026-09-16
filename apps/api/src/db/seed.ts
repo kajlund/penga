@@ -68,7 +68,17 @@ const accountTreeSeedData: SeedAccountNode[] = [
   },
 
   // ==========================================
-  // 3. INCOME
+  // 3. EQUITY
+  // ==========================================
+  {
+    name: 'Opening Balances',
+    type: 'EQUITY',
+    icon: '⚖️',
+    color: '#8b5cf6', // Violet
+  },
+
+  // ==========================================
+  // 4. INCOME
   // ==========================================
   {
     name: 'Salary',

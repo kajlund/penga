@@ -754,9 +754,12 @@ export class PengaAccounts extends LitElement {
   private createColor = '#0d9488';
 
   @state()
+  private createInitialBalance = '';
+
+  @state()
   private flatAccounts: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
 
-  private emojiPresets = ['🏦', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
+  private emojiPresets = ['🏦', '⚖️', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
 
   private handleWindowClick = (e: MouseEvent) => {
     if (!this.openMenuAccountId) return;
@@ -884,8 +887,9 @@ export class PengaAccounts extends LitElement {
       this.createType = preselectedType || 'ASSET';
     }
 
-    this.createIcon = this.createType === 'EXPENSE' ? '🛒' : '🏦';
+    this.createIcon = this.createType === 'EXPENSE' ? '🛒' : this.createType === 'EQUITY' ? '⚖️' : '🏦';
     this.createColor = this.getDefaultColor(this.createType);
+    this.createInitialBalance = '';
     this.isCreateModalOpen = true;
   }
 
@@ -907,6 +911,8 @@ export class PengaAccounts extends LitElement {
         return '#0d9488';
       case 'LIABILITY':
         return '#d97706';
+      case 'EQUITY':
+        return '#8b5cf6';
       case 'INCOME':
         return '#2563eb';
       case 'EXPENSE':
@@ -939,6 +945,19 @@ export class PengaAccounts extends LitElement {
     }
 
     try {
+      let initialBalanceCents: number | undefined;
+      if (
+        !this.editingAccountId &&
+        this.createInitialBalance &&
+        (this.createType === 'ASSET' || this.createType === 'LIABILITY')
+      ) {
+        const clean = this.createInitialBalance.replace(',', '.').trim();
+        const num = parseFloat(clean);
+        if (!isNaN(num) && num !== 0) {
+          initialBalanceCents = Math.round(num * 100);
+        }
+      }
+
       const payload = {
         name: this.createName.trim(),
         description: this.createDescription.trim() || null,
@@ -946,6 +965,7 @@ export class PengaAccounts extends LitElement {
         parentId: this.createParentId || null,
         icon: this.createIcon.trim() || null,
         color: this.createColor.trim() || null,
+        initialBalanceCents,
       };
 
       const url = this.editingAccountId
@@ -1180,6 +1200,7 @@ export class PengaAccounts extends LitElement {
     const totalCount = this.flatAccounts.length;
     const assetCount = this.flatAccounts.filter((a) => a.type === 'ASSET').length;
     const liabilityCount = this.flatAccounts.filter((a) => a.type === 'LIABILITY').length;
+    const equityCount = this.flatAccounts.filter((a) => a.type === 'EQUITY').length;
     const incomeCount = this.flatAccounts.filter((a) => a.type === 'INCOME').length;
     const expenseCount = this.flatAccounts.filter((a) => a.type === 'EXPENSE').length;
 
@@ -1220,6 +1241,13 @@ export class PengaAccounts extends LitElement {
           >
             <span>Liabilities</span>
             <span class="badge-count">${liabilityCount}</span>
+          </button>
+          <button
+            class="filter-pill ${this.selectedFilter === 'EQUITY' ? 'active' : ''}"
+            @click="${() => (this.selectedFilter = 'EQUITY')}"
+          >
+            <span>Equity</span>
+            <span class="badge-count">${equityCount}</span>
           </button>
           <button
             class="filter-pill ${this.selectedFilter === 'INCOME' ? 'active' : ''}"
@@ -1360,10 +1388,31 @@ export class PengaAccounts extends LitElement {
                       >
                         <option value="ASSET">ASSET (Liquid, cash, checking)</option>
                         <option value="LIABILITY">LIABILITY (Debt, credit cards)</option>
+                        <option value="EQUITY">EQUITY (Opening balances, capital)</option>
                         <option value="INCOME">INCOME (Salary, dividends)</option>
                         <option value="EXPENSE">EXPENSE (Groceries, transport)</option>
                       </select>
                     </div>
+
+                    ${!this.editingAccountId && (this.createType === 'ASSET' || this.createType === 'LIABILITY')
+                      ? html`
+                          <div class="form-group">
+                            <label class="form-label">
+                              Initial Balance (Optional)
+                              <span style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">
+                                — auto-creates opening transaction against Equity
+                              </span>
+                            </label>
+                            <input
+                              type="text"
+                              class="form-input"
+                              placeholder="${this.createType === 'ASSET' ? 'e.g. 1500.00' : 'e.g. -450.00'}"
+                              .value="${this.createInitialBalance}"
+                              @input="${(e: any) => (this.createInitialBalance = e.target.value)}"
+                            />
+                          </div>
+                        `
+                      : nothing}
 
                     <div class="form-group">
                       <label class="form-label">Parent Account (Tree Hierarchy)</label>

@@ -305,6 +305,7 @@ export class AccountCombobox extends LitElement {
     const categories: { label: string; type: AccountType }[] = [
       { label: 'Assets', type: 'ASSET' },
       { label: 'Liabilities', type: 'LIABILITY' },
+      { label: 'Equity', type: 'EQUITY' },
       { label: 'Income', type: 'INCOME' },
       { label: 'Expenses', type: 'EXPENSE' },
     ];
