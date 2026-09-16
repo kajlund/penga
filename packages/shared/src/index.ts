@@ -181,5 +181,58 @@ export interface SetBudgetInput {
   notes?: string | null;
 }
 
+export interface TransactionTemplate {
+  id: string;
+  name: string;
+  payee: string | null;
+  note: string | null;
+  icon: string | null;
+  color: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
 
+export interface TemplateSplit {
+  id: string;
+  templateId: string;
+  accountId: string;
+  amountCents: number;
+  sortOrder: number;
+  createdAt?: string | Date;
+}
 
+export interface TemplateSplitInput {
+  accountId: string;
+  amountCents: number;
+  sortOrder?: number;
+}
+
+export interface TransactionTemplateWithSplits extends TransactionTemplate {
+  splits: (TemplateSplit & {
+    accountName?: string;
+    accountType?: AccountType;
+    accountIcon?: string | null;
+    accountColor?: string | null;
+  })[];
+  tags?: Tag[];
+}
+
+export interface CreateTransactionTemplateInput {
+  name: string;
+  payee?: string | null;
+  note?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  splits: TemplateSplitInput[];
+  tagIds?: string[];
+}
+
+export interface UpdateTransactionTemplateInput {
+  name?: string;
+  payee?: string | null;
+  note?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  splits?: TemplateSplitInput[];
+  tagIds?: string[];
+}

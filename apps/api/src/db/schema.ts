@@ -89,6 +89,43 @@ export const transactionTags = pgTable(
   (t) => [primaryKey({ columns: [t.transactionId, t.tagId] })]
 );
 
+export const transactionTemplates = pgTable('transaction_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  payee: text('payee'),
+  note: text('note'),
+  icon: text('icon'),
+  color: text('color'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const templateSplits = pgTable('template_splits', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateId: uuid('template_id')
+    .references(() => transactionTemplates.id, { onDelete: 'cascade' })
+    .notNull(),
+  accountId: uuid('account_id')
+    .references(() => accounts.id, { onDelete: 'restrict' })
+    .notNull(),
+  amountCents: integer('amount_cents').default(0).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const templateTags = pgTable(
+  'template_tags',
+  {
+    templateId: uuid('template_id')
+      .references(() => transactionTemplates.id, { onDelete: 'cascade' })
+      .notNull(),
+    tagId: uuid('tag_id')
+      .references(() => tags.id, { onDelete: 'cascade' })
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.templateId, t.tagId] })]
+);
+
 // Drizzle Relations
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
   parent: one(accounts, {
@@ -101,6 +138,7 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
   }),
   splits: many(splits),
   budgets: many(budgets),
+  templateSplits: many(templateSplits),
 }));
 
 export const transactionsRelations = relations(transactions, ({ many }) => ({
@@ -121,6 +159,7 @@ export const splitsRelations = relations(splits, ({ one }) => ({
 
 export const tagsRelations = relations(tags, ({ many }) => ({
   transactionTags: many(transactionTags),
+  templateTags: many(templateTags),
 }));
 
 export const transactionTagsRelations = relations(transactionTags, ({ one }) => ({
@@ -141,6 +180,33 @@ export const budgetsRelations = relations(budgets, ({ one }) => ({
   }),
 }));
 
+export const transactionTemplatesRelations = relations(transactionTemplates, ({ many }) => ({
+  splits: many(templateSplits),
+  templateTags: many(templateTags),
+}));
+
+export const templateSplitsRelations = relations(templateSplits, ({ one }) => ({
+  template: one(transactionTemplates, {
+    fields: [templateSplits.templateId],
+    references: [transactionTemplates.id],
+  }),
+  account: one(accounts, {
+    fields: [templateSplits.accountId],
+    references: [accounts.id],
+  }),
+}));
+
+export const templateTagsRelations = relations(templateTags, ({ one }) => ({
+  template: one(transactionTemplates, {
+    fields: [templateTags.templateId],
+    references: [transactionTemplates.id],
+  }),
+  tag: one(tags, {
+    fields: [templateTags.tagId],
+    references: [tags.id],
+  }),
+}));
+
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 
@@ -158,4 +224,13 @@ export type NewTag = typeof tags.$inferInsert;
 
 export type TransactionTag = typeof transactionTags.$inferSelect;
 export type NewTransactionTag = typeof transactionTags.$inferInsert;
+
+export type TransactionTemplate = typeof transactionTemplates.$inferSelect;
+export type NewTransactionTemplate = typeof transactionTemplates.$inferInsert;
+
+export type TemplateSplit = typeof templateSplits.$inferSelect;
+export type NewTemplateSplit = typeof templateSplits.$inferInsert;
+
+export type TemplateTag = typeof templateTags.$inferSelect;
+export type NewTemplateTag = typeof templateTags.$inferInsert;
 

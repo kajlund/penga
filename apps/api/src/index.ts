@@ -24,6 +24,7 @@ import { transactionsRoute } from './routes/transactions.js';
 import { reportsRoute } from './routes/reports.js';
 import { budgetsRoute } from './routes/budgets.js';
 import { tagsRoute } from './routes/tags.js';
+import { templatesRoute } from './routes/templates.js';
 
 export const app = new Hono();
 
@@ -67,6 +68,10 @@ app.route('/budgets', budgetsRoute);
 // Mount tags routes
 app.route('/api/tags', tagsRoute);
 app.route('/tags', tagsRoute);
+
+// Mount templates routes
+app.route('/api/templates', templatesRoute);
+app.route('/templates', templatesRoute);
 
 
 const port = Number(process.env.PORT) || 3000;

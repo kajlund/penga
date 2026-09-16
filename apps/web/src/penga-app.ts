@@ -6,13 +6,15 @@ import './components/penga-dashboard.js';
 import './components/penga-budgets.js';
 import './components/penga-accounts.js';
 import './components/penga-transactions.js';
+import './components/penga-templates.js';
 import './components/transaction-form.js';
 import type { NavView } from './components/penga-sidebar.js';
 import type { PengaTransactions } from './components/penga-transactions.js';
 import type { PengaAccounts } from './components/penga-accounts.js';
 import type { PengaDashboard } from './components/penga-dashboard.js';
 import type { PengaBudgets } from './components/penga-budgets.js';
-import type { TransactionWithSplits } from '@penga/shared';
+import type { PengaTemplates } from './components/penga-templates.js';
+import type { TransactionWithSplits, TransactionTemplateWithSplits } from '@penga/shared';
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
@@ -161,6 +163,12 @@ export class PengaApp extends LitElement {
     if (budgetView) {
       budgetView.fetchBudgetReport();
     }
+
+    // Refresh templates view if mounted
+    const tplView = this.shadowRoot?.querySelector('penga-templates') as PengaTemplates | null;
+    if (tplView) {
+      tplView.fetchData();
+    }
   };
 
   private handleTransactionCreated = () => {
@@ -183,6 +191,20 @@ export class PengaApp extends LitElement {
   private handleEditTransaction = (e: CustomEvent<{ transaction: TransactionWithSplits }>) => {
     this.editingTransaction = e.detail.transaction;
     this.isTransactionModalOpen = true;
+  };
+
+  private handleRecordFromTemplate = (e: CustomEvent<{ template: TransactionTemplateWithSplits }>) => {
+    const form = this.shadowRoot?.querySelector('transaction-form') as any;
+    if (form) {
+      form.openWithTemplate(e.detail.template);
+    }
+  };
+
+  private handleDuplicateTransaction = (e: CustomEvent<{ transaction: TransactionWithSplits }>) => {
+    const form = this.shadowRoot?.querySelector('transaction-form') as any;
+    if (form) {
+      form.openWithDuplicate(e.detail.transaction);
+    }
   };
 
   override render() {
@@ -224,7 +246,14 @@ export class PengaApp extends LitElement {
                   <penga-transactions
                     @open-transaction-modal="${this.handleOpenCreateModal}"
                     @edit-transaction="${this.handleEditTransaction}"
+                    @duplicate-transaction="${this.handleDuplicateTransaction}"
                   ></penga-transactions>
+                `
+              : this.currentView === 'templates'
+              ? html`
+                  <penga-templates
+                    @record-from-template="${this.handleRecordFromTemplate}"
+                  ></penga-templates>
                 `
               : this.currentView === 'reconciliation'
               ? html`
@@ -232,6 +261,7 @@ export class PengaApp extends LitElement {
                     .reconciliationMode="${true}"
                     @open-transaction-modal="${this.handleOpenCreateModal}"
                     @edit-transaction="${this.handleEditTransaction}"
+                    @duplicate-transaction="${this.handleDuplicateTransaction}"
                   ></penga-transactions>
                 `
               : this.currentView === 'budgets'

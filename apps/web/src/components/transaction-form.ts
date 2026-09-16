@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { live } from 'lit/directives/live.js';
-import type { Account, CreateTransactionInput, TransactionWithSplits, Tag } from '@penga/shared';
+import type { Account, CreateTransactionInput, TransactionWithSplits, Tag, TransactionTemplateWithSplits, CreateTransactionTemplateInput } from '@penga/shared';
 import './account-combobox.js';
 
 interface SplitRowState {
@@ -731,6 +731,221 @@ export class TransactionForm extends LitElement {
       border-radius: 50%;
       flex-shrink: 0;
     }
+
+    /* Templates Quick-Bar */
+    .template-quick-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-base);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-md);
+      margin-bottom: 0.25rem;
+    }
+
+    .template-dropdown-wrapper {
+      position: relative;
+    }
+
+    .btn-template-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: var(--radius-md);
+      background: var(--color-primary-subtle);
+      border: 1px solid var(--color-primary-border);
+      color: var(--color-primary-text);
+      font-family: var(--font-sans);
+      font-size: 0.825rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-template-picker:hover,
+    .btn-template-picker.active {
+      background: var(--color-primary);
+      color: #ffffff;
+    }
+
+    .template-badge {
+      background: var(--bg-surface);
+      color: var(--color-primary-text);
+      font-size: 0.7rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+    }
+
+    .btn-template-picker.active .template-badge,
+    .btn-template-picker:hover .template-badge {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .template-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      width: 320px;
+      max-height: 280px;
+      overflow-y: auto;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.08);
+      z-index: 1100;
+      padding: 0.4rem 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .template-dropdown-header {
+      padding: 0.45rem 0.85rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .template-dropdown-empty {
+      padding: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .template-item-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.6rem 0.85rem;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      color: var(--text-primary);
+    }
+
+    .template-item-btn:hover {
+      background: var(--bg-subtle);
+    }
+
+    .template-item-icon {
+      font-size: 1.1rem;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: var(--color-primary-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .template-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .template-item-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .template-item-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Footer Left Actions */
+    .footer-left-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-save-as-template {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 0.775rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-save-as-template:hover {
+      background: var(--bg-subtle);
+      border-color: var(--border-default);
+      color: var(--text-primary);
+    }
+
+    /* Mini Modal for Save Template */
+    .sub-modal {
+      z-index: 1200;
+    }
+
+    .mini-modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+      animation: cardPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .mini-modal-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mini-modal-header h4 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .mini-modal-body {
+      padding: 1.25rem;
+    }
+
+    .mini-modal-footer {
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.65rem;
+      background: var(--bg-surface);
+    }
   `;
 
   @property({ type: Boolean })
@@ -775,10 +990,26 @@ export class TransactionForm extends LitElement {
   @state()
   private isSubmitting = false;
 
+  @state()
+  private availableTemplates: TransactionTemplateWithSplits[] = [];
+
+  @state()
+  private isTemplateDropdownOpen = false;
+
+  @state()
+  private isSaveTemplateModalOpen = false;
+
+  @state()
+  private saveTemplateName = '';
+
+  @state()
+  private isSavingTemplate = false;
+
   override connectedCallback() {
     super.connectedCallback();
     this.fetchAccounts();
     this.fetchTags();
+    this.fetchTemplates();
     window.addEventListener('keydown', this.handleGlobalKeyDown);
     window.addEventListener('click', this.handleWindowClick);
   }
@@ -909,6 +1140,11 @@ export class TransactionForm extends LitElement {
     if (!isTagClick) {
       this.isTagDropdownOpen = false;
     }
+
+    const isTplClick = path.some((el) => el instanceof HTMLElement && (el.classList?.contains('template-dropdown-wrapper') || el.classList?.contains('btn-template-picker')));
+    if (!isTplClick) {
+      this.isTemplateDropdownOpen = false;
+    }
   };
 
   private autoPopulateInitialAccounts() {
@@ -931,6 +1167,7 @@ export class TransactionForm extends LitElement {
     } else if (changedProps.has('isOpen') && this.isOpen && !changedProps.get('isOpen')) {
       this.fetchAccounts();
       this.fetchTags();
+      this.fetchTemplates();
       if (!this.transactionToEdit) {
         this.resetForm();
       }
@@ -975,9 +1212,124 @@ export class TransactionForm extends LitElement {
     ];
   }
 
+  public async fetchTemplates() {
+    try {
+      const res = await fetch('/api/templates');
+      if (res.ok) {
+        const json = await res.json();
+        this.availableTemplates = json.data || [];
+      }
+    } catch (err) {
+      console.warn('Could not load templates for transaction form', err);
+    }
+  }
+
+  private toggleTemplateDropdown = (e: Event) => {
+    e.stopPropagation();
+    this.isTemplateDropdownOpen = !this.isTemplateDropdownOpen;
+  };
+
+  public applyTemplate(tpl: TransactionTemplateWithSplits) {
+    if (tpl.payee) this.payee = tpl.payee;
+    if (tpl.note) this.note = tpl.note;
+    if (tpl.splits && tpl.splits.length > 0) {
+      this.splitRows = tpl.splits.map((s, idx) => ({
+        id: `tpl-split-${idx}-${Date.now()}`,
+        accountId: s.accountId,
+        amount: s.amountCents !== 0 ? this.formatCentsToDecimal(s.amountCents) : '',
+      }));
+    }
+    if (tpl.tags && tpl.tags.length > 0) {
+      this.selectedTagIds = new Set(tpl.tags.map((t) => t.id));
+    }
+    this.isTemplateDropdownOpen = false;
+  }
+
+  public openWithTemplate(tpl: TransactionTemplateWithSplits) {
+    this.fetchAccounts();
+    this.fetchTags();
+    this.fetchTemplates();
+    this.resetForm();
+    this.applyTemplate(tpl);
+    this.isOpen = true;
+    this.requestUpdate();
+  }
+
+  public openWithDuplicate(tx: TransactionWithSplits) {
+    this.fetchAccounts();
+    this.fetchTags();
+    this.fetchTemplates();
+    this.resetForm();
+    this.transactionDate = new Date().toISOString().slice(0, 10);
+    this.payee = tx.payee || '';
+    this.note = tx.note || '';
+    this.isCleared = false;
+    this.selectedTagIds = new Set((tx.tags || []).map((t) => t.id));
+    this.splitRows = (tx.splits || []).map((s, idx) => ({
+      id: `dup-split-${idx}-${Date.now()}`,
+      accountId: s.accountId,
+      amount: this.formatCentsToDecimal(s.amountCents),
+    }));
+    this.isOpen = true;
+    this.requestUpdate();
+  }
+
+  private handleOpenSaveTemplateModal() {
+    this.saveTemplateName = this.payee.trim() || 'My Template';
+    this.isSaveTemplateModalOpen = true;
+  }
+
+  private async confirmSaveAsTemplate() {
+    const name = this.saveTemplateName.trim();
+    if (!name) {
+      alert('Please enter a name for this template');
+      return;
+    }
+
+    if (this.splitRows.some((r) => !r.accountId)) {
+      alert('All split rows must have an account selected');
+      return;
+    }
+
+    this.isSavingTemplate = true;
+
+    try {
+      const payload: CreateTransactionTemplateInput = {
+        name,
+        payee: this.payee.trim() || null,
+        note: this.note.trim() || null,
+        splits: this.splitRows.map((r, idx) => ({
+          accountId: r.accountId,
+          amountCents: this.parseCents(r.amount),
+          sortOrder: idx,
+        })),
+        tagIds: Array.from(this.selectedTagIds),
+      };
+
+      const res = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to save template');
+      }
+
+      await this.fetchTemplates();
+      this.isSaveTemplateModalOpen = false;
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      this.isSavingTemplate = false;
+    }
+  }
+
   public open(preselectedAccountId?: string) {
     this.fetchAccounts();
     this.fetchTags();
+    this.fetchTemplates();
     this.resetForm(preselectedAccountId);
     this.isOpen = true;
     this.requestUpdate();
@@ -986,6 +1338,7 @@ export class TransactionForm extends LitElement {
   public edit(tx: TransactionWithSplits) {
     this.fetchAccounts();
     this.fetchTags();
+    this.fetchTemplates();
     this.populateForEdit(tx);
     this.isOpen = true;
     this.requestUpdate();
@@ -1241,6 +1594,61 @@ export class TransactionForm extends LitElement {
 
           <!-- Body -->
           <div class="modal-body">
+            <!-- Templates Quick-Bar (when recording new transaction) -->
+            ${!this.transactionToEdit
+              ? html`
+                  <div class="template-quick-bar">
+                    <div class="template-dropdown-wrapper">
+                      <button
+                        type="button"
+                        class="btn-template-picker ${this.isTemplateDropdownOpen ? 'active' : ''}"
+                        @click="${this.toggleTemplateDropdown}"
+                      >
+                        <span>⚡</span>
+                        <span>Use Template</span>
+                        <span class="template-badge">${this.availableTemplates.length}</span>
+                        <span>${this.isTemplateDropdownOpen ? '▲' : '▼'}</span>
+                      </button>
+
+                      ${this.isTemplateDropdownOpen
+                        ? html`
+                            <div class="template-dropdown-menu">
+                              <div class="template-dropdown-header">Saved Templates</div>
+                              ${this.availableTemplates.length === 0
+                                ? html`
+                                    <div class="template-dropdown-empty">
+                                      No templates yet. Set up split lines and click "Save as Template" below.
+                                    </div>
+                                  `
+                                : this.availableTemplates.map(
+                                    (tpl) => html`
+                                      <button
+                                        type="button"
+                                        class="template-item-btn"
+                                        @click="${() => this.applyTemplate(tpl)}"
+                                      >
+                                        <span class="template-item-icon">${tpl.icon || '⚡'}</span>
+                                        <div class="template-item-info">
+                                          <div class="template-item-name">${tpl.name}</div>
+                                          <div class="template-item-meta">
+                                            ${tpl.payee ? html`<span>🏢 ${tpl.payee}</span>` : nothing}
+                                            <span>(${tpl.splits.length} splits)</span>
+                                          </div>
+                                        </div>
+                                      </button>
+                                    `
+                                  )}
+                            </div>
+                          `
+                        : nothing}
+                    </div>
+                    <span style="font-size: 0.775rem; color: var(--text-muted);">
+                      Speed up recurring entries with 1 click
+                    </span>
+                  </div>
+                `
+              : nothing}
+
             <!-- Basic info row -->
             <div class="grid-2">
               <div class="form-group">
@@ -1476,10 +1884,21 @@ export class TransactionForm extends LitElement {
 
           <!-- Footer -->
           <div class="modal-footer">
-            <div class="keyboard-hint">
-              <span>Shortcut:</span>
-              <span class="kbd">Ctrl</span>+<span class="kbd">Enter</span>
-              <span>to record</span>
+            <div class="footer-left-actions">
+              <div class="keyboard-hint">
+                <span>Shortcut:</span>
+                <span class="kbd">Ctrl</span>+<span class="kbd">Enter</span>
+                <span>to record</span>
+              </div>
+              <button
+                type="button"
+                class="btn-save-as-template"
+                @click="${this.handleOpenSaveTemplateModal}"
+                title="Save current split setup as a reusable template"
+              >
+                <span>⭐</span>
+                <span>Save as Template</span>
+              </button>
             </div>
 
             <div class="footer-actions">
@@ -1501,6 +1920,59 @@ export class TransactionForm extends LitElement {
           </div>
         </div>
       </div>
+
+      <!-- Save as Template Mini Modal -->
+      ${this.isSaveTemplateModalOpen
+        ? html`
+            <div
+              class="modal-backdrop sub-modal"
+              @click="${(e: MouseEvent) => {
+                if (e.target === e.currentTarget) this.isSaveTemplateModalOpen = false;
+              }}"
+            >
+              <div class="mini-modal-card">
+                <div class="mini-modal-header">
+                  <h4>⭐ Save as Template</h4>
+                  <button class="close-btn" @click="${() => (this.isSaveTemplateModalOpen = false)}">✕</button>
+                </div>
+                <div class="mini-modal-body">
+                  <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+                    Save this transaction's split structure, accounts, amounts, payee, and tags as a template.
+                  </p>
+                  <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label">Template Name *</label>
+                    <input
+                      type="text"
+                      class="form-input"
+                      placeholder="e.g. Monthly Rent, Paycheck, Netflix..."
+                      .value="${this.saveTemplateName}"
+                      @input="${(e: any) => (this.saveTemplateName = e.target.value)}"
+                      @keydown="${(e: KeyboardEvent) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          this.confirmSaveAsTemplate();
+                        }
+                      }}"
+                      autofocus
+                    />
+                  </div>
+                </div>
+                <div class="mini-modal-footer">
+                  <button class="btn-cancel" @click="${() => (this.isSaveTemplateModalOpen = false)}">
+                    Cancel
+                  </button>
+                  <button
+                    class="btn-submit"
+                    ?disabled="${this.isSavingTemplate}"
+                    @click="${this.confirmSaveAsTemplate}"
+                  >
+                    ${this.isSavingTemplate ? 'Saving...' : 'Save Template'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          `
+        : nothing}
     `;
   }
 }

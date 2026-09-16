@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
-export type NavView = 'accounts' | 'transactions' | 'dashboard' | 'reconciliation' | 'budgets';
+export type NavView = 'accounts' | 'transactions' | 'dashboard' | 'reconciliation' | 'budgets' | 'templates';
 
 interface NavItem {
   id: NavView;
@@ -170,6 +170,7 @@ export class PengaSidebar extends LitElement {
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'accounts', label: 'Accounts', icon: '🌳' },
     { id: 'transactions', label: 'Transactions', icon: '💸' },
+    { id: 'templates', label: 'Templates', icon: '⚡' },
     { id: 'reconciliation', label: 'Reconciliation', icon: '📑' },
     { id: 'budgets', label: 'Budgets & Rules', icon: '🎯' },
   ];

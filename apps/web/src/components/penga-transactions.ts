@@ -1001,6 +1001,48 @@ export class PengaTransactions extends LitElement {
     );
   }
 
+  private handleDuplicateTransaction(tx: TransactionWithSplits) {
+    this.dispatchEvent(
+      new CustomEvent('duplicate-transaction', {
+        detail: { transaction: tx },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private async handleSaveAsTemplate(tx: TransactionWithSplits) {
+    const templateName = prompt('Enter a name for this template:', tx.payee || 'Transaction Template');
+    if (!templateName || !templateName.trim()) return;
+
+    try {
+      const res = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          payee: tx.payee,
+          note: tx.note,
+          splits: tx.splits.map((s, idx) => ({
+            accountId: s.accountId,
+            amountCents: s.amountCents,
+            sortOrder: idx,
+          })),
+          tagIds: (tx.tags || []).map((t) => t.id),
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to save template');
+      }
+
+      alert(`Template "${templateName.trim()}" saved successfully!`);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
   private formatCents(cents: number): string {
     const isNeg = cents < 0;
     const abs = Math.abs(cents);
@@ -1255,6 +1297,30 @@ export class PengaTransactions extends LitElement {
                                     >
                                       <span>✏️</span>
                                       <span>Edit Transaction</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      class="actions-menu-item"
+                                      @click="${() => {
+                                        this.closeMenu();
+                                        this.handleDuplicateTransaction(tx);
+                                      }}"
+                                    >
+                                      <span>⚡</span>
+                                      <span>Duplicate as New</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      class="actions-menu-item"
+                                      @click="${() => {
+                                        this.closeMenu();
+                                        this.handleSaveAsTemplate(tx);
+                                      }}"
+                                    >
+                                      <span>⭐</span>
+                                      <span>Save as Template</span>
                                     </button>
 
                                     <button
