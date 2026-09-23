@@ -1,0 +1,15 @@
+{
+  "name": "Penga - Personal Finance Manager",
+  "short_name": "Penga",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#059669",
+  "background_color": "#fbf9f5",
+  "display": "standalone"
+}
