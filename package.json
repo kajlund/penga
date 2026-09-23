@@ -12,10 +12,11 @@
     "dev:all": "npm run build && concurrently -n \"shared,api,web\" -c \"yellow,blue,green\" \"npm run dev -w @penga/shared\" \"npm run dev -w @penga/api\" \"npm run dev -w @penga/web\"",
     "dev:api": "npm run dev -w @penga/api",
     "dev:web": "npm run dev -w @penga/web",
-    "build": "tsc -b",
+    "build": "tsc -b && npm run build -w @penga/web",
     "clean": "tsc -b --clean",
     "typecheck": "tsc -b",
-    "test": "npm run --workspaces --if-present test",
+    "start": "npm run start --workspace @penga/api",
+    "test": "npm run build && npm run --workspaces --if-present test",
     "lint": "npm run --workspaces --if-present lint"
   },
   "devDependencies": {

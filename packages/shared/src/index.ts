@@ -239,3 +239,5 @@ export interface UpdateTransactionTemplateInput {
   splits?: TemplateSplitInput[];
   tagIds?: string[];
 }
+
+export * from './transaction-entry.js';

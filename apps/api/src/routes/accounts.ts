@@ -1,3 +1,4 @@
+import { openingBalanceAccount } from '../domain/opening-balances.js';
 import { Hono } from 'hono';
 import { eq, and, isNull, asc } from 'drizzle-orm';
 import { db, accounts, transactions, splits, type Account } from '../db/index.js';
@@ -200,25 +201,7 @@ accountsRoute.post('/', async (c) => {
       initialBalanceCents !== 0 &&
       (normalizedType === 'ASSET' || normalizedType === 'LIABILITY')
     ) {
-      // Find or create default Equity:Opening Balances account
-      let [openingEquityAcc] = await tx
-        .select()
-        .from(accounts)
-        .where(and(eq(accounts.name, 'Opening Balances'), eq(accounts.type, 'EQUITY')))
-        .limit(1);
-
-      if (!openingEquityAcc) {
-        [openingEquityAcc] = await tx
-          .insert(accounts)
-          .values({
-            name: 'Opening Balances',
-            type: 'EQUITY',
-            icon: '⚖️',
-            color: '#8b5cf6',
-            description: 'Equity account for starting balances and capital adjustments',
-          })
-          .returning();
-      }
+      const openingEquityAcc = await openingBalanceAccount(tx);
 
       const dateStr =
         initialBalanceDate && /^\d{4}-\d{2}-\d{2}$/.test(initialBalanceDate)

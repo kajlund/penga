@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 
 // Load .env from repository root if it exists, and allow local apps/api/.env overrides
@@ -27,6 +28,7 @@ import { tagsRoute } from './routes/tags.js';
 import { templatesRoute } from './routes/templates.js';
 
 export const app = new Hono();
+export const webDistDir = path.resolve(repoRootDir, 'apps/web/dist');
 
 const healthHandler = async (c: any) => {
   let dbStatus = 'disconnected';
@@ -73,11 +75,31 @@ app.route('/tags', tagsRoute);
 app.route('/api/templates', templatesRoute);
 app.route('/templates', templatesRoute);
 
+// Serve built frontend assets and SPA fallback if dist directory exists
+if (fs.existsSync(webDistDir)) {
+  const indexHtmlPath = path.join(webDistDir, 'index.html');
+
+  // Serve static assets from apps/web/dist
+  app.use('/*', serveStatic({ root: webDistDir }));
+
+  // Fallback to index.html for client-side navigation (SPA), preserving 404 for API/health
+  app.get('*', (c) => {
+    if (c.req.path.startsWith('/api/') || c.req.path === '/health' || c.req.path.startsWith('/health/')) {
+      return c.json({ error: 'Not Found' }, 404);
+    }
+    return c.html(fs.readFileSync(indexHtmlPath, 'utf8'));
+  });
+}
 
 const port = Number(process.env.PORT) || 3000;
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.NODE_TEST_CONTEXT) {
   console.log(`Penga API server starting on port ${port}...`);
+  if (fs.existsSync(webDistDir)) {
+    console.log(`Serving web frontend from ${webDistDir}`);
+  } else {
+    console.warn(`Frontend build directory not found at ${webDistDir}. Run "npm run build -w @penga/web" to build.`);
+  }
   serve({
     fetch: app.fetch,
     port,

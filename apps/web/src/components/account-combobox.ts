@@ -440,6 +440,8 @@ export class AccountCombobox extends LitElement {
     `;
   }
 
+  @property({ type: String }) label = 'Account';
+
   override render() {
     const selectedAcc = this.getSelectedAccount();
     const displayValue = this.isOpen
@@ -466,6 +468,9 @@ export class AccountCombobox extends LitElement {
             aria-expanded="${this.isOpen}"
             aria-autocomplete="list"
             role="combobox"
+            aria-label=${this.label}
+            aria-controls="account-options"
+            aria-activedescendant=${this.isOpen && this.highlightedIndex >= 0 ? `account-option-${this.highlightedIndex}` : nothing}
           />
           <div class="trailing-action ${this.isOpen ? 'open' : ''}">
             <span>▾</span>
@@ -474,7 +479,7 @@ export class AccountCombobox extends LitElement {
 
         ${this.isOpen
           ? html`
-              <div class="dropdown-menu" role="listbox">
+              <div class="dropdown-menu" role="listbox" id="account-options">
                 ${filteredFlat.length === 0
                   ? html`
                       <div class="empty-state">
@@ -492,7 +497,7 @@ export class AccountCombobox extends LitElement {
                         return html`
                           <div
                             class="account-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}"
-                            role="option"
+                            role="option" id=${`account-option-${flatIndex}`}
                             aria-selected="${isSelected}"
                             @click="${() => this.selectAccount(acc)}"
                             @mouseenter="${() => (this.highlightedIndex = flatIndex)}"

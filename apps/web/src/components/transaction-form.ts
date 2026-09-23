@@ -2,7 +2,8 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { live } from 'lit/directives/live.js';
-import type { Account, CreateTransactionInput, TransactionWithSplits, Tag, TransactionTemplateWithSplits, CreateTransactionTemplateInput } from '@penga/shared';
+import type { Account, TransactionWithSplits, Tag, TransactionTemplateWithSplits, CreateTransactionTemplateInput } from '@penga/shared';
+import { newEntry, newRow, entryFromSplits, entrySplits, entryErrors, buildEntryTransaction, parseMoney, formatMoney, APP_CURRENCY, allocationSummary, useRemaining, isBalanceAccount, type TransactionEntry, type EntryKind } from '@penga/shared';
 import './account-combobox.js';
 
 interface SplitRowState {
@@ -14,6 +15,21 @@ interface SplitRowState {
 @customElement('transaction-form')
 export class TransactionForm extends LitElement {
   static override styles = css`
+    .type-selector { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .type-selector button { flex: 1; }
+    button[aria-pressed="true"] { background: var(--color-primary-subtle); border-color: var(--color-primary); color: var(--text-primary); }
+    .advanced-action { align-self: flex-start; }
+    .balance-summary { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .85rem; }
+    .balance-summary strong { display: block; margin-top: .25rem; }
+    .entry-help { font-size: .8rem; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+    .field-error { color: var(--color-expense); }
+    .more-details summary { cursor: pointer; font-weight: 600; padding-bottom: 1rem; }
+    .more-details > div { margin-bottom: 1rem; }
+    .split-row-controls { flex-wrap: wrap; min-width: 0; }
+    .split-row-controls label { width: 125px; }
+    .template-quick-bar { flex-wrap: wrap; gap: .5rem; }
+    button:focus-visible, summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
     :host {
       display: block;
     }
@@ -341,7 +357,8 @@ export class TransactionForm extends LitElement {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      flex-shrink: 0;
+      flex-shrink: 1;
+      max-width: 340px;
     }
 
     .amount-input-wrap {
@@ -981,12 +998,29 @@ export class TransactionForm extends LitElement {
   @state()
   private isTagDropdownOpen = false;
 
-  @state()
-  private splitRows: SplitRowState[] = [
-    { id: '1', accountId: '', amount: '-0.00' },
-    { id: '2', accountId: '', amount: '0.00' },
-  ];
-
+  @state() private entry: TransactionEntry = newEntry();
+  @state() private touched = new Set<string>();
+  @state() private balances: Record<string, number> = {};
+  private preparedOpen = false;
+  private returnFocus: HTMLElement | null = null;
+  private get splitRows(): SplitRowState[] {
+    if (this.entry.kind === 'advanced') return this.entry.rows;
+    return entrySplits(this.entry, this.entryContext).map((s, i) => ({ id: String(i), accountId: s.accountId, amount: (s.amountCents / 100).toFixed(2) }));
+  }
+  private set splitRows(rows: SplitRowState[]) {
+    this.entry = entryFromSplits(rows.map(r => ({ accountId: r.accountId, amountCents: parseMoney(r.amount) || 0 })), this.availableAccounts);
+  }
+  private get entryContext() {
+    return { accounts: this.availableAccounts, currentBalanceCents: 'accountId' in this.entry ? this.balances[this.entry.accountId] : undefined,
+      equityAccountId: this.availableAccounts.find(a => a.type === 'EQUITY' && a.name === 'Opening Balances')?.id };
+  }
+  private async fetchBalances() {
+    this.balances = {};
+    try {
+      const response = await fetch('/api/reports/balance-summary');
+      if (response.ok) { const json = await response.json(); this.balances = Object.fromEntries(json.data.accountBalances.map((a: any) => [a.id, a.balanceCents])); }
+    } catch { /* Set-balance validation stays disabled until balances are available. */ }
+  }
   @state()
   private isSubmitting = false;
 
@@ -1023,7 +1057,10 @@ export class TransactionForm extends LitElement {
   private handleGlobalKeyDown = (e: KeyboardEvent) => {
     if (!this.isOpen) return;
 
+    if (e.defaultPrevented) return;
+    if (e.key === 'Tab') { this.trapFocus(e); return; }
     if (e.key === 'Escape') {
+      if (this.isSaveTemplateModalOpen) { this.isSaveTemplateModalOpen = false; return; }
       this.closeModal();
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
@@ -1036,13 +1073,28 @@ export class TransactionForm extends LitElement {
     }
   };
 
+  private trapFocus(event: KeyboardEvent) {
+    const root = this.isSaveTemplateModalOpen ? this.shadowRoot?.querySelector('.mini-modal-card') : this.shadowRoot?.querySelector('.modal-card');
+    if (!root) return;
+    const collect = (parent: Element | ShadowRoot): HTMLElement[] => Array.from(parent.children).flatMap(child => {
+      if (child instanceof HTMLDetailsElement && !child.open) return collectSummary(child);
+      if (child instanceof HTMLElement && child.matches('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, textarea:not(:disabled)')) return [child];
+      return collect(child.shadowRoot || child);
+    });
+    const collectSummary = (details: Element): HTMLElement[] => Array.from(details.children).filter(child => child.tagName === 'SUMMARY') as HTMLElement[];
+    const controls = collect(root);
+    const focused = event.composedPath()[0];
+    if (event.shiftKey && focused === controls[0]) { event.preventDefault(); controls.at(-1)?.focus(); }
+    else if (!event.shiftKey && focused === controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
+  }
+
   async fetchAccounts() {
     try {
       const res = await fetch('/api/accounts');
       if (res.ok) {
         const json = await res.json();
         this.availableAccounts = json.data || [];
-        this.autoPopulateInitialAccounts();
+
       }
     } catch (err) {
       console.warn('Could not load accounts list for transaction form', err);
@@ -1119,6 +1171,8 @@ export class TransactionForm extends LitElement {
       const arr = Array.from(this.selectedTagIds);
       this.removeTag(arr[arr.length - 1]);
     } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
       this.isTagDropdownOpen = false;
     }
   };
@@ -1147,34 +1201,26 @@ export class TransactionForm extends LitElement {
     }
   };
 
-  private autoPopulateInitialAccounts() {
-    if (this.availableAccounts.length >= 2 && !this.splitRows[0].accountId) {
-      const asset = this.availableAccounts.find((a) => a.type === 'ASSET');
-      const expenseOrOther = this.availableAccounts.find(
-        (a) => a.type === 'EXPENSE' || (a.id !== asset?.id)
-      );
-
-      this.splitRows = [
-        { id: '1', accountId: asset ? asset.id : this.availableAccounts[0].id, amount: '' },
-        { id: '2', accountId: expenseOrOther ? expenseOrOther.id : this.availableAccounts[1].id, amount: '' },
-      ];
-    }
-  }
-
   override updated(changedProps: Map<string, any>) {
+    if (changedProps.has('isOpen') && this.isOpen) {
+      this.returnFocus = document.activeElement as HTMLElement | null;
+      void this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('input[type=date]')?.focus());
+    }
     if (changedProps.has('transactionToEdit') && this.transactionToEdit) {
       this.populateForEdit(this.transactionToEdit);
     } else if (changedProps.has('isOpen') && this.isOpen && !changedProps.get('isOpen')) {
       this.fetchAccounts();
       this.fetchTags();
       this.fetchTemplates();
-      if (!this.transactionToEdit) {
+      if (!this.transactionToEdit && !this.preparedOpen) {
         this.resetForm();
       }
     }
   }
 
   private populateForEdit(tx: TransactionWithSplits) {
+    this.preparedOpen = true;
+    this.touched = new Set();
     this.transactionToEdit = tx;
     this.transactionDate = tx.transactionDate;
     this.payee = tx.payee || '';
@@ -1185,11 +1231,11 @@ export class TransactionForm extends LitElement {
     this.tagSearchInput = '';
     this.isTagDropdownOpen = false;
 
-    this.splitRows = (tx.splits || []).map((s, idx) => ({
+    this.entry = { kind: 'advanced', rows: (tx.splits || []).map((s, idx) => ({
       id: s.id || `split-${idx}-${Date.now()}`,
       accountId: s.accountId,
       amount: this.formatCentsToDecimal(s.amountCents),
-    }));
+    })) };
   }
 
   private resetForm(preselectedAccountId?: string) {
@@ -1203,13 +1249,10 @@ export class TransactionForm extends LitElement {
     this.tagSearchInput = '';
     this.isTagDropdownOpen = false;
 
-    const sourceAccId = preselectedAccountId || (this.availableAccounts[0]?.id || '');
-    const destAccId = this.availableAccounts.find((a) => a.id !== sourceAccId)?.id || '';
-
-    this.splitRows = [
-      { id: `row-1-${Date.now()}`, accountId: sourceAccId, amount: '' },
-      { id: `row-2-${Date.now()}`, accountId: destAccId, amount: '' },
-    ];
+    this.entry = newEntry();
+    if ('accountId' in this.entry) this.entry.accountId = preselectedAccountId || '';
+    this.touched = new Set();
+    this.fetchBalances();
   }
 
   public async fetchTemplates() {
@@ -1230,8 +1273,10 @@ export class TransactionForm extends LitElement {
   };
 
   public applyTemplate(tpl: TransactionTemplateWithSplits) {
-    if (tpl.payee) this.payee = tpl.payee;
-    if (tpl.note) this.note = tpl.note;
+    if (this.isOpen && this.hasEntryData() && !confirm('Replace the current entry with this template?')) return;
+    this.touched = new Set();
+    this.payee = tpl.payee || '';
+    this.note = tpl.note || '';
     if (tpl.splits && tpl.splits.length > 0) {
       this.splitRows = tpl.splits.map((s, idx) => ({
         id: `tpl-split-${idx}-${Date.now()}`,
@@ -1239,24 +1284,23 @@ export class TransactionForm extends LitElement {
         amount: s.amountCents !== 0 ? this.formatCentsToDecimal(s.amountCents) : '',
       }));
     }
-    if (tpl.tags && tpl.tags.length > 0) {
-      this.selectedTagIds = new Set(tpl.tags.map((t) => t.id));
-    }
+    this.selectedTagIds = new Set((tpl.tags || []).map(t => t.id));
     this.isTemplateDropdownOpen = false;
   }
 
-  public openWithTemplate(tpl: TransactionTemplateWithSplits) {
-    this.fetchAccounts();
+  public async openWithTemplate(tpl: TransactionTemplateWithSplits) {
+    await this.fetchAccounts();
     this.fetchTags();
     this.fetchTemplates();
     this.resetForm();
     this.applyTemplate(tpl);
+    this.preparedOpen = true;
     this.isOpen = true;
     this.requestUpdate();
   }
 
-  public openWithDuplicate(tx: TransactionWithSplits) {
-    this.fetchAccounts();
+  public async openWithDuplicate(tx: TransactionWithSplits) {
+    await this.fetchAccounts();
     this.fetchTags();
     this.fetchTemplates();
     this.resetForm();
@@ -1270,6 +1314,8 @@ export class TransactionForm extends LitElement {
       accountId: s.accountId,
       amount: this.formatCentsToDecimal(s.amountCents),
     }));
+    this.entry = entryFromSplits(tx.splits, this.availableAccounts);
+    this.preparedOpen = true;
     this.isOpen = true;
     this.requestUpdate();
   }
@@ -1286,8 +1332,11 @@ export class TransactionForm extends LitElement {
       return;
     }
 
-    if (this.splitRows.some((r) => !r.accountId)) {
-      alert('All split rows must have an account selected');
+    const validAdvancedTemplate = this.entry.kind === 'advanced' && this.entry.rows.length >= 2
+      && this.entry.rows.every(row => this.availableAccounts.some(account => account.id === row.accountId)
+        && (!row.amount.trim() || Number.isFinite(parseMoney(row.amount))));
+    if ((!this.canSubmit() && !validAdvancedTemplate) || this.entry.kind === 'adjustment') {
+      alert('Complete the entry before saving a template. Save adjustments as ledger templates in advanced mode.');
       return;
     }
 
@@ -1331,153 +1380,105 @@ export class TransactionForm extends LitElement {
     this.fetchTags();
     this.fetchTemplates();
     this.resetForm(preselectedAccountId);
+    this.preparedOpen = true;
     this.isOpen = true;
     this.requestUpdate();
   }
 
-  public edit(tx: TransactionWithSplits) {
-    this.fetchAccounts();
+  public async edit(tx: TransactionWithSplits) {
+    await this.fetchAccounts();
     this.fetchTags();
     this.fetchTemplates();
     this.populateForEdit(tx);
+    this.preparedOpen = true;
     this.isOpen = true;
     this.requestUpdate();
   }
 
   public closeModal() {
+    this.preparedOpen = false;
     this.isOpen = false;
     this.transactionToEdit = null;
+    this.isSaveTemplateModalOpen = false;
+    this.isTemplateDropdownOpen = false;
+    this.returnFocus?.focus();
     this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
   }
 
-  // Parses user input string (e.g. "-45.50", "45,50", "100") into integer cents
-  private parseCents(val: string | number): number {
-    if (typeof val === 'number') return Math.round(val * 100);
-    if (!val) return 0;
-    let clean = String(val).trim();
-    if (clean === '' || clean === '-' || clean === '+') return 0;
-
-    // Handle European comma formatting (e.g. "50,50" -> "50.50", "1.250,50" -> "1250.50")
-    if (clean.includes(',') && clean.includes('.')) {
-      if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) {
-        // "1.250,50": dot is thousands separator, comma is decimal
-        clean = clean.replace(/\./g, '').replace(',', '.');
-      } else {
-        // "1,250.50": comma is thousands separator, dot is decimal
-        clean = clean.replace(/,/g, '');
-      }
-    } else if (clean.includes(',')) {
-      // Only commas present: "50,00" -> "50.00"
-      clean = clean.replace(',', '.');
-    }
-
-    const num = parseFloat(clean);
-    if (isNaN(num)) return 0;
-    return Math.round(num * 100);
+  private parseCents(value: string): number { return parseMoney(value) || 0; }
+  private formatCentsToDecimal(cents: number): string { return (cents / 100).toFixed(2); }
+  private getValidationState() {
+    const errors = entryErrors(this.entry, this.entryContext, this.transactionDate, this.payee);
+    return { isValid: Object.keys(errors).length === 0, message: Object.values(errors)[0] || 'Balanced' };
   }
-
-  private formatCentsToDecimal(cents: number): string {
-    const rounded = Math.round(cents);
-    const isNegative = rounded < 0;
-    const abs = Math.abs(rounded);
-    const dollars = Math.floor(abs / 100);
-    const remainder = abs % 100;
-    const decStr = `${dollars}.${remainder.toString().padStart(2, '0')}`;
-    return isNegative ? `-${decStr}` : decStr;
+  private canSubmit(): boolean { return !this.isSubmitting && this.getValidationState().isValid; }
+  private touch(key: string) { this.touched = new Set([...this.touched, key]); }
+  private fieldError(key: string) {
+    const error = entryErrors(this.entry, this.entryContext, this.transactionDate, this.payee)[key];
+    return this.touched.has(key) && error ? html`<small class="field-error" role="status">${error}</small>` : nothing;
   }
-
-  private getNetImbalanceCents(): number {
-    return this.splitRows.reduce((sum, r) => sum + this.parseCents(r.amount), 0);
+  private hasEntryData() {
+    return ('total' in this.entry && !!this.entry.total) || ('rows' in this.entry && this.entry.rows.some(r => !!r.amount || !!r.accountId));
   }
-
-  private getValidationState(): { isValid: boolean; message: string } {
-    if (!this.payee.trim()) {
-      return { isValid: false, message: 'Please enter a Payee / Entity name' };
-    }
-    if (!this.transactionDate) {
-      return { isValid: false, message: 'Please select a Transaction Date' };
-    }
-    if (this.splitRows.length < 2) {
-      return { isValid: false, message: 'At least 2 split lines are required' };
-    }
-
-    const unselectedAccount = this.splitRows.some((r) => !r.accountId);
-    if (unselectedAccount) {
-      return { isValid: false, message: 'Please select an account for all split lines' };
-    }
-
-    const emptyOrZero = this.splitRows.some(
-      (r) => !r.amount || this.parseCents(r.amount) === 0
-    );
-    if (emptyOrZero) {
-      return { isValid: false, message: 'Every split row must have a non-zero amount ($0.00 is not allowed)' };
-    }
-
-    const netImbalance = this.getNetImbalanceCents();
-    if (netImbalance !== 0) {
-      const isNeg = netImbalance < 0;
-      const formatted = (Math.abs(netImbalance) / 100).toFixed(2);
-      return {
-        isValid: false,
-        message: `Transaction is unbalanced. Remaining to balance: ${isNeg ? '+' : '-'}$${formatted}`,
-      };
-    }
-
-    return { isValid: true, message: 'Transaction Perfectly Balanced' };
-  }
-
-  private canSubmit(): boolean {
-    if (this.isSubmitting) return false;
-    return this.getValidationState().isValid;
-  }
-
-  private addSplitRow() {
-    const newId = `row-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    this.splitRows = [
-      ...this.splitRows,
-      { id: newId, accountId: this.availableAccounts[0]?.id || '', amount: '' },
-    ];
-  }
-
-  private removeSplitRow(rowId: string) {
-    if (this.splitRows.length <= 2) return;
-    this.splitRows = this.splitRows.filter((r) => r.id !== rowId);
-  }
-
-  private autoBalanceRow(targetId: string) {
-    let otherSumCents = 0;
-    for (const row of this.splitRows) {
-      if (row.id !== targetId) {
-        otherSumCents += this.parseCents(row.amount);
+  private switchMode(kind: EntryKind) {
+    if (this.entry.kind === kind) return;
+    if (this.transactionToEdit && kind === 'adjustment') return;
+    if (kind === 'advanced' && this.getValidationState().isValid && (this.entry.kind !== 'adjustment' || this.entryContext.equityAccountId)) {
+      this.entry = { kind, rows: entrySplits(this.entry, this.entryContext).map(s => ({ id: crypto.randomUUID(), accountId: s.accountId, amount: this.formatCentsToDecimal(s.amountCents) })) };
+    } else {
+      const converted = this.entry.kind === 'advanced' ? entryFromSplits(entrySplits(this.entry, this.entryContext), this.availableAccounts) : null;
+      if (converted?.kind === kind) this.entry = converted;
+      else {
+        if (this.hasEntryData() && !confirm('Changing transaction type will clear the accounts and amounts. Continue?')) return;
+        this.entry = newEntry(kind);
       }
     }
-
-    // Needed to balance = - otherSumCents
-    const requiredCents = -otherSumCents;
-    this.splitRows = this.splitRows.map((row) => {
-      if (row.id === targetId) {
-        return { ...row, amount: this.formatCentsToDecimal(requiredCents) };
-      }
-      return row;
-    });
+    this.touched = new Set();
   }
-
-  private handleAmountInput(rowId: string, value: string) {
-    this.splitRows = this.splitRows.map((row) => {
-      if (row.id === rowId) {
-        return { ...row, amount: value };
-      }
-      return row;
-    });
+  private updateEntry(values: object) { this.entry = { ...this.entry, ...values } as TransactionEntry; }
+  private addSplitRow() { if ('rows' in this.entry) this.updateEntry({ rows: [...this.entry.rows, newRow()] }); }
+  private removeSplitRow(id: string) { this.touch('rows'); if ('rows' in this.entry) this.updateEntry({ rows: this.entry.rows.filter(r => r.id !== id) }); }
+  private handleAmountInput(id: string, amount: string) { if ('rows' in this.entry) this.updateEntry({ rows: this.entry.rows.map(r => r.id === id ? { ...r, amount } : r) }); }
+  private handleAccountSelect(id: string, accountId: string) { if ('rows' in this.entry) this.updateEntry({ rows: this.entry.rows.map(r => r.id === id ? { ...r, accountId } : r) }); }
+  private accountField(label: string, key: string, value: string, accounts: Account[], change: (id: string) => void) {
+    return html`<div class="form-group"><span class="form-label">${label}</span><account-combobox .label=${label} .accounts=${accounts} .value=${value}
+      @focusout=${() => this.touch(key)} @account-selected=${(e: CustomEvent) => change(e.detail.accountId)}></account-combobox>${this.fieldError(key)}</div>`;
   }
-
-  private handleAccountSelect(rowId: string, accountId: string) {
-    this.splitRows = this.splitRows.map((row) => {
-      if (row.id === rowId) {
-        return { ...row, accountId };
-      }
-      return row;
-    });
+  private renderTypeSelector() {
+    const entry = this.entry;
+    return html`      <div class="type-selector" role="group" aria-label="Transaction type">
+        ${(['expense', 'income', 'transfer', 'adjustment'] as const).map(kind => html`<button type="button" class="btn-cancel" aria-pressed=${entry.kind === kind} ?disabled=${!!this.transactionToEdit && kind === 'adjustment'} @click=${() => this.switchMode(kind)}>${kind[0].toUpperCase() + kind.slice(1)}</button>`)}
+      </div>
+      <button class="btn-save-as-template advanced-action" aria-pressed=${entry.kind === 'advanced'} @click=${() => this.switchMode('advanced')}>Advanced ledger entry</button>
+`;
+  }
+  private renderEntry() {
+    const entry = this.entry;
+    const balanceAccounts = this.availableAccounts.filter(isBalanceAccount);
+    const summary = allocationSummary(entry);
+    return html`
+      <div class="grid-2">
+        <label class="form-group"><span class="form-label">Date</span><input class="form-input" type="date" .value=${this.transactionDate} @input=${(e: any) => this.transactionDate = e.target.value} @blur=${() => this.touch('date')}>${this.fieldError('date')}</label>
+        ${entry.kind === 'expense' || entry.kind === 'income' || entry.kind === 'advanced' ? html`<label class="form-group"><span class="form-label">${entry.kind === 'income' ? 'Payer/source' : entry.kind === 'advanced' ? 'Payee (optional)' : 'Payee'}</span><input class="form-input" .value=${this.payee} @input=${(e: any) => this.payee = e.target.value} @blur=${() => this.touch('payee')}>${this.fieldError('payee')}</label>` : nothing}
+      </div>
+      ${'accountId' in entry ? html`<div class="grid-2">
+        ${this.accountField(entry.kind === 'expense' ? 'Paid from' : entry.kind === 'income' ? 'Received into' : entry.kind === 'transfer' ? 'From account' : 'Account', 'account', entry.accountId, balanceAccounts, accountId => this.updateEntry({ accountId }))}
+        ${entry.kind === 'transfer' ? this.accountField('To account', 'destination', entry.toAccountId, balanceAccounts.filter(a => a.id !== entry.accountId), toAccountId => this.updateEntry({ toAccountId })) : nothing}
+      </div>` : nothing}
+      ${entry.kind === 'adjustment' ? html`<label class="form-group"><span class="form-label">Adjustment method</span><select class="form-select" .value=${entry.method} @change=${(e: any) => { if (!entry.total || confirm('Changing method clears the amount. Continue?')) this.updateEntry({ method: e.target.value, total: '' }); else e.target.value = entry.method; }}><option value="balance">Set account balance</option><option value="amount">Enter adjustment amount</option></select></label><p class="entry-help">Corrections use Opening Balances equity. Current direct balance: ${this.entryContext.currentBalanceCents === undefined ? 'Loadingâ€¦' : formatMoney(this.entryContext.currentBalanceCents)}. Includes all recorded dates, excluding child accounts. Negative balances represent debt; positive adjustments reduce debt.</p>` : nothing}
+      ${'total' in entry ? html`<label class="form-group"><span class="form-label">${entry.kind === 'adjustment' && entry.method === 'balance' ? 'Resulting balance' : entry.kind === 'expense' || entry.kind === 'income' ? 'Total amount' : 'Amount'} (${APP_CURRENCY})</span><input class="form-input" inputmode="decimal" .value=${entry.total} @input=${(e: any) => this.updateEntry({ total: e.target.value })} @blur=${() => this.touch('total')}>${this.fieldError('total')}</label>` : nothing}
+      ${'rows' in entry ? html`<section class="splits-section"><div class="splits-header"><span class="splits-title">${entry.kind === 'advanced' ? 'Ledger lines' : entry.kind === 'income' ? 'Income allocations' : 'Allocations'}</span><button class="btn-add-split" @click=${this.addSplitRow}>+ Add ${entry.kind === 'advanced' ? 'line' : 'allocation'}</button></div>
+        ${entry.kind === 'advanced' ? html`<p class="entry-help">Signed amounts must sum to zero. Positive amounts increase assets and expenses, and decrease liabilities, income and equity. Negative amounts do the reverse.</p>` : nothing}
+        ${repeat(entry.rows, r => r.id, (row, index) => html`<div class="split-row">
+          ${this.accountField(`Account/category ${index + 1}`, `account-${row.id}`, row.accountId, this.availableAccounts.filter(a => !('accountId' in entry) || a.id !== entry.accountId).sort((a,b) => Number(b.type === (entry.kind === 'income' ? 'INCOME' : 'EXPENSE')) - Number(a.type === (entry.kind === 'income' ? 'INCOME' : 'EXPENSE'))), id => this.handleAccountSelect(row.id, id))}
+          <div class="split-row-controls"><label class="form-group"><span class="form-label">Amount (${APP_CURRENCY})</span><input class="amount-input" inputmode="decimal" .value=${live(row.amount)} @input=${(e: any) => this.handleAmountInput(row.id, e.target.value)} @blur=${() => this.touch(`amount-${row.id}`)}>${this.fieldError(`amount-${row.id}`)}</label>
+          ${summary.remaining !== 0 ? html`<button class="btn-auto-balance" @click=${() => this.entry = useRemaining(this.entry, row.id)}>Use remaining ${formatMoney(summary.remaining)}</button>` : nothing}
+          <button class="btn-remove-row" aria-label=${`Remove ${entry.kind === 'advanced' ? 'line' : 'allocation'} ${index + 1}`} @click=${() => this.removeSplitRow(row.id)}>×</button></div>
+        </div>`)}
+        ${this.fieldError('rows')}
+        <div class="balance-summary" role="status" aria-live="polite" aria-atomic="true">${entry.kind !== 'advanced' ? html`<span>Total <strong>${formatMoney(summary.total)}</strong></span><span>Allocated <strong>${formatMoney(summary.allocated)}</strong></span>` : nothing}<span>Remaining <strong>${formatMoney(summary.remaining)}</strong></span>${summary.remaining === 0 && entry.rows.length && entry.rows.every(r => parseMoney(r.amount)) ? html`<span>Balanced</span>` : nothing}</div>
+      </section>` : nothing}
+    `;
   }
 
   private async submitTransaction() {
@@ -1486,22 +1487,18 @@ export class TransactionForm extends LitElement {
 
     try {
       const isEditing = Boolean(this.transactionToEdit);
-      const url = isEditing
+      const url = this.entry.kind === 'adjustment' ? '/api/transactions/adjustments' : isEditing
         ? `/api/transactions/${this.transactionToEdit!.id}`
         : '/api/transactions';
-      const method = isEditing ? 'PATCH' : 'POST';
+      const method = isEditing && this.entry.kind !== 'adjustment' ? 'PATCH' : 'POST';
 
-      const payload = {
-        transactionDate: this.transactionDate,
-        payee: this.payee.trim(),
-        note: this.note.trim() || null,
-        isCleared: this.isCleared,
-        splits: this.splitRows.map((r) => ({
-          accountId: r.accountId,
-          amountCents: this.parseCents(r.amount),
-        })),
-        tagIds: Array.from(this.selectedTagIds),
+      const details = {
+        transactionDate: this.transactionDate, payee: this.payee.trim() || null,
+        note: this.note.trim() || null, isCleared: this.isCleared, tagIds: Array.from(this.selectedTagIds),
       };
+      const payload = this.entry.kind === 'adjustment'
+        ? { ...details, adjustment: this.entry, expectedBalanceCents: this.entryContext.currentBalanceCents }
+        : buildEntryTransaction(this.entry, this.entryContext, details);
 
       const res = await fetch(url, {
         method,
@@ -1532,44 +1529,11 @@ export class TransactionForm extends LitElement {
     }
   }
 
-  // Calculate allocation ratio bar segments
-  private renderRatioBar() {
-    const absTotal = this.splitRows.reduce((acc, r) => acc + Math.abs(this.parseCents(r.amount)), 0);
-    if (absTotal === 0) return nothing;
-
-    return html`
-      <div class="ratio-bar-container">
-        <div class="ratio-bar">
-          ${this.splitRows.map((row) => {
-            const cents = Math.abs(this.parseCents(row.amount));
-            const pct = (cents / absTotal) * 100;
-            const acc = this.availableAccounts.find((a) => a.id === row.accountId);
-            const color = acc?.color || '#059669';
-            return html`<div class="ratio-segment" style="width: ${pct}%; background-color: ${color};" title="${acc?.name || 'Account'}: ${pct.toFixed(1)}%"></div>`;
-          })}
-        </div>
-        <div class="ratio-legend">
-          ${this.splitRows.map((row) => {
-            const acc = this.availableAccounts.find((a) => a.id === row.accountId);
-            const cents = Math.abs(this.parseCents(row.amount));
-            const pct = absTotal > 0 ? ((cents / absTotal) * 100).toFixed(0) : '0';
-            return html`
-              <span class="legend-item">
-                <span class="legend-dot" style="background-color: ${acc?.color || '#64748b'};"></span>
-                <span>${acc?.name || 'Unselected'} (${pct}%)</span>
-              </span>
-            `;
-          })}
-        </div>
-      </div>
-    `;
-  }
-
   override render() {
     if (!this.isOpen) return nothing;
 
     const validation = this.getValidationState();
-    const netImbalance = this.getNetImbalanceCents();
+
 
     return html`
       <div
@@ -1578,7 +1542,7 @@ export class TransactionForm extends LitElement {
           if (e.target === e.currentTarget) this.closeModal();
         }}"
       >
-        <div class="modal-card">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Record transaction">
           <!-- Header -->
           <div class="modal-header">
             <div class="header-info">
@@ -1586,7 +1550,7 @@ export class TransactionForm extends LitElement {
               <p>
                 ${this.transactionToEdit
                   ? 'Modify payee, transaction date, notes, and balanced split lines'
-                  : 'Double-entry split ledger with real-time balance validation'}
+                  : 'Record everyday spending, income and account changes'}
               </p>
             </div>
             <button class="close-btn" @click="${this.closeModal}" aria-label="Close modal">✕</button>
@@ -1594,6 +1558,7 @@ export class TransactionForm extends LitElement {
 
           <!-- Body -->
           <div class="modal-body">
+            ${this.renderTypeSelector()}
             <!-- Templates Quick-Bar (when recording new transaction) -->
             ${!this.transactionToEdit
               ? html`
@@ -1649,60 +1614,29 @@ export class TransactionForm extends LitElement {
                 `
               : nothing}
 
-            <!-- Basic info row -->
+            ${this.renderEntry()}
+            <details class="more-details"><summary>More details</summary>
             <div class="grid-2">
               <div class="form-group">
-                <label class="form-label">Payee / Entity *</label>
+                <label class="form-label" for="entry-note">${this.entry.kind === 'adjustment' ? 'Reason/memo' : 'Memo / Note (optional)'}</label>
                 <input
                   type="text"
                   class="form-input"
-                  placeholder="e.g. Whole Foods, Landlord, Employer"
-                  .value="${this.payee}"
-                  @input="${(e: any) => (this.payee = e.target.value)}"
-                  required
-                  autofocus
-                />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Transaction Date *</label>
-                <input
-                  type="date"
-                  class="form-input"
-                  .value="${this.transactionDate}"
-                  @input="${(e: any) => (this.transactionDate = e.target.value)}"
-                  required
-                />
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="form-group">
-                <label class="form-label">Memo / Note (Optional)</label>
-                <input
-                  type="text"
-                  class="form-input"
-                  placeholder="e.g. Intraday receipt #4102 or shared dinner"
+                  id="entry-note" placeholder="Add a note"
                   .value="${this.note}"
                   @input="${(e: any) => (this.note = e.target.value)}"
                 />
               </div>
 
               <div class="form-group" style="justify-content: center;">
-                <label class="checkbox-label">
-                  <input
-                    type="checkbox"
-                    .checked="${this.isCleared}"
-                    @change="${(e: any) => (this.isCleared = e.target.checked)}"
-                  />
-                  <span>Mark as Cleared (Statement Reconciled)</span>
-                </label>
+                <label class="form-label" for="entry-status">Transaction status</label>
+                <select id="entry-status" class="form-select" .value=${this.isCleared ? 'cleared' : 'pending'} @change=${(e: any) => this.isCleared = e.target.value === 'cleared'}><option value="pending">Pending</option><option value="cleared">Cleared</option></select>
               </div>
             </div>
 
             <!-- Tags Section -->
             <div class="form-group tag-form-group">
-              <label class="form-label">Tags (Cross-cutting labels)</label>
+              <label class="form-label" for="tag-input-field">Tags</label>
               <div class="tag-input-box" @click="${this.focusTagInput}">
                 <div class="selected-tags-list">
                   ${Array.from(this.selectedTagIds).map((id) => {
@@ -1783,103 +1717,7 @@ export class TransactionForm extends LitElement {
               })()}
             </div>
 
-            <!-- Splits Ledger -->
-            <div class="splits-section">
-              <div class="splits-header">
-                <div class="splits-title">
-                  <span>Ledger Splits</span>
-                  <span>(${this.splitRows.length} lines)</span>
-                </div>
-                <button
-                  type="button"
-                  class="btn-add-split"
-                  @click="${this.addSplitRow}"
-                  title="Add another split row (Alt+A)"
-                >
-                  <span>+</span>
-                  <span>Add Split</span>
-                </button>
-              </div>
-
-              <!-- Double-entry balance status banner -->
-              <div class="balance-banner ${validation.isValid ? 'balanced' : 'unbalanced'}">
-                <div class="balance-indicator">
-                  <span>${validation.isValid ? '✓' : '⚠️'}</span>
-                  <span>${validation.message}</span>
-                </div>
-                <div class="balance-badge">
-                  ${validation.isValid
-                    ? '$0.00'
-                    : netImbalance === 0
-                    ? 'Incomplete'
-                    : `Remaining: ${netImbalance > 0 ? '-' : '+'}$${(Math.abs(netImbalance) / 100).toFixed(2)}`}
-                </div>
-              </div>
-
-              <!-- Visual allocation ratio bar -->
-              ${this.renderRatioBar()}
-
-              <!-- Split rows list -->
-              <div class="split-rows-list">
-                <div class="split-rows-header">
-                  <span>Account / Category</span>
-                  <span>Amount & Actions</span>
-                </div>
-
-                ${repeat(
-                  this.splitRows,
-                  (row) => row.id,
-                  (row) => html`
-                    <div class="split-row">
-                      <!-- Account Combobox (Search by typing) -->
-                      <account-combobox
-                        .accounts="${this.availableAccounts}"
-                        .value="${row.accountId}"
-                        placeholder="Type to search account..."
-                        @account-selected="${(e: CustomEvent) => this.handleAccountSelect(row.id, e.detail.accountId)}"
-                      ></account-combobox>
-
-                      <!-- Amount input & Actions Controls -->
-                      <div class="split-row-controls">
-                        <div class="amount-input-wrap">
-                          <span class="currency-symbol">$</span>
-                          <input
-                            type="text"
-                            class="amount-input"
-                            placeholder="0.00"
-                            .value="${live(row.amount)}"
-                            @input="${(e: any) => this.handleAmountInput(row.id, e.target.value)}"
-                            aria-label="Split amount"
-                          />
-                        </div>
-
-                        <!-- Auto-balance helper button -->
-                        <button
-                          type="button"
-                          class="btn-auto-balance"
-                          @click="${() => this.autoBalanceRow(row.id)}"
-                          title="Auto-fill remainder needed to balance"
-                        >
-                          Balance
-                        </button>
-
-                        <!-- Remove row button -->
-                        <button
-                          type="button"
-                          class="btn-remove-row"
-                          @click="${() => this.removeSplitRow(row.id)}"
-                          ?disabled="${this.splitRows.length <= 2}"
-                          title="${this.splitRows.length <= 2 ? 'At least 2 splits are required' : 'Remove split line'}"
-                          aria-label="Remove split row"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  `
-                )}
-              </div>
-            </div>
+            </details>
           </div>
 
           <!-- Footer -->
@@ -1914,7 +1752,7 @@ export class TransactionForm extends LitElement {
               >
                 ${this.isSubmitting
                   ? (this.transactionToEdit ? 'Saving...' : 'Recording...')
-                  : (this.transactionToEdit ? 'Save Changes' : 'Record Transaction')}
+                  : (this.transactionToEdit ? 'Save Changes' : this.entry.kind === 'advanced' ? 'Record transaction' : `Record ${this.entry.kind}`)}
               </button>
             </div>
           </div>
@@ -1940,11 +1778,11 @@ export class TransactionForm extends LitElement {
                     Save this transaction's split structure, accounts, amounts, payee, and tags as a template.
                   </p>
                   <div class="form-group" style="margin-top: 1rem;">
-                    <label class="form-label">Template Name *</label>
+                    <label class="form-label" for="template-name">Template Name *</label>
                     <input
                       type="text"
                       class="form-input"
-                      placeholder="e.g. Monthly Rent, Paycheck, Netflix..."
+                      id="template-name" placeholder="e.g. Monthly Rent, Paycheck, Netflix..."
                       .value="${this.saveTemplateName}"
                       @input="${(e: any) => (this.saveTemplateName = e.target.value)}"
                       @keydown="${(e: KeyboardEvent) => {

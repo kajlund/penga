@@ -1,9 +1,50 @@
+import { openingBalanceAccount } from '../domain/opening-balances.js';
+import { buildEntryTransaction, type TransactionEntry } from '@penga/shared';
 import { Hono } from 'hono';
-import { eq, desc, asc, inArray, and } from 'drizzle-orm';
+import { eq, desc, asc, inArray, and, sql } from 'drizzle-orm';
 import { db, transactions, splits, accounts, tags, transactionTags } from '../db/index.js';
 import type { CreateTransactionInput, SplitInput, UpdateTransactionInput, ReorderTransactionsInput } from '@penga/shared';
 
 export const transactionsRoute = new Hono();
+
+﻿/** Resolve a balance correction against the live ledger, atomically. */
+transactionsRoute.post('/adjustments', async (c) => {
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ error: 'Invalid JSON request body' }, 400); }
+  const entry = body?.adjustment as TransactionEntry;
+  if (!entry || entry.kind !== 'adjustment' || !['amount', 'balance'].includes(entry.method) || typeof entry.total !== 'string' || typeof entry.accountId !== 'string' || typeof body.transactionDate !== 'string'
+    || (body.payee != null && typeof body.payee !== 'string') || (body.note != null && typeof body.note !== 'string')
+    || (body.isCleared !== undefined && typeof body.isCleared !== 'boolean')
+    || (body.tagIds !== undefined && (!Array.isArray(body.tagIds) || body.tagIds.some((id: unknown) => typeof id !== 'string')))) {
+    return c.json({ error: 'Invalid adjustment' }, 400);
+  }
+  try {
+    const result = await db.transaction(async tx => {
+      const equity = await openingBalanceAccount(tx);
+      // Also serializes against existing split writes, which do not take advisory locks.
+      await tx.execute(sql`LOCK TABLE splits IN SHARE ROW EXCLUSIVE MODE`);
+      const allAccounts = await tx.select().from(accounts);
+      const [balance] = await tx.select({ cents: sql<string>`coalesce(sum(${splits.amountCents}), 0)` }).from(splits).where(eq(splits.accountId, entry.accountId));
+      const currentBalanceCents = Number(balance.cents);
+      if (entry.method === 'balance' && body.expectedBalanceCents !== currentBalanceCents) {
+        throw new Error('The account balance changed. Reopen the dialog to load the latest balance.');
+      }
+      const payload = buildEntryTransaction(entry, { accounts: allAccounts, currentBalanceCents, equityAccountId: equity.id }, {
+        transactionDate: body.transactionDate, payee: body.payee || null, note: body.note || null,
+        isCleared: body.isCleared ?? false, tagIds: body.tagIds || [],
+      });
+      const [record] = await tx.insert(transactions).values({ transactionDate: payload.transactionDate, payee: payload.payee, note: payload.note, isCleared: payload.isCleared }).returning();
+      const lines = await tx.insert(splits).values(payload.splits.map(s => ({ ...s, transactionId: record.id }))).returning();
+      for (const tagId of new Set<string>(payload.tagIds)) await tx.insert(transactionTags).values({ transactionId: record.id, tagId }).onConflictDoNothing();
+      const attachedTags = payload.tagIds?.length ? await tx.select().from(tags).where(inArray(tags.id, payload.tagIds)) : [];
+      return { ...record, splits: lines.map(s => { const account = [...allAccounts, equity].find(a => a.id === s.accountId)!; return { ...s, accountName: account.name, accountType: account.type, accountIcon: account.icon, accountColor: account.color }; }), tags: attachedTags };
+    });
+    return c.json({ data: result }, 201);
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Could not record adjustment' }, 400);
+  }
+});
+
 
 /**
  * POST /api/transactions

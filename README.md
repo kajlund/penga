@@ -136,3 +136,18 @@ Open [http://localhost:5173/](http://localhost:5173/) in your browser.
 ## Documentation
 
 - [Design & Architecture Specification](doc/ds.md): Complete domain model, Drizzle schema, split-ledger rules, and entity-relationship diagrams.
+
+## Guided transaction entry
+
+Record Transaction defaults to Expense, with Income, Transfer, Adjustment and a secondary Advanced ledger entry option. All modes write the existing integer-cent, balanced split ledger:
+
+- Expense credits the paying asset/liability account and debits allocations, including receivable assets.
+- Income debits the receiving account and credits allocations.
+- Transfer credits the source and debits the destination; both must be asset/liability accounts.
+- Adjustment uses the existing Opening Balances equity account. Enter adjustment amount applies a signed change; Set account balance computes the difference from the current **direct** balance across all recorded dates, excluding child accounts. Liability balances retain the existing negative-debt convention.
+
+`POST /api/transactions/adjustments` calculates corrections atomically and rejects a stale expected balance. Other creation/editing and template contracts are unchanged; no migration is needed. Existing transactions remain editable in Advanced mode. Representable templates open guided; equity, unusual, and zero-amount templates retain their raw ledger lines. Zero-amount templates remain reusable but cannot be recorded until valid.
+
+The current schema has no currency field or exchange-rate model. Entry formatting uses the shared EUR application default; cross-currency conversion is outside this change.
+
+Run `npm test` for domain, component and API contract tests. To also run database integration tests in PowerShell, use `$env:PENGA_DATABASE_TESTS = '1'; npm test`. Integration fixtures and transactions are rolled back. `npm run build -w @penga/web` verifies the production frontend bundle.
