@@ -402,6 +402,18 @@ export class PengaAccounts extends LitElement {
       border: 1px solid var(--color-expense-border);
     }
 
+    .type-badge.settlement {
+      background: var(--color-settlement-bg);
+      color: var(--color-settlement);
+      border: 1px solid var(--color-settlement-border);
+    }
+
+    .type-badge.equity {
+      background: var(--color-primary-subtle);
+      color: var(--color-primary-text);
+      border: 1px solid var(--color-primary-border);
+    }
+
     .node-actions {
       display: flex;
       align-items: center;
@@ -757,9 +769,15 @@ export class PengaAccounts extends LitElement {
   private createInitialBalance = '';
 
   @state()
+  private createSettlementPosition: 'they-owe' | 'i-owe' | 'settled' = 'they-owe';
+
+  @state()
+  private createSettlementDate = '';
+
+  @state()
   private flatAccounts: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
 
-  private emojiPresets = ['🏦', '⚖️', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
+  private emojiPresets = ['🏦', '🤝', '⚖️', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
 
   private handleWindowClick = (e: MouseEvent) => {
     if (!this.openMenuAccountId) return;
@@ -887,9 +905,11 @@ export class PengaAccounts extends LitElement {
       this.createType = preselectedType || 'ASSET';
     }
 
-    this.createIcon = this.createType === 'EXPENSE' ? '🛒' : this.createType === 'EQUITY' ? '⚖️' : '🏦';
+    this.createIcon = this.createType === 'EXPENSE' ? '🛒' : this.createType === 'EQUITY' ? '⚖️' : this.createType === 'SETTLEMENT' ? '🤝' : '🏦';
     this.createColor = this.getDefaultColor(this.createType);
     this.createInitialBalance = '';
+    this.createSettlementPosition = 'they-owe';
+    this.createSettlementDate = '';
     this.isCreateModalOpen = true;
   }
 
@@ -900,7 +920,7 @@ export class PengaAccounts extends LitElement {
     this.createDescription = node.description || '';
     this.createType = node.type;
     this.createParentId = node.parentId || '';
-    this.createIcon = node.icon || (node.type === 'EXPENSE' ? '🛒' : '🏦');
+    this.createIcon = node.icon || (node.type === 'EXPENSE' ? '🛒' : node.type === 'SETTLEMENT' ? '🤝' : '🏦');
     this.createColor = node.color || this.getDefaultColor(node.type);
     this.isCreateModalOpen = true;
   }
@@ -911,6 +931,8 @@ export class PengaAccounts extends LitElement {
         return '#0d9488';
       case 'LIABILITY':
         return '#d97706';
+      case 'SETTLEMENT':
+        return '#0284c7';
       case 'EQUITY':
         return '#8b5cf6';
       case 'INCOME':
@@ -946,15 +968,30 @@ export class PengaAccounts extends LitElement {
 
     try {
       let initialBalanceCents: number | undefined;
-      if (
-        !this.editingAccountId &&
-        this.createInitialBalance &&
-        (this.createType === 'ASSET' || this.createType === 'LIABILITY')
-      ) {
-        const clean = this.createInitialBalance.replace(',', '.').trim();
-        const num = parseFloat(clean);
-        if (!isNaN(num) && num !== 0) {
-          initialBalanceCents = Math.round(num * 100);
+      let initialBalanceDate: string | undefined;
+
+      if (!this.editingAccountId) {
+        if (this.createType === 'SETTLEMENT') {
+          if (this.createSettlementPosition !== 'settled' && this.createInitialBalance) {
+            const clean = this.createInitialBalance.replace(',', '.').trim();
+            const num = parseFloat(clean);
+            if (!isNaN(num) && num !== 0) {
+              const abs = Math.abs(num);
+              initialBalanceCents = this.createSettlementPosition === 'they-owe' ? Math.round(abs * 100) : -Math.round(abs * 100);
+            }
+          }
+          if (this.createSettlementDate && /^\d{4}-\d{2}-\d{2}$/.test(this.createSettlementDate)) {
+            initialBalanceDate = this.createSettlementDate;
+          }
+        } else if (
+          this.createInitialBalance &&
+          (this.createType === 'ASSET' || this.createType === 'LIABILITY')
+        ) {
+          const clean = this.createInitialBalance.replace(',', '.').trim();
+          const num = parseFloat(clean);
+          if (!isNaN(num) && num !== 0) {
+            initialBalanceCents = Math.round(num * 100);
+          }
         }
       }
 
@@ -966,6 +1003,7 @@ export class PengaAccounts extends LitElement {
         icon: this.createIcon.trim() || null,
         color: this.createColor.trim() || null,
         initialBalanceCents,
+        initialBalanceDate,
       };
 
       const url = this.editingAccountId
@@ -1200,6 +1238,7 @@ export class PengaAccounts extends LitElement {
     const totalCount = this.flatAccounts.length;
     const assetCount = this.flatAccounts.filter((a) => a.type === 'ASSET').length;
     const liabilityCount = this.flatAccounts.filter((a) => a.type === 'LIABILITY').length;
+    const settlementCount = this.flatAccounts.filter((a) => a.type === 'SETTLEMENT').length;
     const equityCount = this.flatAccounts.filter((a) => a.type === 'EQUITY').length;
     const incomeCount = this.flatAccounts.filter((a) => a.type === 'INCOME').length;
     const expenseCount = this.flatAccounts.filter((a) => a.type === 'EXPENSE').length;
@@ -1241,6 +1280,13 @@ export class PengaAccounts extends LitElement {
           >
             <span>Liabilities</span>
             <span class="badge-count">${liabilityCount}</span>
+          </button>
+          <button
+            class="filter-pill ${this.selectedFilter === 'SETTLEMENT' ? 'active' : ''}"
+            @click="${() => (this.selectedFilter = 'SETTLEMENT')}"
+          >
+            <span>Settlements</span>
+            <span class="badge-count">${settlementCount}</span>
           </button>
           <button
             class="filter-pill ${this.selectedFilter === 'EQUITY' ? 'active' : ''}"
@@ -1388,11 +1434,88 @@ export class PengaAccounts extends LitElement {
                       >
                         <option value="ASSET">ASSET (Liquid, cash, checking)</option>
                         <option value="LIABILITY">LIABILITY (Debt, credit cards)</option>
+                        <option value="SETTLEMENT">SETTLEMENT (Tracks money owed between you & others)</option>
                         <option value="EQUITY">EQUITY (Opening balances, capital)</option>
                         <option value="INCOME">INCOME (Salary, dividends)</option>
                         <option value="EXPENSE">EXPENSE (Groceries, transport)</option>
                       </select>
+                      ${this.createType === 'SETTLEMENT'
+                        ? html`
+                            <p style="margin: 0.35rem 0 0 0; font-size: 0.75rem; color: var(--text-muted);">
+                              Tracks money owed between you and another person. The balance may move in either direction.
+                            </p>
+                          `
+                        : nothing}
                     </div>
+
+                    ${!this.editingAccountId && this.createType === 'SETTLEMENT'
+                      ? html`
+                          <div class="form-group" style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                            <label class="form-label" style="margin-bottom: 0.4rem; font-weight: 600;">Opening position</label>
+                            <div style="display: flex; gap: 1.25rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                              <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+                                <input
+                                  type="radio"
+                                  name="settlementPosition"
+                                  value="they-owe"
+                                  .checked="${this.createSettlementPosition === 'they-owe'}"
+                                  @change="${() => (this.createSettlementPosition = 'they-owe')}"
+                                />
+                                They owe me
+                              </label>
+                              <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+                                <input
+                                  type="radio"
+                                  name="settlementPosition"
+                                  value="i-owe"
+                                  .checked="${this.createSettlementPosition === 'i-owe'}"
+                                  @change="${() => (this.createSettlementPosition = 'i-owe')}"
+                                />
+                                I owe them
+                              </label>
+                              <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
+                                <input
+                                  type="radio"
+                                  name="settlementPosition"
+                                  value="settled"
+                                  .checked="${this.createSettlementPosition === 'settled'}"
+                                  @change="${() => (this.createSettlementPosition = 'settled')}"
+                                />
+                                Settled
+                              </label>
+                            </div>
+
+                            ${this.createSettlementPosition !== 'settled'
+                              ? html`
+                                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.4rem;">
+                                    <div>
+                                      <label class="form-label" style="font-size: 0.75rem;">Amount</label>
+                                      <input
+                                        type="text"
+                                        class="form-input"
+                                        placeholder="0.00"
+                                        .value="${this.createInitialBalance}"
+                                        @input="${(e: any) => (this.createInitialBalance = e.target.value)}"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label class="form-label" style="font-size: 0.75rem;">Opening date</label>
+                                      <input
+                                        type="date"
+                                        class="form-input"
+                                        .value="${this.createSettlementDate}"
+                                        @input="${(e: any) => (this.createSettlementDate = e.target.value)}"
+                                      />
+                                    </div>
+                                  </div>
+                                `
+                              : nothing}
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.72rem; color: var(--text-muted);">
+                              Positive means they owe you. Negative means you owe them.
+                            </p>
+                          </div>
+                        `
+                      : nothing}
 
                     ${!this.editingAccountId && (this.createType === 'ASSET' || this.createType === 'LIABILITY')
                       ? html`

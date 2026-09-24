@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { eq, desc, asc, inArray } from 'drizzle-orm';
+import { eq, desc, asc, inArray, lte } from 'drizzle-orm';
 import { db, transactions, splits, accounts, tags, transactionTags } from '../db/index.js';
-import type { DashboardSummary, AccountBalanceSummary, TransactionWithSplits } from '@penga/shared';
+import { getSettlementPresentation, type DashboardSummary, type AccountBalanceSummary, type TransactionWithSplits } from '@penga/shared';
 
 export const reportsRoute = new Hono();
 
@@ -23,6 +23,8 @@ reportsRoute.get('/', async (c) => {
 });
 
 async function handleSummary(c: any) {
+  const asOfDate = c.req.query('date') || c.req.query('asOf');
+
   // 1. Fetch all accounts
   const allAccounts = await db
     .select({
@@ -39,7 +41,7 @@ async function handleSummary(c: any) {
     .orderBy(asc(accounts.name));
 
   // 2. Fetch all splits joined with transaction cleared status
-  const splitRows = await db
+  const splitQuery = db
     .select({
       id: splits.id,
       accountId: splits.accountId,
@@ -48,6 +50,10 @@ async function handleSummary(c: any) {
     })
     .from(splits)
     .leftJoin(transactions, eq(splits.transactionId, transactions.id));
+
+  const splitRows = asOfDate
+    ? await splitQuery.where(lte(transactions.transactionDate, asOfDate))
+    : await splitQuery;
 
   // 3. Compute direct balances per account
   const directBalances = new Map<string, number>();
@@ -97,6 +103,8 @@ async function handleSummary(c: any) {
   let totalLiabilitiesCents = 0;
   let totalIncomeCents = 0;
   let totalExpensesCents = 0;
+  let totalSettlementAssetsCents = 0;
+  let totalSettlementLiabilitiesCents = 0;
 
   const accountSummaries: AccountBalanceSummary[] = allAccounts.map((acc) => {
     const directBal = directBalances.get(acc.id) || 0;
@@ -116,6 +124,18 @@ async function handleSummary(c: any) {
     } else if (acc.type === 'EXPENSE') {
       // Expense splits are positive debits
       totalExpensesCents += Math.abs(directBal);
+    } else if (acc.type === 'SETTLEMENT') {
+      // Settlement accounts:
+      // Positive = owed to the user (asset-like)
+      // Negative = owed by the user (liability-like)
+      // Zero = settled
+      if (directBal > 0) {
+        totalSettlementAssetsCents += directBal;
+        totalAssetsCents += directBal;
+      } else if (directBal < 0) {
+        totalSettlementLiabilitiesCents += Math.abs(directBal);
+        totalLiabilitiesCents += Math.abs(directBal);
+      }
     } else if (acc.type === 'EQUITY') {
       // Equity accounts track capital, opening balances, and net worth adjustments without polluting income or expense flow
     }
@@ -131,17 +151,21 @@ async function handleSummary(c: any) {
       clearedBalanceCents: clearedBal,
       splitCount: count,
       rollupBalanceCents: rollupBal,
+      settlementPresentation: acc.type === 'SETTLEMENT' ? getSettlementPresentation(directBal) : undefined,
     };
   });
 
   const netAvailableCents = totalAssetsCents - totalLiabilitiesCents;
 
   // 6. Fetch 6 most recent transactions with splits
-  const recentTxs = await db
+  const recentQuery = db
     .select()
     .from(transactions)
-    .orderBy(desc(transactions.transactionDate), asc(transactions.sortOrder), desc(transactions.createdAt))
-    .limit(6);
+    .orderBy(desc(transactions.transactionDate), asc(transactions.sortOrder), desc(transactions.createdAt));
+
+  const recentTxs = asOfDate
+    ? await recentQuery.where(lte(transactions.transactionDate, asOfDate)).limit(6)
+    : await recentQuery.limit(6);
 
   let recentTransactionsWithSplits: TransactionWithSplits[] = [];
 
@@ -202,6 +226,8 @@ async function handleSummary(c: any) {
     netAvailableCents,
     totalIncomeCents,
     totalExpensesCents,
+    totalSettlementAssetsCents,
+    totalSettlementLiabilitiesCents,
     accountBalances: accountSummaries,
     recentTransactions: recentTransactionsWithSplits,
   };

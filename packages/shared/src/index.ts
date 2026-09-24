@@ -2,11 +2,14 @@ export const AccountType = {
   ASSET: 'ASSET',
   LIABILITY: 'LIABILITY',
   EQUITY: 'EQUITY',
+  SETTLEMENT: 'SETTLEMENT',
   INCOME: 'INCOME',
   EXPENSE: 'EXPENSE',
 } as const;
 
 export type AccountType = (typeof AccountType)[keyof typeof AccountType];
+
+import type { SettlementPresentation } from './transaction-entry.js';
 
 export interface Account {
   id: string;
@@ -112,6 +115,7 @@ export interface AccountBalanceSummary {
   clearedBalanceCents: number;
   splitCount: number;
   rollupBalanceCents: number;
+  settlementPresentation?: SettlementPresentation;
 }
 
 export interface DashboardSummary {
@@ -120,6 +124,8 @@ export interface DashboardSummary {
   netAvailableCents: number;
   totalIncomeCents: number;
   totalExpensesCents: number;
+  totalSettlementAssetsCents?: number;
+  totalSettlementLiabilitiesCents?: number;
   accountBalances: AccountBalanceSummary[];
   recentTransactions: TransactionWithSplits[];
 }

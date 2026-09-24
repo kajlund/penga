@@ -68,7 +68,17 @@ const accountTreeSeedData: SeedAccountNode[] = [
   },
 
   // ==========================================
-  // 3. EQUITY
+  // 3. SETTLEMENTS
+  // ==========================================
+  {
+    name: 'Girlfriend — shared expenses',
+    type: 'SETTLEMENT',
+    icon: '🤝',
+    color: '#0284c7', // Sky blue
+  },
+
+  // ==========================================
+  // 4. EQUITY
   // ==========================================
   {
     name: 'Opening Balances',

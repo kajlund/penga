@@ -225,6 +225,12 @@ export class AccountCombobox extends LitElement {
       border: 1px solid var(--color-expense-border);
     }
 
+    .type-badge.SETTLEMENT {
+      background: var(--color-settlement-bg);
+      color: var(--color-settlement);
+      border: 1px solid var(--color-settlement-border);
+    }
+
     .empty-state {
       padding: 1rem 0.75rem;
       text-align: center;
@@ -305,6 +311,7 @@ export class AccountCombobox extends LitElement {
     const categories: { label: string; type: AccountType }[] = [
       { label: 'Assets', type: 'ASSET' },
       { label: 'Liabilities', type: 'LIABILITY' },
+      { label: 'Settlements', type: 'SETTLEMENT' },
       { label: 'Equity', type: 'EQUITY' },
       { label: 'Income', type: 'INCOME' },
       { label: 'Expenses', type: 'EXPENSE' },

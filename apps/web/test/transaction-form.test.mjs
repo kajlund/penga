@@ -1,4 +1,4 @@
-﻿import { test, beforeEach, afterEach } from 'node:test';
+import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 import ts from 'typescript';
@@ -14,7 +14,7 @@ for (const file of ['transaction-form','account-combobox']) {
  await fs.writeFile(new URL(`${file}.js`,generated),result.outputText);
 }
 await import('./.compiled/transaction-form.js');
-const accounts = [['bank','ASSET'],['cash','ASSET'],['owed','ASSET'],['card','LIABILITY'],['dining','EXPENSE'],['salary','INCOME'],['equity','EQUITY']].map(([id,type]) => ({id,name:id === 'equity' ? 'Opening Balances' : id,type,parentId:null,icon:null,color:null}));
+const accounts = [['bank','ASSET'],['cash','ASSET'],['owed','ASSET'],['card','LIABILITY'],['girlfriend','SETTLEMENT'],['dining','EXPENSE'],['salary','INCOME'],['equity','EQUITY']].map(([id,type]) => ({id,name:id === 'equity' ? 'Opening Balances' : id,type,parentId:null,icon:null,color:null}));
 const template = (splits, extra={}) => ({id:'tpl',name:'Template',payee:'Shop',note:null,tags:[],splits:splits.map(([accountId,amountCents])=>({accountId,amountCents})),...extra});
 let form, requests, confirmations;
 const settle = async()=>{await new Promise(r=>setTimeout(r,0));await form.updateComplete;};
@@ -31,8 +31,8 @@ beforeEach(async()=>{
 afterEach(()=>form.remove());
 test('empty expense has no errors, disabled submit and collapsed details',async()=>{assert.ok(button('Expense').getAttribute('aria-pressed')==='true');assert.equal(form.shadowRoot.querySelectorAll('.field-error').length,0);assert.ok(button('Record expense').disabled);assert.equal(form.shadowRoot.querySelector('details').open,false);assert.ok(!text().includes('Statement Reconciled'));assert.ok(!text().includes('$0.00'))});
 test('field error only after blur',async()=>{input('Payee').dispatchEvent(new Event('blur'));await settle();assert.ok(text().includes('Enter a payee.'));await type('Payee','Shop');assert.equal(form.shadowRoot.querySelectorAll('.field-error').length,0)});
-test('expense input, live remaining, Ctrl+Enter and cleared payload',async()=>{await type('Payee','Shop');await account('Paid from','bank');await type('Total amount','60');await account('Account/category 1','dining');await type('Amount (','35');assert.ok(button('Record expense').disabled);window.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true}));assert.equal(requests.length,0);assert.ok(text().includes('Use remaining €25.00'));button('Use remaining €25.00').click();await settle();assert.equal(input('Amount (').value,'60.00');assert.equal(button('Record expense').disabled,false);const status=form.shadowRoot.querySelector('#entry-status');status.value='cleared';status.dispatchEvent(new Event('change'));await settle();window.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true}));await settle();assert.equal(requests.length,1);assert.deepEqual(requests[0].splits,[{accountId:'bank',amountCents:-6000},{accountId:'dining',amountCents:6000}]);assert.equal(requests[0].isCleared,true)});
-test('transfer hides allocations/payee and excludes source destination',async()=>{button('Transfer').click();await settle();assert.ok(!input('Payee'));assert.equal(form.shadowRoot.querySelectorAll('.split-row').length,0);await account('From account','owed');const to=[...form.shadowRoot.querySelectorAll('account-combobox')].find(a=>a.label==='To account');assert.ok(to.accounts.every(a=>a.id!=='owed'&&['ASSET','LIABILITY'].includes(a.type)));await account('To account','cash');await type('Amount','25');button('Record transfer').click();await settle();assert.equal(requests[0].payee,null);assert.deepEqual(requests[0].splits,[{accountId:'owed',amountCents:-2500},{accountId:'cash',amountCents:2500}])});
+test('expense input, live remaining, Ctrl+Enter and cleared payload',async()=>{await type('Payee','Shop');await account('Paid from','bank');await type('Total amount','60');await account('Account/category 1','dining');await type('Amount (','35');assert.ok(button('Record expense').disabled);window.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true}));assert.equal(requests.length,0);assert.ok(text().includes('Use remaining €25.00'));button('Use remaining €25.00').click();await settle();assert.equal(input('Amount (').value,'60.00');assert.equal(button('Record expense').disabled,false);const status=form.shadowRoot.querySelector('#entry-status');status.value='cleared';status.dispatchEvent(new Event('change'));await settle();window.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true}));await settle();assert.equal(requests[0].isCleared,true)});
+test('transfer hides allocations/payee and excludes source destination',async()=>{button('Transfer').click();await settle();assert.ok(!input('Payee'));assert.equal(form.shadowRoot.querySelectorAll('.split-row').length,0);await account('From account','owed');const to=[...form.shadowRoot.querySelectorAll('account-combobox')].find(a=>a.label==='To account');assert.ok(to.accounts.every(a=>a.id!=='owed'&&['ASSET','LIABILITY','SETTLEMENT'].includes(a.type)));await account('To account','cash');await type('Amount','25');button('Record transfer').click();await settle();assert.equal(requests[0].payee,null);assert.deepEqual(requests[0].splits,[{accountId:'owed',amountCents:-2500},{accountId:'cash',amountCents:2500}])});
 test('income changes labels',async()=>{button('Income').click();await settle();assert.ok(input('Payer/source'));assert.ok(text().includes('Received into'));assert.ok(button('Record income'))});
 test('adjustment sends target with expected current balance',async()=>{button('Adjustment').click();await settle();await account('Account','bank');const select=form.shadowRoot.querySelector('select');select.value='balance';select.dispatchEvent(new Event('change'));await settle();await type('Resulting balance','125');button('Record adjustment').click();await settle();assert.equal(requests[0].url,'/api/transactions/adjustments');assert.equal(requests[0].expectedBalanceCents,10000);assert.equal(requests[0].adjustment.method,'balance');assert.equal(requests[0].adjustment.total,'125')});
 test('template open survives Lit lifecycle and translates split receivable expense',async()=>{form.closeModal();await settle();await form.openWithTemplate(template([['bank',-6000],['dining',3500],['owed',2500]]));await settle();assert.equal(form.entry.kind,'expense');assert.equal(form.entry.total,'60.00');assert.equal(form.entry.rows.length,2);assert.equal(button('Record expense').disabled,false)});
@@ -45,4 +45,38 @@ test('account combobox accessible name reaches native input',async()=>{const com
 test('Escape follows existing close behavior',async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));await settle();assert.equal(form.isOpen,false)});
 test('advanced templates can still save zero amount placeholders',async()=>{await form.openWithTemplate(template([['bank',0],['dining',0]]));await settle();form.saveTemplateName='Blank amounts';await form.confirmSaveAsTemplate();assert.equal(requests[0].url,'/api/templates');assert.deepEqual(requests[0].splits.map(s=>s.amountCents),[0,0])});
 test('keyboard focus wraps within dialog',async()=>{const first=form.shadowRoot.querySelector('.close-btn');first.focus();const event=new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,composed:true,cancelable:true});first.dispatchEvent(event);await settle();assert.ok(event.defaultPrevented);assert.equal(form.shadowRoot.activeElement.textContent.trim(),'Cancel')});
+test('settlement account supported as paid from in guided expense', async () => {
+  await type('Payee', 'Supermarket');
+  await account('Paid from', 'girlfriend');
+  await type('Total amount', '30');
+  await account('Account/category 1', 'dining');
+  await type('Amount (', '30');
+  assert.equal(button('Record expense').disabled, false);
+  button('Record expense').click();
+  await settle();
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0].splits, [{ accountId: 'girlfriend', amountCents: -3000 }, { accountId: 'dining', amountCents: 3000 }]);
+});
+test('settlement account supported as transfer source and destination', async () => {
+  button('Transfer').click();
+  await settle();
+  await account('From account', 'girlfriend');
+  const to = [...form.shadowRoot.querySelectorAll('account-combobox')].find(a => a.label === 'To account');
+  assert.ok(to.accounts.some(a => a.id === 'cash'));
+  await account('To account', 'cash');
+  await type('Amount', '100');
+  button('Record transfer').click();
+  await settle();
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0].splits, [{ accountId: 'girlfriend', amountCents: -10000 }, { accountId: 'cash', amountCents: 10000 }]);
+});
+test('template with settlement allocation loads and roundtrips in guided expense', async () => {
+  form.closeModal();
+  await settle();
+  await form.openWithTemplate(template([['bank', -10000], ['dining', 6000], ['girlfriend', 4000]]));
+  await settle();
+  assert.equal(form.entry.kind, 'expense');
+  assert.equal(form.entry.total, '100.00');
+  assert.equal(form.entry.rows.length, 2);
+});
 

@@ -16,6 +16,7 @@ export const accountTypeEnum = pgEnum('account_type', [
   'ASSET',
   'LIABILITY',
   'EQUITY',
+  'SETTLEMENT',
   'INCOME',
   'EXPENSE',
 ]);

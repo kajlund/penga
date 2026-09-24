@@ -1,7 +1,38 @@
-﻿import type { Account, SplitInput, CreateTransactionInput } from './index.js';
+import type { Account, SplitInput, CreateTransactionInput } from './index.js';
 
 export const APP_CURRENCY = 'EUR'; // The ledger currently has no per-account currency model.
 export const formatMoney = (cents: number) => new Intl.NumberFormat('en-IE', { style: 'currency', currency: APP_CURRENCY }).format(cents / 100);
+
+export type SettlementDirection = 'owed-to-user' | 'settled' | 'owed-by-user';
+
+export interface SettlementPresentation {
+  direction: SettlementDirection;
+  amountCents: number;
+  label: string;
+}
+
+export function getSettlementPresentation(balanceCents: number): SettlementPresentation {
+  const abs = Math.abs(balanceCents);
+  if (balanceCents > 0) {
+    return {
+      direction: 'owed-to-user',
+      amountCents: abs,
+      label: `Owed to you ${formatMoney(abs)}`,
+    };
+  }
+  if (balanceCents < 0) {
+    return {
+      direction: 'owed-by-user',
+      amountCents: abs,
+      label: `You owe ${formatMoney(abs)}`,
+    };
+  }
+  return {
+    direction: 'settled',
+    amountCents: 0,
+    label: 'Settled',
+  };
+}
 export function parseMoney(value: string): number {
   let text = value.trim();
   if (text.includes(',') && text.includes('.')) {
@@ -25,7 +56,7 @@ export function newEntry(kind: EntryKind = 'expense'): TransactionEntry {
   if (kind === 'adjustment') return { kind, accountId: '', method: 'amount', total: '' };
   return { kind, accountId: '', total: '', rows: [newRow()] };
 }
-export const isBalanceAccount = (account: Account) => account.type === 'ASSET' || account.type === 'LIABILITY';
+export const isBalanceAccount = (account: Account) => account.type === 'ASSET' || account.type === 'LIABILITY' || account.type === 'SETTLEMENT';
 export function allocationSummary(entry: TransactionEntry) {
   const total = 'total' in entry ? parseMoney(entry.total) || 0 : 0;
   const allocated = 'rows' in entry ? entry.rows.reduce((sum, row) => sum + (parseMoney(row.amount) || 0), 0) : total;
@@ -53,9 +84,9 @@ export function entryErrors(entry: TransactionEntry, context: EntryContext, date
   const errors: Record<string, string> = {};
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date) errors.date = 'Choose a valid date.';
   if ((entry.kind === 'expense' || entry.kind === 'income') && !payee.trim()) errors.payee = entry.kind === 'expense' ? 'Enter a payee.' : 'Enter a payer/source.';
-  if ('accountId' in entry && !context.accounts.some(a => a.id === entry.accountId && isBalanceAccount(a))) errors.account = 'Choose an asset or liability account.';
+  if ('accountId' in entry && !context.accounts.some(a => a.id === entry.accountId && isBalanceAccount(a))) errors.account = 'Choose an asset, liability, or settlement account.';
   if ('total' in entry && (!Number.isFinite(parseMoney(entry.total)) || (entry.kind !== 'adjustment' && parseMoney(entry.total) <= 0))) errors.total = 'Enter a valid amount' + (entry.kind === 'adjustment' ? '.' : ' greater than zero.');
-  if (entry.kind === 'transfer' && (!context.accounts.some(a => a.id === entry.toAccountId && isBalanceAccount(a)) || entry.accountId === entry.toAccountId)) errors.destination = 'Choose a different asset or liability account.';
+  if (entry.kind === 'transfer' && (!context.accounts.some(a => a.id === entry.toAccountId && isBalanceAccount(a)) || entry.accountId === entry.toAccountId)) errors.destination = 'Choose a different asset, liability, or settlement account.';
   if ('rows' in entry) {
     if (entry.rows.length < (entry.kind === 'advanced' ? 2 : 1)) errors.rows = 'Add an allocation.';
     entry.rows.forEach(row => {

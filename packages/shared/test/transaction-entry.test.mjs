@@ -1,11 +1,11 @@
-﻿import { test } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newEntry, parseMoney, formatMoney, allocationSummary, useRemaining, entrySplits, entryErrors, entryFromSplits, buildEntryTransaction } from '../dist/index.js';
-const accounts = [['bank','ASSET'],['cash','ASSET'],['owed','ASSET'],['card','LIABILITY'],['dining','EXPENSE'],['food','EXPENSE'],['salary','INCOME'],['equity','EQUITY']].map(([id,type]) => ({id,name:id,type,parentId:null,icon:null,color:null}));
+import { newEntry, parseMoney, formatMoney, allocationSummary, useRemaining, entrySplits, entryErrors, entryFromSplits, buildEntryTransaction, getSettlementPresentation, AccountType } from '../dist/index.js';
+const accounts = [['bank','ASSET'],['cash','ASSET'],['owed','ASSET'],['card','LIABILITY'],['girlfriend','SETTLEMENT'],['dining','EXPENSE'],['food','EXPENSE'],['salary','INCOME'],['equity','EQUITY']].map(([id,type]) => ({id,name:id,type,parentId:null,icon:null,color:null}));
 const context = { accounts, equityAccountId: 'equity', currentBalanceCents: 10000 };
 const details = { transactionDate: '2026-09-16', payee: 'Shop', isCleared: false, tagIds:['tag'] };
 const row = (accountId, amount) => ({ id: accountId, accountId, amount });
-const expense = (rows=[row('dining','60')], accountId='bank') => ({kind:'expense', accountId,total:'60',rows});
+const expense = (rows=[row('dining','60')], accountId='bank', total='60') => ({kind:'expense', accountId,total,rows});
 const amounts = e => buildEntryTransaction(e,context,details).splits.map(s => [s.accountId,s.amountCents]);
 test('default is expense',()=>assert.equal(newEntry().kind,'expense'));
 test('bank expense',()=>assert.deepEqual(amounts(expense()),[['bank',-6000],['dining',6000]]));
@@ -30,3 +30,26 @@ test('templates convert when representable with exact line roundtrip',()=>{for(c
 test('unusual and zero-amount templates preserve advanced lines',()=>{for(const lines of [[{accountId:'equity',amountCents:-10},{accountId:'salary',amountCents:10}],[{accountId:'bank',amountCents:0},{accountId:'food',amountCents:0}]]){const e=entryFromSplits(lines,accounts);assert.equal(e.kind,'advanced');assert.deepEqual(entrySplits(e,context),lines)}});
 test('advanced unrestricted equity and signed lines preserved',()=>assert.deepEqual(amounts({kind:'advanced',rows:[row('equity','-60'),row('salary','60')]}),[['equity',-6000],['salary',6000]]));
 test('validation rejects empty allocations, zero, negative, invalid dates and self allocations',()=>{for(const rows of [[],[row('dining','0')],[row('dining','-60')],[row('bank','60')],[row('unknown','60')]])assert.throws(()=>amounts(expense(rows)));assert.ok(entryErrors(expense(),context,'2026-02-30','Shop').date)});
+test('settlement presentation helper returns human-readable labels and normalized directions',()=>{
+  assert.deepEqual(getSettlementPresentation(8000), { direction: 'owed-to-user', amountCents: 8000, label: 'Owed to you €80.00' });
+  assert.deepEqual(getSettlementPresentation(-2000), { direction: 'owed-by-user', amountCents: 2000, label: 'You owe €20.00' });
+  assert.deepEqual(getSettlementPresentation(0), { direction: 'settled', amountCents: 0, label: 'Settled' });
+});
+test('user pays €80 entirely for the other person',()=>assert.deepEqual(amounts(expense([row('girlfriend','80')], 'bank', '80')),[['bank',-8000],['girlfriend',8000]]));
+test('€100 expense split into €60 personal expense and €40 Settlement',()=>assert.deepEqual(amounts(expense([row('dining','60'),row('girlfriend','40')], 'bank', '100')),[['bank',-10000],['dining',6000],['girlfriend',4000]]));
+test('the other person pays a €30 expense for the user',()=>assert.deepEqual(amounts(expense([row('dining','30')],'girlfriend', '30')),[['girlfriend',-3000],['dining',3000]]));
+test('settlement transfer repayment from counterparty into cash produces correct economic sign',()=>assert.deepEqual(amounts({kind:'transfer',accountId:'girlfriend',toAccountId:'cash',total:'100'}),[['girlfriend',-10000],['cash',10000]]));
+test('settlement transfer payment of liability from bank to counterparty',()=>assert.deepEqual(amounts({kind:'transfer',accountId:'bank',toAccountId:'girlfriend',total:'20'}),[['bank',-2000],['girlfriend',2000]]));
+test('settlement adjustment against opening equity',()=>assert.deepEqual(amounts({kind:'adjustment',accountId:'girlfriend',method:'amount',total:'50'}),[['girlfriend',5000],['equity',-5000]]));
+test('templates convert settlement transactions with exact line roundtrip',()=>{
+  for (const e of [
+    expense([row('dining','60'),row('girlfriend','40')], 'bank', '100'),
+    expense([row('dining','30')],'girlfriend', '30'),
+    {kind:'transfer',accountId:'girlfriend',toAccountId:'cash',total:'100'}
+  ]) {
+    const lines = entrySplits(e, context);
+    const converted = entryFromSplits(lines, accounts);
+    assert.equal(converted.kind, e.kind);
+    assert.deepEqual(entrySplits(converted, context), lines);
+  }
+});

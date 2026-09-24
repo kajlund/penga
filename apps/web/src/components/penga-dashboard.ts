@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import type { DashboardSummary, AccountBalanceSummary, TransactionWithSplits } from '@penga/shared';
+import { formatMoney, getSettlementPresentation, type DashboardSummary, type AccountBalanceSummary, type TransactionWithSplits } from '@penga/shared';
 
 @customElement('penga-dashboard')
 export class PengaDashboard extends LitElement {
@@ -596,17 +596,11 @@ export class PengaDashboard extends LitElement {
   }
 
   private formatCents(cents: number, includeSign = false): string {
-    const isNegative = cents < 0;
-    const abs = Math.abs(cents);
-    const dollars = (abs / 100).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-
-    if (includeSign) {
-      return isNegative ? `-$${dollars}` : `+$${dollars}`;
+    const formatted = formatMoney(cents);
+    if (includeSign && cents > 0) {
+      return `+${formatted}`;
     }
-    return isNegative ? `-$${dollars}` : `$${dollars}`;
+    return formatted;
   }
 
   private handleRecordTx() {
@@ -669,6 +663,7 @@ export class PengaDashboard extends LitElement {
 
     const assetAccounts = data.accountBalances.filter((a) => a.type === 'ASSET');
     const liabilityAccounts = data.accountBalances.filter((a) => a.type === 'LIABILITY');
+    const settlementAccounts = data.accountBalances.filter((a) => a.type === 'SETTLEMENT');
     const keyAccounts = [...assetAccounts, ...liabilityAccounts];
 
     return html`
@@ -719,8 +714,8 @@ export class PengaDashboard extends LitElement {
 
         <div class="ratio-container">
           <div class="ratio-labels">
-            <span>Liquid Assets (${this.formatCents(data.totalAssetsCents)})</span>
-            <span>Obligations & Liabilities (${this.formatCents(data.totalLiabilitiesCents)})</span>
+            <span>Assets (${this.formatCents(data.totalAssetsCents)})</span>
+            <span>Liabilities & Obligations (${this.formatCents(data.totalLiabilitiesCents)})</span>
           </div>
           <div class="ratio-bar">
             <div class="ratio-segment-assets" style="width: ${assetPercent}%" title="Assets: ${assetPercent}%"></div>
@@ -739,7 +734,9 @@ export class PengaDashboard extends LitElement {
           <div class="metric-value" style="color: var(--color-primary-text);">
             ${this.formatCents(data.totalAssetsCents)}
           </div>
-          <div class="metric-footnote">${assetAccounts.length} asset accounts configured</div>
+          <div class="metric-footnote">
+            ${assetAccounts.length} asset accounts${data.totalSettlementAssetsCents ? ` • ${this.formatCents(data.totalSettlementAssetsCents)} owed to you` : ''}
+          </div>
         </div>
 
         <div class="metric-card">
@@ -750,7 +747,9 @@ export class PengaDashboard extends LitElement {
           <div class="metric-value" style="color: ${data.totalLiabilitiesCents > 0 ? 'var(--color-expense-text)' : 'var(--text-primary)'};">
             ${this.formatCents(data.totalLiabilitiesCents)}
           </div>
-          <div class="metric-footnote">${liabilityAccounts.length} liability accounts configured</div>
+          <div class="metric-footnote">
+            ${liabilityAccounts.length} liability accounts${data.totalSettlementLiabilitiesCents ? ` • ${this.formatCents(data.totalSettlementLiabilitiesCents)} owed by you` : ''}
+          </div>
         </div>
 
         <div class="metric-card">
@@ -787,10 +786,10 @@ export class PengaDashboard extends LitElement {
             </button>
           </div>
 
-          ${keyAccounts.length === 0
+          ${keyAccounts.length === 0 && settlementAccounts.length === 0
             ? html`
                 <div class="empty-state">
-                  <p>No asset or liability accounts configured yet.</p>
+                  <p>No accounts configured yet.</p>
                   <button class="btn-secondary" @click="${() => this.handleNavigate('accounts')}">
                     Create First Account
                   </button>
@@ -848,6 +847,67 @@ export class PengaDashboard extends LitElement {
                     `;
                   })}
                 </div>
+
+                ${settlementAccounts.length > 0
+                  ? html`
+                      <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                          <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+                            <span>🤝</span> Settlements
+                          </div>
+                          <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                            ${data.totalSettlementAssetsCents ? `Owed to you: ${this.formatCents(data.totalSettlementAssetsCents)}` : ''}
+                            ${data.totalSettlementAssetsCents && data.totalSettlementLiabilitiesCents ? ' • ' : ''}
+                            ${data.totalSettlementLiabilitiesCents ? `You owe: ${this.formatCents(data.totalSettlementLiabilitiesCents)}` : ''}
+                          </div>
+                        </div>
+
+                        <div class="account-list">
+                          ${settlementAccounts.map((acc) => {
+                            const presentation = acc.settlementPresentation || getSettlementPresentation(acc.balanceCents);
+                            const isOwedToUser = presentation.direction === 'owed-to-user';
+                            const isOwedByUser = presentation.direction === 'owed-by-user';
+                            const balClass = isOwedToUser ? 'positive' : isOwedByUser ? 'negative' : 'neutral';
+
+                            return html`
+                              <div class="account-row">
+                                <div class="account-left">
+                                  <div
+                                    class="account-avatar"
+                                    style="background-color: ${acc.color ? `${acc.color}22` : 'var(--bg-muted)'}; color: ${acc.color || 'var(--color-settlement)'};"
+                                  >
+                                    ${acc.icon || '🤝'}
+                                  </div>
+                                  <div class="account-meta">
+                                    <div class="account-name">${acc.name}</div>
+                                    <div class="account-tags">
+                                      <span
+                                        class="badge-pill"
+                                        style="background-color: var(--color-settlement-bg); color: var(--color-settlement);"
+                                      >
+                                        SETTLEMENT
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div class="account-right">
+                                  <div class="account-balance ${balClass}" style="font-weight: 600;" aria-label="${presentation.label}">
+                                    ${presentation.label}
+                                  </div>
+                                  <div class="account-cleared">
+                                    ${acc.clearedBalanceCents !== acc.balanceCents
+                                      ? `Cleared: ${getSettlementPresentation(acc.clearedBalanceCents).label}`
+                                      : `Net ledger: ${this.formatCents(acc.balanceCents, true)}`}
+                                  </div>
+                                </div>
+                              </div>
+                            `;
+                          })}
+                        </div>
+                      </div>
+                    `
+                  : nothing}
               `}
         </div>
 

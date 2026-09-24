@@ -195,11 +195,11 @@ accountsRoute.post('/', async (c) => {
       })
       .returning();
 
-    // If an initial balance was specified for an ASSET or LIABILITY account, record an opening balance transaction
+    // If an initial balance was specified for an ASSET, LIABILITY, or SETTLEMENT account, record an opening balance transaction
     if (
       typeof initialBalanceCents === 'number' &&
       initialBalanceCents !== 0 &&
-      (normalizedType === 'ASSET' || normalizedType === 'LIABILITY')
+      (normalizedType === 'ASSET' || normalizedType === 'LIABILITY' || normalizedType === 'SETTLEMENT')
     ) {
       const openingEquityAcc = await openingBalanceAccount(tx);
 
@@ -283,6 +283,24 @@ accountsRoute.patch('/:id', async (c) => {
         400
       );
     }
+
+    if (existing.type !== normalizedType) {
+      const [splitExists] = await db
+        .select({ id: splits.id })
+        .from(splits)
+        .where(eq(splits.accountId, id))
+        .limit(1);
+
+      if (splitExists && (existing.type === 'SETTLEMENT' || normalizedType === 'SETTLEMENT')) {
+        return c.json(
+          {
+            error: 'Cannot change account type to or from Settlement for an account with existing transactions',
+          },
+          400
+        );
+      }
+    }
+
     updateValues.type = normalizedType as AccountType;
   }
 

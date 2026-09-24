@@ -44,6 +44,10 @@
   --color-expense-bg: #fff1f2;
   --color-expense-border: #fecdd3;
 
+  --color-settlement: #0284c7;
+  --color-settlement-bg: #f0f9ff;
+  --color-settlement-border: #bae6fd;
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(28, 25, 23, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(28, 25, 23, 0.08), 0 2px 4px -2px rgba(28, 25, 23, 0.04);
@@ -106,6 +110,10 @@
   --color-expense: #fb7185;
   --color-expense-bg: rgba(251, 113, 133, 0.12);
   --color-expense-border: rgba(251, 113, 133, 0.25);
+
+  --color-settlement: #38bdf8;
+  --color-settlement-bg: rgba(56, 189, 248, 0.12);
+  --color-settlement-border: rgba(56, 189, 248, 0.25);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
