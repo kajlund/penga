@@ -8,6 +8,7 @@ import {
   integer,
   boolean,
   primaryKey,
+  uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
@@ -35,16 +36,27 @@ export const accounts = pgTable('accounts', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const transactions = pgTable('transactions', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  transactionDate: date('transaction_date', { mode: 'string' }).notNull(),
-  sortOrder: integer('sort_order').default(0).notNull(),
-  payee: text('payee'),
-  isCleared: boolean('is_cleared').default(false).notNull(),
-  note: text('note'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const transactions = pgTable(
+  'transactions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    transactionDate: date('transaction_date', { mode: 'string' }).notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    payee: text('payee'),
+    isCleared: boolean('is_cleared').default(false).notNull(),
+    note: text('note'),
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    voidReason: text('void_reason'),
+    reversalTransactionId: uuid('reversal_transaction_id').references((): any => transactions.id, { onDelete: 'set null' }),
+    reversesTransactionId: uuid('reverses_transaction_id').references((): any => transactions.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('transactions_reversal_tx_id_unique').on(t.reversalTransactionId),
+    uniqueIndex('transactions_reverses_tx_id_unique').on(t.reversesTransactionId),
+  ]
+);
 
 export const splits = pgTable('splits', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -143,9 +155,19 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
   templateSplits: many(templateSplits),
 }));
 
-export const transactionsRelations = relations(transactions, ({ many }) => ({
+export const transactionsRelations = relations(transactions, ({ one, many }) => ({
   splits: many(splits),
   transactionTags: many(transactionTags),
+  reversalTransaction: one(transactions, {
+    fields: [transactions.reversalTransactionId],
+    references: [transactions.id],
+    relationName: 'transaction_reversal',
+  }),
+  reversesTransaction: one(transactions, {
+    fields: [transactions.reversesTransactionId],
+    references: [transactions.id],
+    relationName: 'transaction_reversal_reverse',
+  }),
 }));
 
 export const splitsRelations = relations(splits, ({ one }) => ({

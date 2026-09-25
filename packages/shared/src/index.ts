@@ -54,8 +54,17 @@ export interface Transaction {
   payee: string | null;
   isCleared: boolean;
   note: string | null;
+  voidedAt?: string | Date | null;
+  voidReason?: string | null;
+  reversalTransactionId?: string | null;
+  reversesTransactionId?: string | null;
   createdAt?: string | Date;
   updatedAt?: string | Date;
+}
+
+export interface VoidTransactionInput {
+  reason?: string | null;
+  date?: string | null;
 }
 
 export interface Split {

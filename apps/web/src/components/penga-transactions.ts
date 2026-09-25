@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { TransactionWithSplits, Account, Tag } from '@penga/shared';
+import { formatMoney, type TransactionWithSplits, type Account, type Tag } from '@penga/shared';
 
 @customElement('penga-transactions')
 export class PengaTransactions extends LitElement {
@@ -530,10 +530,304 @@ export class PengaTransactions extends LitElement {
       cursor: not-allowed;
     }
 
+    .actions-menu-item.danger {
+      color: var(--color-expense, #dc2626);
+    }
+
+    .actions-menu-item.danger:hover:not(:disabled) {
+      background: var(--color-expense-bg, rgba(239, 68, 68, 0.1));
+      color: var(--color-expense, #dc2626);
+    }
+
+    .actions-menu-item.warning {
+      color: #d97706;
+    }
+
+    .actions-menu-item.warning:hover:not(:disabled) {
+      background: rgba(245, 158, 11, 0.1);
+      color: #b45309;
+    }
+
     .actions-menu-divider {
       height: 1px;
       background: var(--border-subtle);
       margin: 0.35rem 0;
+    }
+
+    .tx-voided {
+      opacity: 0.72;
+      background: var(--bg-subtle);
+    }
+
+    .tx-voided .tx-payee {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .tx-void-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      flex-wrap: wrap;
+    }
+
+    .tx-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .tx-status-badge.voided {
+      background: rgba(100, 116, 139, 0.15);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-default);
+    }
+
+    .tx-status-badge.reversal {
+      background: rgba(14, 165, 233, 0.12);
+      color: #0284c7;
+      border: 1px solid rgba(14, 165, 233, 0.25);
+    }
+
+    .tx-void-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .btn-link {
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--color-primary-text, #059669);
+      cursor: pointer;
+      text-decoration: underline;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+
+    .btn-link:hover {
+      color: var(--color-primary-hover, #047857);
+    }
+
+    @keyframes highlightPulse {
+      0% { box-shadow: 0 0 0 4px var(--color-primary-subtle); background: var(--color-primary-subtle); }
+      100% { box-shadow: none; background: transparent; }
+    }
+
+    .highlight-target {
+      animation: highlightPulse 2s ease-out;
+    }
+
+    /* Confirmation & Action Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      animation: modalFadeIn 0.15s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 1.15rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 0.25rem 0.4rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .modal-close-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-subtle);
+    }
+
+    .modal-body {
+      padding: 1.35rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .modal-body p {
+      margin: 0;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      background: var(--bg-subtle);
+    }
+
+    .btn-danger {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.15rem;
+      border-radius: var(--radius-md);
+      background: var(--color-expense, #dc2626);
+      color: #ffffff;
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all var(--transition-fast);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      filter: brightness(0.9);
+      transform: translateY(-1px);
+    }
+
+    .btn-danger:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-warning-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.15rem;
+      border-radius: var(--radius-md);
+      background: #d97706;
+      color: #ffffff;
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all var(--transition-fast);
+    }
+
+    .btn-warning-action:hover:not(:disabled) {
+      background: #b45309;
+      transform: translateY(-1px);
+    }
+
+    .btn-warning-action:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .dialog-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .dialog-input-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .dialog-input {
+      padding: 0.55rem 0.75rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-default);
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      outline: none;
+    }
+
+    .dialog-input:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-primary-subtle);
+    }
+
+    .dialog-error-banner {
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-md);
+      background: var(--color-expense-bg, rgba(239, 68, 68, 0.1));
+      border: 1px solid var(--color-expense-border, rgba(239, 68, 68, 0.3));
+      color: var(--color-expense, #dc2626);
+      font-size: 0.825rem;
+      font-weight: 500;
+    }
+
+    .toast-banner {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: 0.85rem 1.25rem;
+      border-radius: var(--radius-md);
+      background: var(--text-primary);
+      color: var(--bg-surface);
+      box-shadow: var(--shadow-lg);
+      font-size: 0.875rem;
+      font-weight: 500;
+      z-index: 3000;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      animation: toastIn 0.2s ease-out;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     /* Nested Splits Detail */
@@ -650,6 +944,30 @@ export class PengaTransactions extends LitElement {
   @state()
   private openMenuUpwards = false;
 
+  @state()
+  private deleteModalTx: TransactionWithSplits | null = null;
+
+  @state()
+  private isDeleting = false;
+
+  @state()
+  private voidModalTx: TransactionWithSplits | null = null;
+
+  @state()
+  private voidDate = '';
+
+  @state()
+  private voidReason = '';
+
+  @state()
+  private isVoiding = false;
+
+  @state()
+  private actionError: string | null = null;
+
+  @state()
+  private toastMessage: string | null = null;
+
   override connectedCallback() {
     super.connectedCallback();
     if (this.reconciliationMode) {
@@ -674,9 +992,15 @@ export class PengaTransactions extends LitElement {
   };
 
   private handleWindowKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && this.openMenuTxId) {
-      this.openMenuTxId = null;
-      this.openMenuUpwards = false;
+    if (e.key === 'Escape') {
+      if (this.deleteModalTx || this.voidModalTx) {
+        this.closeModals();
+        return;
+      }
+      if (this.openMenuTxId) {
+        this.openMenuTxId = null;
+        this.openMenuUpwards = false;
+      }
     }
   };
 
@@ -1044,10 +1368,127 @@ export class PengaTransactions extends LitElement {
   }
 
   private formatCents(cents: number): string {
-    const isNeg = cents < 0;
-    const abs = Math.abs(cents);
-    const dollars = (abs / 100).toFixed(2);
-    return isNeg ? `-$${dollars}` : `+$${dollars}`;
+    const formatted = formatMoney(cents);
+    return cents > 0 ? `+${formatted}` : formatted;
+  }
+
+  private isOpeningBalance(tx: TransactionWithSplits): boolean {
+    return tx.payee === 'Opening Balance' || Boolean(tx.note?.startsWith('Starting balance for '));
+  }
+
+  private getTransactionDisplayAmount(tx: TransactionWithSplits): string {
+    const positive = tx.splits.filter((s) => s.amountCents > 0);
+    const sumCents = positive.reduce((acc, s) => acc + s.amountCents, 0);
+    return formatMoney(sumCents || Math.abs(tx.splits[0]?.amountCents || 0));
+  }
+
+  private openDeleteModal(tx: TransactionWithSplits) {
+    this.actionError = null;
+    this.isDeleting = false;
+    this.deleteModalTx = tx;
+  }
+
+  private openVoidModal(tx: TransactionWithSplits) {
+    this.actionError = null;
+    this.isVoiding = false;
+    this.voidModalTx = tx;
+    this.voidDate = new Date().toISOString().slice(0, 10);
+    this.voidReason = '';
+  }
+
+  private closeModals(force = false) {
+    if (!force && (this.isDeleting || this.isVoiding)) return;
+    this.deleteModalTx = null;
+    this.voidModalTx = null;
+    this.actionError = null;
+  }
+
+  private showToast(msg: string) {
+    this.toastMessage = msg;
+    setTimeout(() => {
+      if (this.toastMessage === msg) {
+        this.toastMessage = null;
+      }
+    }, 3500);
+  }
+
+  private async handleDeleteSubmit() {
+    if (!this.deleteModalTx || this.isDeleting) return;
+    this.isDeleting = true;
+    this.actionError = null;
+
+    try {
+      const res = await fetch(`/api/transactions/${this.deleteModalTx.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete transaction');
+      }
+
+      const deletedId = this.deleteModalTx.id;
+      this.transactions = this.transactions.filter((t) => t.id !== deletedId);
+      this.isDeleting = false;
+      this.closeModals(true);
+      this.showToast('Transaction permanently deleted');
+      this.dispatchEvent(new CustomEvent('transaction-deleted', { detail: { id: deletedId }, bubbles: true, composed: true }));
+    } catch (err: any) {
+      this.actionError = err.message || 'Failed to delete transaction';
+    } finally {
+      this.isDeleting = false;
+    }
+  }
+
+  private async handleVoidSubmit() {
+    if (!this.voidModalTx || this.isVoiding) return;
+    this.isVoiding = true;
+    this.actionError = null;
+
+    try {
+      const res = await fetch(`/api/transactions/${this.voidModalTx.id}/void`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: this.voidDate || undefined,
+          reason: this.voidReason ? this.voidReason.trim() : undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to reverse transaction');
+      }
+
+      this.isVoiding = false;
+      this.closeModals(true);
+      this.showToast('Transaction reversed and voided successfully');
+      await this.fetchTransactions();
+      this.dispatchEvent(new CustomEvent('transaction-voided', { detail: json.data, bubbles: true, composed: true }));
+    } catch (err: any) {
+      this.actionError = err.message || 'Failed to reverse transaction';
+    } finally {
+      this.isVoiding = false;
+    }
+  }
+
+  private scrollToTx(id: string) {
+    if (this.selectedFilter !== 'ALL') {
+      this.selectedFilter = 'ALL';
+    }
+    if (this.selectedAccountId) {
+      this.selectedAccountId = '';
+    }
+    if (this.selectedTagId) {
+      this.selectedTagId = '';
+    }
+    this.requestUpdate();
+    setTimeout(() => {
+      const el = this.shadowRoot?.querySelector(`[data-tx-id="${id}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight-target');
+        setTimeout(() => el.classList.remove('highlight-target'), 2000);
+      }
+    }, 60);
   }
 
   override render() {
@@ -1208,9 +1649,14 @@ export class PengaTransactions extends LitElement {
                   const isFirst = sameDateIndex === 0;
                   const isLast = sameDateIndex === sameDateTxs.length - 1;
 
+                  const isOpeningBal = this.isOpeningBalance(tx);
+                  const isVoided = Boolean(tx.voidedAt);
+                  const isReversal = Boolean(tx.reversesTransactionId);
+
                   return html`
                     <div
-                      class="transaction-row ${this.draggedTxId === tx.id ? 'dragging' : ''} ${this.dragOverTxId === tx.id ? `drag-over-${this.dragOverPosition}` : ''}"
+                      class="transaction-row ${isVoided ? 'tx-voided' : ''} ${isReversal ? 'tx-reversal' : ''} ${this.draggedTxId === tx.id ? 'dragging' : ''} ${this.dragOverTxId === tx.id ? `drag-over-${this.dragOverPosition}` : ''}"
+                      data-tx-id="${tx.id}"
                       @dragover="${(e: DragEvent) => this.handleDragOver(e, tx)}"
                       @dragleave="${(e: DragEvent) => this.handleDragLeave(e, tx)}"
                       @drop="${(e: DragEvent) => this.handleDrop(e, tx)}"
@@ -1254,6 +1700,42 @@ export class PengaTransactions extends LitElement {
                               : nothing}
                           </div>
                           ${tx.note ? html`<span class="tx-note">${tx.note}</span>` : nothing}
+                          ${isVoided
+                            ? html`
+                                <div class="tx-void-meta-row">
+                                  <span class="tx-status-badge voided">🚫 Voided</span>
+                                  ${tx.voidReason ? html`<span class="tx-void-meta">“${tx.voidReason}”</span>` : nothing}
+                                  ${tx.reversalTransactionId
+                                    ? html`
+                                        <button
+                                          type="button"
+                                          class="btn-link"
+                                          @click="${() => this.scrollToTx(tx.reversalTransactionId!)}"
+                                        >
+                                          View reversal ↗
+                                        </button>
+                                      `
+                                    : nothing}
+                                </div>
+                              `
+                            : isReversal
+                            ? html`
+                                <div class="tx-void-meta-row">
+                                  <span class="tx-status-badge reversal">↩️ Reversal</span>
+                                  ${tx.reversesTransactionId
+                                    ? html`
+                                        <button
+                                          type="button"
+                                          class="btn-link"
+                                          @click="${() => this.scrollToTx(tx.reversesTransactionId!)}"
+                                        >
+                                          View original ↗
+                                        </button>
+                                      `
+                                    : nothing}
+                                </div>
+                              `
+                            : nothing}
                         </div>
 
                         <!-- One-click Reconciliation Toggle -->
@@ -1262,8 +1744,8 @@ export class PengaTransactions extends LitElement {
                             type="button"
                             class="cleared-toggle ${tx.isCleared ? 'cleared' : 'pending'}"
                             @click="${() => this.toggleCleared(tx)}"
-                            title="Click to toggle cleared status for bank reconciliation"
-                            ?disabled="${this.updatingTxId === tx.id}"
+                            title="${isVoided || isReversal ? 'Cleared state is locked on voided/reversal transactions' : 'Click to toggle cleared status for bank reconciliation'}"
+                            ?disabled="${this.updatingTxId === tx.id || isVoided || isReversal}"
                           >
                             <span class="cleared-icon">${tx.isCleared ? '✓' : '○'}</span>
                             <span>${tx.isCleared ? 'Cleared' : 'Uncleared'}</span>
@@ -1287,81 +1769,183 @@ export class PengaTransactions extends LitElement {
                              ${this.openMenuTxId === tx.id
                               ? html`
                                   <div class="actions-menu ${this.openMenuUpwards ? 'open-upwards' : ''}" @click="${(e: Event) => e.stopPropagation()}">
-                                    <button
-                                      type="button"
-                                      class="actions-menu-item"
-                                      @click="${() => {
-                                        this.closeMenu();
-                                        this.handleEditTransaction(tx);
-                                      }}"
-                                    >
-                                      <span>✏️</span>
-                                      <span>Edit Transaction</span>
-                                    </button>
+                                    ${isVoided
+                                      ? html`
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.handleDuplicateTransaction(tx);
+                                            }}"
+                                          >
+                                            <span>⚡</span>
+                                            <span>Duplicate as New</span>
+                                          </button>
+                                          ${tx.reversalTransactionId
+                                            ? html`
+                                                <button
+                                                  type="button"
+                                                  class="actions-menu-item"
+                                                  @click="${() => {
+                                                    this.closeMenu();
+                                                    this.scrollToTx(tx.reversalTransactionId!);
+                                                  }}"
+                                                >
+                                                  <span>↩️</span>
+                                                  <span>View Reversal</span>
+                                                </button>
+                                              `
+                                            : nothing}
+                                        `
+                                      : isReversal
+                                      ? html`
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.handleDuplicateTransaction(tx);
+                                            }}"
+                                          >
+                                            <span>⚡</span>
+                                            <span>Duplicate as New</span>
+                                          </button>
+                                          ${tx.reversesTransactionId
+                                            ? html`
+                                                <button
+                                                  type="button"
+                                                  class="actions-menu-item"
+                                                  @click="${() => {
+                                                    this.closeMenu();
+                                                    this.scrollToTx(tx.reversesTransactionId!);
+                                                  }}"
+                                                >
+                                                  <span>📄</span>
+                                                  <span>View Original</span>
+                                                </button>
+                                              `
+                                            : nothing}
+                                        `
+                                      : html`
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.handleEditTransaction(tx);
+                                            }}"
+                                          >
+                                            <span>✏️</span>
+                                            <span>Edit Transaction</span>
+                                          </button>
 
-                                    <button
-                                      type="button"
-                                      class="actions-menu-item"
-                                      @click="${() => {
-                                        this.closeMenu();
-                                        this.handleDuplicateTransaction(tx);
-                                      }}"
-                                    >
-                                      <span>⚡</span>
-                                      <span>Duplicate as New</span>
-                                    </button>
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.handleDuplicateTransaction(tx);
+                                            }}"
+                                          >
+                                            <span>⚡</span>
+                                            <span>Duplicate as New</span>
+                                          </button>
 
-                                    <button
-                                      type="button"
-                                      class="actions-menu-item"
-                                      @click="${() => {
-                                        this.closeMenu();
-                                        this.handleSaveAsTemplate(tx);
-                                      }}"
-                                    >
-                                      <span>⭐</span>
-                                      <span>Save as Template</span>
-                                    </button>
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.handleSaveAsTemplate(tx);
+                                            }}"
+                                          >
+                                            <span>⭐</span>
+                                            <span>Save as Template</span>
+                                          </button>
 
-                                    <button
-                                      type="button"
-                                      class="actions-menu-item"
-                                      @click="${() => {
-                                        this.closeMenu();
-                                        this.toggleCleared(tx);
-                                      }}"
-                                    >
-                                      <span>${tx.isCleared ? '○' : '✓'}</span>
-                                      <span>Mark as ${tx.isCleared ? 'Uncleared' : 'Cleared'}</span>
-                                    </button>
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.toggleCleared(tx);
+                                            }}"
+                                          >
+                                            <span>${tx.isCleared ? '○' : '✓'}</span>
+                                            <span>Mark as ${tx.isCleared ? 'Uncleared' : 'Cleared'}</span>
+                                          </button>
 
-                                    <div class="actions-menu-divider"></div>
+                                          <div class="actions-menu-divider"></div>
 
-                                    <button
-                                      type="button"
-                                      class="actions-menu-item"
-                                      ?disabled="${!canReorder || isFirst}"
-                                      @click="${() => {
-                                        this.closeMenu();
-                                        this.moveTransaction(tx, 'up');
-                                      }}"
-                                    >
-                                      <span>▲</span>
-                                      <span>Move Earlier</span>
-                                    </button>
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            ?disabled="${!canReorder || isFirst}"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.moveTransaction(tx, 'up');
+                                            }}"
+                                          >
+                                            <span>▲</span>
+                                            <span>Move Earlier</span>
+                                          </button>
 
-                                    <button
-                                      type="button"
-                                      class="actions-menu-item"
-                                      ?disabled="${!canReorder || isLast}"
-                                      @click="${() => {
-                                        this.closeMenu();
-                                        this.moveTransaction(tx, 'down');
-                                      }}"
-                                    >
-                                      <span>▼</span>
-                                      <span>Move Later</span>
-                                    </button>
+                                          <button
+                                            type="button"
+                                            class="actions-menu-item"
+                                            ?disabled="${!canReorder || isLast}"
+                                            @click="${() => {
+                                              this.closeMenu();
+                                              this.moveTransaction(tx, 'down');
+                                            }}"
+                                          >
+                                            <span>▼</span>
+                                            <span>Move Later</span>
+                                          </button>
+
+                                          <div class="actions-menu-divider"></div>
+
+                                          ${isOpeningBal
+                                            ? html`
+                                                <button
+                                                  type="button"
+                                                  class="actions-menu-item"
+                                                  disabled
+                                                  title="Opening balance transactions are protected. Use Balance Adjustment to adjust account balance."
+                                                >
+                                                  <span>🔒</span>
+                                                  <span>Protected Opening Balance</span>
+                                                </button>
+                                              `
+                                            : tx.isCleared
+                                            ? html`
+                                                <button
+                                                  type="button"
+                                                  class="actions-menu-item warning"
+                                                  @click="${() => {
+                                                    this.closeMenu();
+                                                    this.openVoidModal(tx);
+                                                  }}"
+                                                >
+                                                  <span>↩️</span>
+                                                  <span>Reverse / Void</span>
+                                                </button>
+                                              `
+                                            : html`
+                                                <button
+                                                  type="button"
+                                                  class="actions-menu-item danger"
+                                                  @click="${() => {
+                                                    this.closeMenu();
+                                                    this.openDeleteModal(tx);
+                                                  }}"
+                                                >
+                                                  <span>🗑️</span>
+                                                  <span>Delete Transaction</span>
+                                                </button>
+                                              `}
+                                        `}
                                   </div>
                                 `
                               : nothing}
@@ -1391,6 +1975,107 @@ export class PengaTransactions extends LitElement {
                 })}
               </div>
             `}
+      </div>
+
+      ${this.renderDeleteModal()}
+      ${this.renderVoidModal()}
+      ${this.toastMessage
+        ? html`
+            <div class="toast-banner">
+              <span>✓</span>
+              <span>${this.toastMessage}</span>
+            </div>
+          `
+        : nothing}
+    `;
+  }
+
+  private renderDeleteModal() {
+    if (!this.deleteModalTx) return nothing;
+    const tx = this.deleteModalTx;
+    return html`
+      <div class="modal-backdrop" @click="${this.closeModals}">
+        <div class="modal-card" @click="${(e: Event) => e.stopPropagation()}">
+          <div class="modal-header">
+            <h3>Delete transaction?</h3>
+            <button type="button" class="modal-close-btn" @click="${this.closeModals}" title="Close">✕</button>
+          </div>
+          <div class="modal-body">
+            ${this.actionError ? html`<div class="dialog-error-banner">${this.actionError}</div>` : nothing}
+            <p>
+              Delete the <strong>${this.getTransactionDisplayAmount(tx)}</strong> transaction
+              “<strong>${tx.payee || 'Unnamed Event'}</strong>” from
+              <strong>${tx.transactionDate}</strong>?
+            </p>
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">
+              ${tx.splits.length > 2
+                ? `This split transaction contains ${tx.splits.length} split lines. All lines will be permanently deleted.`
+                : 'This will update all affected account balances and reports.'}
+              This action cannot be undone.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="${this.closeModals}" ?disabled="${this.isDeleting}">
+              Cancel
+            </button>
+            <button type="button" class="btn-danger" @click="${this.handleDeleteSubmit}" ?disabled="${this.isDeleting}">
+              ${this.isDeleting ? 'Deleting...' : 'Delete transaction'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderVoidModal() {
+    if (!this.voidModalTx) return nothing;
+    const tx = this.voidModalTx;
+    return html`
+      <div class="modal-backdrop" @click="${this.closeModals}">
+        <div class="modal-card" @click="${(e: Event) => e.stopPropagation()}">
+          <div class="modal-header">
+            <h3>Reverse cleared transaction?</h3>
+            <button type="button" class="modal-close-btn" @click="${this.closeModals}" title="Close">✕</button>
+          </div>
+          <div class="modal-body">
+            ${this.actionError ? html`<div class="dialog-error-banner">${this.actionError}</div>` : nothing}
+            <p>
+              The original transaction “<strong>${tx.payee || 'Unnamed Event'}</strong>” (${this.getTransactionDisplayAmount(tx)}) will remain in the history.
+              Penga will create an equal and opposite transaction so its accounting effect becomes zero.
+            </p>
+            <div class="dialog-input-group">
+              <label for="reversal-date">Reversal date</label>
+              <input
+                id="reversal-date"
+                class="dialog-input"
+                type="date"
+                .value="${this.voidDate}"
+                @input="${(e: Event) => (this.voidDate = (e.target as HTMLInputElement).value)}"
+                ?disabled="${this.isVoiding}"
+              />
+            </div>
+            <div class="dialog-input-group">
+              <label for="void-reason">Reason (optional)</label>
+              <input
+                id="void-reason"
+                class="dialog-input"
+                type="text"
+                placeholder="e.g. Entered twice, refunded by merchant"
+                .value="${this.voidReason}"
+                @input="${(e: Event) => (this.voidReason = (e.target as HTMLInputElement).value)}"
+                ?disabled="${this.isVoiding}"
+              />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="${this.closeModals}" ?disabled="${this.isVoiding}">
+              Cancel
+            </button>
+            <button type="button" class="btn-warning-action" @click="${this.handleVoidSubmit}" ?disabled="${this.isVoiding}">
+              ${this.isVoiding ? 'Reversing...' : 'Reverse transaction'}
+            </button>
+          </div>
+        </div>
       </div>
     `;
   }

@@ -431,6 +431,22 @@ transactionsRoute.patch('/:id', async (c) => {
     return c.json({ error: 'Transaction not found' }, 404);
   }
 
+  if (existing.voidedAt) {
+    return c.json({ error: 'Cannot edit a voided transaction' }, 409);
+  }
+
+  if (existing.reversesTransactionId) {
+    return c.json({ error: 'Cannot edit an automatically generated reversal transaction' }, 409);
+  }
+
+  if (existing.reversalTransactionId) {
+    return c.json({ error: 'Cannot edit a transaction that has been reversed' }, 409);
+  }
+
+  if (body.isCleared !== undefined && (existing.voidedAt || existing.reversalTransactionId || existing.reversesTransactionId)) {
+    return c.json({ error: 'Cannot change cleared status of voided or reversal transactions' }, 409);
+  }
+
   const updateData: Partial<typeof transactions.$inferInsert> = {
     updatedAt: new Date(),
   };
@@ -596,21 +612,214 @@ transactionsRoute.patch('/:id', async (c) => {
 
 /**
  * DELETE /api/transactions/:id
- * Deletes a transaction (splits cascade delete).
+ * Permanently deletes an unclear transaction and its splits atomically.
  */
 transactionsRoute.delete('/:id', async (c) => {
   const id = c.req.param('id');
 
-  const [existing] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
-  if (!existing) {
-    return c.json({ error: 'Transaction not found' }, 404);
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(transactions)
+        .where(eq(transactions.id, id))
+        .for('update');
+
+      if (!existing) {
+        return { error: 'Transaction not found', status: 404 };
+      }
+
+      if (existing.voidedAt) {
+        return { error: 'Cannot delete a voided transaction', status: 409 };
+      }
+
+      if (existing.reversesTransactionId) {
+        return { error: 'Cannot delete an automatically generated reversal transaction', status: 409 };
+      }
+
+      const txSplits = await tx
+        .select({ accountId: splits.accountId })
+        .from(splits)
+        .where(eq(splits.transactionId, id));
+
+      if (isOpeningBalanceTransaction(existing, txSplits)) {
+        return {
+          error: 'Opening balance transactions cannot be deleted directly. Use account balance adjustments instead.',
+          status: 409,
+        };
+      }
+
+      if (existing.isCleared) {
+        return { error: 'Cleared transactions cannot be deleted. Use reverse/void instead.', status: 409 };
+      }
+
+      await tx.delete(transactions).where(eq(transactions.id, id));
+      return { success: true };
+    });
+
+    if ('error' in result) {
+      return c.json({ error: result.error }, result.status as any);
+    }
+
+    return c.json({
+      success: true,
+      deletedId: id,
+      message: 'Transaction deleted successfully',
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Failed to delete transaction' }, 500);
+  }
+});
+
+/**
+ * POST /api/transactions/:id/void
+ * Voids a cleared transaction and creates an equal and opposite reversal transaction.
+ */
+transactionsRoute.post('/:id/void', async (c) => {
+  const id = c.req.param('id');
+  let body: any = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    // Body is optional
   }
 
-  await db.delete(transactions).where(eq(transactions.id, id));
+  const reason = typeof body?.reason === 'string' && body.reason.trim() ? body.reason.trim() : null;
+  const reversalDate = typeof body?.date === 'string' && body.date.trim()
+    ? body.date.trim()
+    : (typeof body?.reversalDate === 'string' && body.reversalDate.trim()
+      ? body.reversalDate.trim()
+      : new Date().toISOString().slice(0, 10));
 
-  return c.json({
-    success: true,
-    deletedId: id,
-    message: 'Transaction deleted successfully',
-  });
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(reversalDate) || isNaN(Date.parse(reversalDate))) {
+    return c.json({ error: 'Field "date" must be a valid date in YYYY-MM-DD format' }, 400);
+  }
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [original] = await tx
+        .select()
+        .from(transactions)
+        .where(eq(transactions.id, id))
+        .for('update');
+
+      if (!original) {
+        return { error: 'Transaction not found', status: 404 };
+      }
+
+      if (original.voidedAt || original.reversalTransactionId) {
+        return { error: 'Transaction is already voided', status: 409 };
+      }
+
+      if (original.reversesTransactionId) {
+        return { error: 'Cannot void an automatically generated reversal transaction', status: 409 };
+      }
+
+      const originalSplits = await tx
+        .select()
+        .from(splits)
+        .where(eq(splits.transactionId, id));
+
+      if (isOpeningBalanceTransaction(original, originalSplits)) {
+        return {
+          error: 'Opening balance transactions cannot be voided directly. Use account balance adjustments instead.',
+          status: 409,
+        };
+      }
+
+      if (!original.isCleared) {
+        return { error: 'Only cleared transactions can be voided. Unclear transactions should be deleted.', status: 409 };
+      }
+
+      if (originalSplits.length < 2) {
+        return { error: 'Transaction has invalid splits to reverse', status: 400 };
+      }
+
+      const now = new Date();
+      const payeeText = original.payee ? `Reversal of: ${original.payee}` : 'Reversal';
+      const noteText = reason ? `Void reason: ${reason}` : (original.note ? `Reversal of note: ${original.note}` : 'Reversal transaction');
+
+      // 1. Create reversal transaction
+      const [reversal] = await tx
+        .insert(transactions)
+        .values({
+          transactionDate: reversalDate,
+          sortOrder: original.sortOrder,
+          payee: payeeText,
+          isCleared: true,
+          note: noteText,
+          reversesTransactionId: original.id,
+        })
+        .returning();
+
+      // 2. Insert equal and opposite splits
+      const reversedSplitsData = originalSplits.map((s) => ({
+        transactionId: reversal.id,
+        accountId: s.accountId,
+        amountCents: -s.amountCents,
+      }));
+
+      const createdSplits = await tx.insert(splits).values(reversedSplitsData).returning();
+
+      // 3. Mark original transaction as voided and link reversal
+      const [updatedOriginal] = await tx
+        .update(transactions)
+        .set({
+          voidedAt: now,
+          voidReason: reason,
+          reversalTransactionId: reversal.id,
+          updatedAt: now,
+        })
+        .where(eq(transactions.id, original.id))
+        .returning();
+
+      // 4. Copy tags from original to reversal
+      const originalTags = await tx
+        .select()
+        .from(transactionTags)
+        .where(eq(transactionTags.transactionId, original.id));
+
+      if (originalTags.length > 0) {
+        await tx.insert(transactionTags).values(
+          originalTags.map((t) => ({
+            transactionId: reversal.id,
+            tagId: t.tagId,
+          }))
+        ).onConflictDoNothing();
+      }
+
+      return {
+        original: updatedOriginal,
+        reversal: {
+          ...reversal,
+          splits: createdSplits,
+        },
+      };
+    });
+
+    if ('error' in result) {
+      return c.json({ error: result.error }, result.status as any);
+    }
+
+    return c.json(
+      {
+        success: true,
+        message: 'Transaction voided and reversal created successfully',
+        data: result,
+      },
+      201
+    );
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Failed to void transaction' }, 500);
+  }
 });
+
+function isOpeningBalanceTransaction(
+  tx: { payee: string | null; note: string | null },
+  transactionSplits?: { accountId: string }[]
+): boolean {
+  if (tx.payee === 'Opening Balance') return true;
+  if (typeof tx.note === 'string' && tx.note.startsWith('Starting balance for ')) return true;
+  return false;
+}
