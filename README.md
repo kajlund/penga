@@ -52,7 +52,7 @@ The client frontend single-page application:
 - **Components**:
   - `<penga-app>`: Core application shell with two-column responsive layout and breadcrumbs.
   - `<penga-sidebar>`: Navigation bar with view routing and PostgreSQL status indicator.
-  - `<penga-accounts>`: Hierarchical account tree explorer with category filter pills, expand/collapse toggles, modal account creation with emoji picker, and deletion.
+  - `<penga-accounts>`: Hierarchical account tree explorer with category filter pills, expand/collapse toggles, modal account creation with searchable line-icon picker, and deletion.
   - `<theme-toggle>`: Animated Sun/Moon theme switcher.
 
 ### 3. `packages/shared` (`@penga/shared`)
@@ -152,3 +152,5 @@ The current schema has no currency field or exchange-rate model. Entry formattin
 
 Run `npm test` for domain, component and API contract tests. To also run database integration tests in PowerShell, use `$env:PENGA_DATABASE_TESTS = '1'; npm test`. Integration fixtures and transactions are rolled back. `npm run build -w @penga/web` verifies the production frontend bundle.
 - [Clear all transactions](doc/clear-transactions.md): Reset scope, confirmation, concurrency and safe verification.
+
+- [Icons and calm theme](doc/icons-and-theme.md): Icon compatibility, semantic tokens and manual visual checks.

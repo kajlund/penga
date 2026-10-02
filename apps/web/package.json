@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@penga/shared": "*",
-    "lit": "^3.3.3"
+    "lit": "^3.3.3",
+    "lucide": "1.49.0"
   },
   "devDependencies": {
     "happy-dom": "^20.14.5",

@@ -13,6 +13,11 @@ window.HTMLDialogElement.prototype.showModal = function () { this.open = true; }
 window.HTMLDialogElement.prototype.close = function () { this.open = false; };
 const generated = new URL('./.compiled/', import.meta.url);
 await fs.mkdir(generated, { recursive: true });
+for (const file of ['icons', 'calm-styles']) {
+  const source = await fs.readFile(new URL('../src/components/' + file + '.ts', import.meta.url), 'utf8');
+  const result = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } });
+  await fs.writeFile(new URL(file + '.js', generated), result.outputText);
+}
 const source = await fs.readFile(new URL('../src/components/penga-settings.ts', import.meta.url), 'utf8');
 const result = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022, experimentalDecorators: true, useDefineForClassFields: false } });
 await fs.writeFile(new URL('penga-settings.js', generated), result.outputText);

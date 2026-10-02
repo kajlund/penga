@@ -28,7 +28,7 @@ for (const key of [
 const generated = new URL('./.compiled/', import.meta.url);
 await fs.mkdir(generated, { recursive: true });
 
-for (const file of ['penga-transactions']) {
+for (const file of ['icons', 'calm-styles', 'penga-transactions']) {
   const source = await fs.readFile(new URL(`../src/components/${file}.ts`, import.meta.url), 'utf8');
   const result = ts.transpileModule(source, {
     compilerOptions: {

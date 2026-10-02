@@ -1,3 +1,5 @@
+import { calmStyles } from './calm-styles.js';
+import { icon } from './icons.js';
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
@@ -13,7 +15,7 @@ interface NavItem {
 
 @customElement('penga-sidebar')
 export class PengaSidebar extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: flex;
       flex-direction: column;
@@ -40,14 +42,14 @@ export class PengaSidebar extends LitElement {
       width: 36px;
       height: 36px;
       border-radius: var(--radius-md);
-      background: linear-gradient(135deg, var(--color-primary) 0%, #047857 100%);
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       font-size: 1.2rem;
-      color: #ffffff;
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+      color: var(--on-accent);
+      box-shadow: 0 4px 12px var(--border-subtle);
     }
 
     .brand-text h1 {
@@ -139,7 +141,7 @@ export class PengaSidebar extends LitElement {
 
     .badge-tag.active {
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
     }
 
     .footer {
@@ -161,19 +163,19 @@ export class PengaSidebar extends LitElement {
       margin-right: 0.4rem;
       box-shadow: 0 0 6px var(--color-primary);
     }
-  `;
+  `, calmStyles];
 
   @property({ type: String })
   activeView: NavView = 'accounts';
 
   private navItems: NavItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'accounts', label: 'Accounts', icon: '🌳' },
-    { id: 'transactions', label: 'Transactions', icon: '💸' },
-    { id: 'templates', label: 'Templates', icon: '⚡' },
-    { id: 'reconciliation', label: 'Reconciliation', icon: '📑' },
-    { id: 'budgets', label: 'Budgets & Rules', icon: '🎯' },
-    { id: 'settings', label: 'Settings', icon: '\u2699' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'chart-no-axes-combined' },
+    { id: 'accounts', label: 'Accounts', icon: 'wallet' },
+    { id: 'transactions', label: 'Transactions', icon: 'arrow-left-right' },
+    { id: 'templates', label: 'Templates', icon: 'copy' },
+    { id: 'reconciliation', label: 'Reconciliation', icon: 'list-checks' },
+    { id: 'budgets', label: 'Budgets & Rules', icon: 'target' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 
   private handleNavClick(viewId: NavView) {
@@ -207,7 +209,7 @@ export class PengaSidebar extends LitElement {
               aria-current="${this.activeView === item.id ? 'page' : 'false'}"
             >
               <div class="nav-btn-content">
-                <span class="nav-icon">${item.icon}</span>
+                <span class="nav-icon">${icon(item.icon)}</span>
                 <span>${item.label}</span>
               </div>
               ${item.badge

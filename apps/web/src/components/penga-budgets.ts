@@ -1,10 +1,12 @@
+import { calmStyles } from './calm-styles.js';
+import { icon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { MonthlyBudgetReport, BudgetProgressItem, Account } from '@penga/shared';
 
 @customElement('penga-budgets')
 export class PengaBudgets extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: block;
       padding: 2rem 2.5rem 4rem;
@@ -49,20 +51,20 @@ export class PengaBudgets extends LitElement {
       padding: 0.65rem 1.25rem;
       border-radius: var(--radius-md);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
       border: 1px solid transparent;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+      box-shadow: 0 2px 8px var(--border-subtle);
       transition: all var(--transition-fast);
     }
 
     .btn-primary:hover {
       background: var(--color-primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+      box-shadow: 0 4px 12px var(--border-subtle);
     }
 
     .btn-secondary {
@@ -83,7 +85,7 @@ export class PengaBudgets extends LitElement {
 
     .btn-secondary:hover {
       background: var(--bg-subtle);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
     }
 
     /* Month Selector Controls */
@@ -95,7 +97,7 @@ export class PengaBudgets extends LitElement {
       padding: 0.35rem 0.5rem;
       border-radius: var(--radius-md);
       border: 1px solid var(--border-subtle);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      box-shadow: var(--shadow-md);
     }
 
     .month-btn {
@@ -134,7 +136,7 @@ export class PengaBudgets extends LitElement {
       border-radius: var(--radius-lg);
       padding: 1.75rem 2rem;
       margin-bottom: 2rem;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+      box-shadow: var(--shadow-md);
     }
 
     .summary-top {
@@ -175,7 +177,7 @@ export class PengaBudgets extends LitElement {
     }
 
     .metric-num.spent {
-      color: var(--color-expense-text);
+      color: var(--color-negative);
     }
 
     .metric-num.remaining {
@@ -183,7 +185,7 @@ export class PengaBudgets extends LitElement {
     }
 
     .metric-num.over {
-      color: var(--color-expense-text);
+      color: var(--color-negative);
     }
 
     .progress-badge {
@@ -203,15 +205,15 @@ export class PengaBudgets extends LitElement {
     }
 
     .progress-badge.warning {
-      background: rgba(245, 158, 11, 0.12);
-      color: #d97706;
-      border: 1px solid rgba(245, 158, 11, 0.25);
+      background: var(--color-warning-bg);
+      color: var(--color-warning);
+      border: 1px solid var(--color-warning-border);
     }
 
     .progress-badge.over {
-      background: var(--color-expense-subtle);
-      color: var(--color-expense-text);
-      border: 1px solid var(--color-expense-border);
+      background: var(--color-danger-bg);
+      color: var(--color-negative);
+      border: 1px solid var(--color-danger-border);
     }
 
     /* Overall Progress Bar */
@@ -234,11 +236,11 @@ export class PengaBudgets extends LitElement {
     }
 
     .progress-fill.warning {
-      background: #f59e0b;
+      background: var(--color-warning);
     }
 
     .progress-fill.over {
-      background: var(--color-expense);
+      background: var(--color-negative);
     }
 
     .progress-legend {
@@ -261,7 +263,7 @@ export class PengaBudgets extends LitElement {
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       padding: 1.5rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+      box-shadow: var(--shadow-md);
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
@@ -270,7 +272,7 @@ export class PengaBudgets extends LitElement {
 
     .category-card:hover {
       transform: translateY(-2px);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
     }
 
     .card-header {
@@ -374,7 +376,7 @@ export class PengaBudgets extends LitElement {
     }
 
     .card-remaining.negative {
-      color: var(--color-expense-text);
+      color: var(--color-negative);
     }
 
     /* Adaptive Analytics Box */
@@ -415,16 +417,16 @@ export class PengaBudgets extends LitElement {
     .suggested-label {
       font-size: 0.75rem;
       font-weight: 600;
-      color: #3b82f6;
+      color: var(--chart-secondary);
       display: flex;
       align-items: center;
       gap: 0.35rem;
     }
 
     .btn-adopt {
-      background: rgba(59, 130, 246, 0.1);
-      color: #2563eb;
-      border: 1px solid rgba(59, 130, 246, 0.25);
+      background: var(--color-info-bg);
+      color: var(--color-info);
+      border: 1px solid var(--color-info-border);
       border-radius: var(--radius-sm);
       font-size: 0.72rem;
       font-weight: 600;
@@ -434,7 +436,7 @@ export class PengaBudgets extends LitElement {
     }
 
     .btn-adopt:hover {
-      background: rgba(59, 130, 246, 0.2);
+      background: var(--color-info-bg);
     }
 
     /* Modal Overlay & Form */
@@ -444,7 +446,7 @@ export class PengaBudgets extends LitElement {
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: var(--overlay);
       backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
@@ -460,7 +462,7 @@ export class PengaBudgets extends LitElement {
       padding: 2rem;
       width: 90%;
       max-width: 480px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--shadow-md);
     }
 
     .modal-dialog h3 {
@@ -558,7 +560,7 @@ export class PengaBudgets extends LitElement {
         opacity: 1;
       }
     }
-  `;
+  `, calmStyles];
 
   @state()
   private report: MonthlyBudgetReport | null = null;
@@ -761,14 +763,14 @@ export class PengaBudgets extends LitElement {
 
         <div class="header-actions">
           <div class="month-selector">
-            <button class="month-btn" @click="${this.handlePrevMonth}" title="Previous month">
-              ◀
+            <button class="month-btn" @click="${this.handlePrevMonth}" title="Previous month" aria-label="Previous month">
+              ${icon("chevron-left", "ASSET", 16)}
             </button>
             <span class="current-month-label">
               ${this.formatMonthName(this.currentYear, this.currentMonth)}
             </span>
-            <button class="month-btn" @click="${this.handleNextMonth}" title="Next month">
-              ▶
+            <button class="month-btn" @click="${this.handleNextMonth}" title="Next month" aria-label="Next month">
+              ${icon("chevron-right", "ASSET", 16)}
             </button>
           </div>
 
@@ -804,7 +806,7 @@ export class PengaBudgets extends LitElement {
         : !data || data.items.length === 0
         ? html`
             <div class="empty-state">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎯</div>
+              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${icon("target", "ASSET", 32)}</div>
               <h4 style="margin: 0 0 0.5rem; color: var(--text-primary);">No Expense Categories Configured</h4>
               <p style="margin: 0 0 1.5rem;">Create expense accounts first to set monthly targets and run-rates.</p>
             </div>
@@ -873,9 +875,8 @@ export class PengaBudgets extends LitElement {
                       <div class="card-account">
                         <div
                           class="account-avatar"
-                          style="background-color: ${item.accountColor ? `${item.accountColor}22` : 'var(--bg-muted)'}; color: ${item.accountColor || 'var(--text-primary)'};"
                         >
-                          ${item.accountIcon || '🛒'}
+                          ${icon(item.accountIcon, "EXPENSE")}
                         </div>
                         <div>
                           <div class="account-title">${item.accountName}</div>
@@ -888,10 +889,10 @@ export class PengaBudgets extends LitElement {
                       <div class="card-actions">
                         <button
                           class="btn-icon-action"
-                          title="Edit Target"
+                          title="Edit Target" aria-label="Edit Target"
                           @click="${() => this.openSetBudgetModal(item)}"
                         >
-                          ✏️
+                          ${icon("pencil", "ASSET", 16)}
                         </button>
                       </div>
                     </div>
@@ -943,7 +944,7 @@ export class PengaBudgets extends LitElement {
                         ? html`
                             <div class="suggested-box">
                               <span class="suggested-label">
-                                <span>💡</span>
+                                <span>${icon("lightbulb", "ASSET", 16)}</span>
                                 <span>Suggested: ${this.formatCents(item.suggestedTargetCents)}</span>
                               </span>
                               <button
@@ -982,7 +983,7 @@ export class PengaBudgets extends LitElement {
                       ${this.expenseAccounts.map(
                         (acc) => html`
                           <option value="${acc.id}">
-                            ${acc.icon || '🛒'} ${acc.name}
+                            ${acc.name}
                           </option>
                         `
                       )}

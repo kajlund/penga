@@ -1,3 +1,5 @@
+import { calmStyles } from './calm-styles.js';
+import { icon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import type { Account, AccountType } from '@penga/shared';
@@ -10,7 +12,7 @@ interface AccountCategoryGroup {
 
 @customElement('account-combobox')
 export class AccountCombobox extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: block;
       position: relative;
@@ -243,7 +245,7 @@ export class AccountCombobox extends LitElement {
       font-size: 1.25rem;
       margin-bottom: 0.25rem;
     }
-  `;
+  `, calmStyles];
 
   @property({ type: Array })
   accounts: Account[] = [];
@@ -454,7 +456,7 @@ export class AccountCombobox extends LitElement {
     const displayValue = this.isOpen
       ? this.searchQuery
       : selectedAcc
-      ? `${selectedAcc.icon || '📁'} ${selectedAcc.name}`
+      ? selectedAcc.name
       : '';
 
     const groups = this.getGroupedFilteredAccounts();
@@ -467,7 +469,7 @@ export class AccountCombobox extends LitElement {
             type="text"
             class="search-input"
             .value="${displayValue}"
-            placeholder="${selectedAcc ? `${selectedAcc.icon || ''} ${selectedAcc.name}` : this.placeholder}"
+            placeholder="${selectedAcc ? selectedAcc.name : this.placeholder}"
             ?disabled="${this.disabled}"
             @focus="${this.handleInputFocus}"
             @input="${this.handleInputChange}"
@@ -480,7 +482,7 @@ export class AccountCombobox extends LitElement {
             aria-activedescendant=${this.isOpen && this.highlightedIndex >= 0 ? `account-option-${this.highlightedIndex}` : nothing}
           />
           <div class="trailing-action ${this.isOpen ? 'open' : ''}">
-            <span>▾</span>
+            <span>${icon("chevron-down", "ASSET", 16)}</span>
           </div>
         </div>
 
@@ -490,7 +492,7 @@ export class AccountCombobox extends LitElement {
                 ${filteredFlat.length === 0
                   ? html`
                       <div class="empty-state">
-                        <span>🔍</span>
+                        <span>${icon("search", "ASSET", 16)}</span>
                         No accounts match "${this.searchQuery}"
                       </div>
                     `
@@ -510,7 +512,7 @@ export class AccountCombobox extends LitElement {
                             @mouseenter="${() => (this.highlightedIndex = flatIndex)}"
                           >
                             <div class="account-label" title="${acc.description ? `${acc.name} — ${acc.description}` : acc.name}">
-                              <span class="account-icon">${acc.icon || '📁'}</span>
+                              <span class="account-icon">${icon(acc.icon, acc.type)}</span>
                               <div class="account-details">
                                 <span class="account-name">
                                   ${this.renderHighlightedName(acc.name)}

@@ -1,10 +1,13 @@
+import { calmStyles } from './calm-styles.js';
+import './icon-picker.js';
+import { icon, resolveIcon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { AccountType, type AccountTreeNode } from '@penga/shared';
 
 @customElement('penga-accounts')
 export class PengaAccounts extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: block;
       padding: 2rem 2.5rem 4rem;
@@ -43,20 +46,20 @@ export class PengaAccounts extends LitElement {
       padding: 0.65rem 1.25rem;
       border-radius: var(--radius-md);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
       border: 1px solid transparent;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+      box-shadow: 0 2px 8px var(--border-subtle);
       transition: all var(--transition-fast);
     }
 
     .btn-primary:hover {
       background: var(--color-primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+      box-shadow: 0 4px 12px var(--border-subtle);
     }
 
     /* Filter Bar & Search */
@@ -123,7 +126,7 @@ export class PengaAccounts extends LitElement {
 
     .filter-pill.active .badge-count {
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
     }
 
     /* Search Box */
@@ -462,7 +465,7 @@ export class PengaAccounts extends LitElement {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+      box-shadow: var(--shadow-md);
       padding: 0.35rem 0;
       display: flex;
       flex-direction: column;
@@ -520,8 +523,8 @@ export class PengaAccounts extends LitElement {
     }
 
     .actions-menu-item.danger:hover {
-      background: var(--color-expense-bg);
-      color: var(--color-expense);
+      background: var(--color-danger-bg);
+      color: var(--color-negative);
     }
 
     .actions-menu-divider {
@@ -541,7 +544,7 @@ export class PengaAccounts extends LitElement {
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: var(--overlay);
       backdrop-filter: blur(6px);
       z-index: 1000;
       display: flex;
@@ -715,7 +718,7 @@ export class PengaAccounts extends LitElement {
       color: var(--text-secondary);
       font-size: 0.95rem;
     }
-  `;
+  `, calmStyles];
 
   @state()
   private treeNodes: AccountTreeNode[] = [];
@@ -760,10 +763,10 @@ export class PengaAccounts extends LitElement {
   private createParentId = '';
 
   @state()
-  private createIcon = '🏦';
+  private createIcon = 'lucide:landmark';
 
   @state()
-  private createColor = '#0d9488';
+  private createColor = '#52677c';
 
   @state()
   private createInitialBalance = '';
@@ -777,7 +780,6 @@ export class PengaAccounts extends LitElement {
   @state()
   private flatAccounts: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
 
-  private emojiPresets = ['🏦', '🤝', '⚖️', '🛡️', '💵', '💳', '🛒', '🏠', '🚗', '💼', '📈', '🍔', '🎁', '💡'];
 
   private handleWindowClick = (e: MouseEvent) => {
     if (!this.openMenuAccountId) return;
@@ -905,7 +907,7 @@ export class PengaAccounts extends LitElement {
       this.createType = preselectedType || 'ASSET';
     }
 
-    this.createIcon = this.createType === 'EXPENSE' ? '🛒' : this.createType === 'EQUITY' ? '⚖️' : this.createType === 'SETTLEMENT' ? '🤝' : '🏦';
+    this.createIcon = 'lucide:' + resolveIcon(null, this.createType);
     this.createColor = this.getDefaultColor(this.createType);
     this.createInitialBalance = '';
     this.createSettlementPosition = 'they-owe';
@@ -920,7 +922,7 @@ export class PengaAccounts extends LitElement {
     this.createDescription = node.description || '';
     this.createType = node.type;
     this.createParentId = node.parentId || '';
-    this.createIcon = node.icon || (node.type === 'EXPENSE' ? '🛒' : node.type === 'SETTLEMENT' ? '🤝' : '🏦');
+    this.createIcon = node.icon || '';
     this.createColor = node.color || this.getDefaultColor(node.type);
     this.isCreateModalOpen = true;
   }
@@ -928,17 +930,17 @@ export class PengaAccounts extends LitElement {
   private getDefaultColor(type: AccountType): string {
     switch (type) {
       case 'ASSET':
-        return '#0d9488';
+        return '#52677c';
       case 'LIABILITY':
-        return '#d97706';
+        return '#795e73';
       case 'SETTLEMENT':
-        return '#0284c7';
+        return '#476f6c';
       case 'EQUITY':
-        return '#8b5cf6';
+        return '#70665c';
       case 'INCOME':
-        return '#2563eb';
+        return '#526d52';
       case 'EXPENSE':
-        return '#e11d48';
+        return '#895e57';
     }
   }
 
@@ -1151,15 +1153,13 @@ export class PengaAccounts extends LitElement {
                     @click="${() => this.toggleCollapse(node.id)}"
                     aria-label="${isCollapsed ? 'Expand' : 'Collapse'} ${node.name}"
                   >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
+                    ${icon("chevron-down", "ASSET", 16)}
                   </button>
                 `
               : html`<span class="toggle-placeholder"></span>`}
 
-            <div class="account-icon" style="color: ${node.color || 'inherit'}; border-color: ${node.color ? `${node.color}40` : 'var(--border-subtle)'}">
-              ${node.icon || '📁'}
+            <div class="account-icon">
+              ${icon(node.icon, node.type)}
             </div>
 
             <div class="account-info" title="${node.description ? `${node.name} — ${node.description}` : node.name}">
@@ -1183,7 +1183,7 @@ export class PengaAccounts extends LitElement {
                 title="Account actions"
                 aria-label="Actions for ${node.name}"
               >
-                ···
+                ${icon("ellipsis", "ASSET", 16)}
               </button>
               ${this.openMenuAccountId === node.id
                 ? html`
@@ -1192,7 +1192,7 @@ export class PengaAccounts extends LitElement {
                         class="actions-menu-item"
                         @click="${() => this.openEditModal(node)}"
                       >
-                        <span>✏️</span>
+                        <span>${icon("pencil", "ASSET", 16)}</span>
                         <span>Edit Account</span>
                       </button>
                       <button
@@ -1202,7 +1202,7 @@ export class PengaAccounts extends LitElement {
                           this.openCreateModal(node.id, node.type);
                         }}"
                       >
-                        <span>➕</span>
+                        <span>${icon("plus", "ASSET", 16)}</span>
                         <span>Add Sub-Account</span>
                       </button>
                       <div class="actions-menu-divider"></div>
@@ -1213,7 +1213,7 @@ export class PengaAccounts extends LitElement {
                           this.deleteAccount(node);
                         }}"
                       >
-                        <span>🗑️</span>
+                        <span>${icon("trash-2", "ASSET", 16)}</span>
                         <span>Delete Account</span>
                       </button>
                     </div>
@@ -1312,10 +1312,7 @@ export class PengaAccounts extends LitElement {
         </div>
 
         <div class="search-box">
-          <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+          <span class="search-icon">${icon("search", "ASSET", 16)}</span>
           <input
             type="text"
             class="search-input"
@@ -1327,7 +1324,7 @@ export class PengaAccounts extends LitElement {
           />
           ${this.searchQuery ? html`
             <button class="search-clear-btn" @click="${() => this.clearSearch()}" title="Clear search (Esc)" aria-label="Clear search">
-              ✕
+              ${icon("x", "ASSET", 16)}
             </button>
           ` : nothing}
         </div>
@@ -1348,7 +1345,7 @@ export class PengaAccounts extends LitElement {
           : this.treeNodes.length === 0
           ? html`
               <div class="empty-state">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📂</div>
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${icon("folder", "ASSET", 32)}</div>
                 <h4>No Accounts Found</h4>
                 <p>Create your first account or run the database seed script.</p>
               </div>
@@ -1356,7 +1353,7 @@ export class PengaAccounts extends LitElement {
           : visibleNodes.length === 0
           ? html`
               <div class="empty-state">
-                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔍</div>
+                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">${icon("search", "ASSET", 32)}</div>
                 <h4>No Matching Accounts</h4>
                 <p>No accounts found matching "${this.searchQuery}" ${this.selectedFilter !== 'ALL' ? `in ${this.selectedFilter}` : ''}.</p>
                 <button class="btn-secondary" style="margin-top: 0.75rem;" @click="${() => this.clearSearch()}">
@@ -1394,7 +1391,7 @@ export class PengaAccounts extends LitElement {
                       this.editingAccountId = null;
                     }}"
                   >
-                    ✕
+                    ${icon("x", "ASSET", 16)}
                   </button>
                 </div>
 
@@ -1558,38 +1555,11 @@ export class PengaAccounts extends LitElement {
                     </div>
 
                     <div class="form-group">
-                      <label class="form-label">Icon / Emoji</label>
-                      <input
-                        type="text"
-                        class="form-input"
-                        .value="${this.createIcon}"
-                        @input="${(e: any) => (this.createIcon = e.target.value)}"
-                      />
-                      <div class="quick-emojis">
-                        ${this.emojiPresets.map(
-                          (emoji) => html`
-                            <button
-                              type="button"
-                              class="emoji-pill"
-                              @click="${() => (this.createIcon = emoji)}"
-                            >
-                              ${emoji}
-                            </button>
-                          `
-                        )}
-                      </div>
+                      <label class="form-label">Icon</label>
+                      <penga-icon-picker .value=${this.createIcon} .accountType=${this.createType} @icon-selected=${(event: CustomEvent) => this.createIcon = event.detail.value}></penga-icon-picker>
                     </div>
 
-                    <div class="form-group">
-                      <label class="form-label">Badge Color</label>
-                      <input
-                        type="color"
-                        class="form-input"
-                        style="height: 42px; cursor: pointer;"
-                        .value="${this.createColor}"
-                        @input="${(e: any) => (this.createColor = e.target.value)}"
-                      />
-                    </div>
+
                   </div>
 
                   <div class="modal-footer">

@@ -1,3 +1,5 @@
+import { calmStyles } from './calm-styles.js';
+import { icon } from './icons.js';
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
@@ -6,24 +8,24 @@ const confirmation = 'DELETE ALL TRANSACTIONS';
 
 @customElement('penga-settings')
 export class PengaSettings extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host { display: block; padding: 2rem; color: var(--text-primary); }
     section { max-width: 700px; padding: 1.5rem; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
     h1 { margin-top: 0; } h2 { margin-top: 0; }
     p { line-height: 1.6; }
-    .danger-zone { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #dc2626; }
+    .danger-zone { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-danger); }
     button, input { font: inherit; padding: .7rem 1rem; border-radius: var(--radius-md); }
     button { cursor: pointer; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-subtle); }
-    button.danger { background: #b91c1c; color: white; border-color: #b91c1c; }
+    button.danger { background: var(--color-danger); color: var(--on-accent); border-color: var(--color-danger); }
     button:disabled { opacity: .5; cursor: default; }
     button:focus-visible, input:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
     dialog { width: min(540px, calc(100vw - 4rem)); padding: 1.5rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); color: var(--text-primary); }
-    dialog::backdrop { background: #0009; }
+    dialog::backdrop { background: var(--overlay); }
     label { display: block; margin-bottom: .5rem; }
     input { box-sizing: border-box; width: 100%; background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border-subtle); }
     .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
-    .error { color: var(--color-danger, #dc2626); }
-  `;
+    .error { color: var(--color-danger); }
+  `, calmStyles];
 
   @state() private summary: Summary | null = null;
   @state() private phrase = '';

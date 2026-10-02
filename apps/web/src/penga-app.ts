@@ -1,3 +1,5 @@
+import { calmStyles } from './components/calm-styles.js';
+import { icon } from './components/icons.js';
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './components/theme-toggle.js';
@@ -19,7 +21,7 @@ import type { TransactionWithSplits, TransactionTemplateWithSplits } from '@peng
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: flex;
       min-height: 100vh;
@@ -125,7 +127,7 @@ export class PengaApp extends LitElement {
       font-size: 0.8rem;
       font-weight: 600;
     }
-  `;
+  `, calmStyles];
 
   @state()
   private currentView: NavView = 'dashboard';
@@ -272,7 +274,7 @@ export class PengaApp extends LitElement {
               : html`
                   <div class="placeholder-view">
                     <div class="placeholder-card">
-                      <div class="placeholder-icon">🎯</div>
+                      <div class="placeholder-icon">${icon("target", "ASSET", 32)}</div>
                       <h3 style="text-transform: capitalize;">${this.currentView} View</h3>
                       <p>
                         This module will be introduced in subsequent roadmap phases.

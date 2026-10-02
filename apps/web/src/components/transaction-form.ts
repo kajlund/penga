@@ -1,3 +1,5 @@
+import { calmStyles } from './calm-styles.js';
+import { icon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -14,7 +16,7 @@ interface SplitRowState {
 
 @customElement('transaction-form')
 export class TransactionForm extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     .type-selector { display: flex; flex-wrap: wrap; gap: .4rem; }
     .type-selector button { flex: 1; }
     button[aria-pressed="true"] { background: var(--color-primary-subtle); border-color: var(--color-primary); color: var(--text-primary); }
@@ -22,7 +24,7 @@ export class TransactionForm extends LitElement {
     .balance-summary { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .85rem; }
     .balance-summary strong { display: block; margin-top: .25rem; }
     .entry-help { font-size: .8rem; color: var(--text-secondary); margin: 0; line-height: 1.5; }
-    .field-error { color: var(--color-expense); }
+    .field-error { color: var(--color-negative); }
     .more-details summary { cursor: pointer; font-weight: 600; padding-bottom: 1rem; }
     .more-details > div { margin-bottom: 1rem; }
     .split-row-controls { flex-wrap: wrap; min-width: 0; }
@@ -37,7 +39,7 @@ export class TransactionForm extends LitElement {
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.65);
+      background: var(--overlay);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       z-index: 1000;
@@ -253,9 +255,9 @@ export class TransactionForm extends LitElement {
     }
 
     .balance-banner.unbalanced {
-      background: var(--color-expense-bg);
-      border: 1px solid var(--color-expense-border);
-      color: var(--color-expense);
+      background: var(--color-danger-bg);
+      border: 1px solid var(--color-danger-border);
+      color: var(--color-negative);
     }
 
     .balance-indicator {
@@ -436,8 +438,8 @@ export class TransactionForm extends LitElement {
     }
 
     .btn-remove-row:hover:not(:disabled) {
-      color: var(--color-expense);
-      background: var(--color-expense-bg);
+      color: var(--color-negative);
+      background: var(--color-danger-bg);
     }
 
     .btn-remove-row:disabled {
@@ -576,13 +578,13 @@ export class TransactionForm extends LitElement {
       padding: 0.65rem 1.4rem;
       border-radius: var(--radius-md);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
       border: 1px solid transparent;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+      box-shadow: 0 2px 8px var(--border-subtle);
       transition: all var(--transition-fast);
       display: inline-flex;
       align-items: center;
@@ -592,7 +594,7 @@ export class TransactionForm extends LitElement {
     .btn-submit:hover:not(:disabled) {
       background: var(--color-primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+      box-shadow: 0 4px 12px var(--border-subtle);
     }
 
     .btn-submit:disabled {
@@ -700,7 +702,7 @@ export class TransactionForm extends LitElement {
       background: var(--bg-surface);
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-md);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.08);
+      box-shadow: var(--shadow-md);
       z-index: 1050;
       max-height: 190px;
       overflow-y: auto;
@@ -784,7 +786,7 @@ export class TransactionForm extends LitElement {
     .btn-template-picker:hover,
     .btn-template-picker.active {
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
     }
 
     .template-badge {
@@ -798,8 +800,8 @@ export class TransactionForm extends LitElement {
 
     .btn-template-picker.active .template-badge,
     .btn-template-picker:hover .template-badge {
-      background: rgba(255, 255, 255, 0.25);
-      color: #ffffff;
+      background: var(--color-primary-subtle);
+      color: var(--color-primary-text);
     }
 
     .template-dropdown-menu {
@@ -812,7 +814,7 @@ export class TransactionForm extends LitElement {
       background: var(--bg-surface);
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-md);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.08);
+      box-shadow: var(--shadow-md);
       z-index: 1100;
       padding: 0.4rem 0;
       display: flex;
@@ -915,7 +917,7 @@ export class TransactionForm extends LitElement {
 
     .btn-save-as-template:hover {
       background: var(--bg-subtle);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
       color: var(--text-primary);
     }
 
@@ -963,7 +965,7 @@ export class TransactionForm extends LitElement {
       gap: 0.65rem;
       background: var(--bg-surface);
     }
-  `;
+  `, calmStyles];
 
   @property({ type: Boolean })
   isOpen = false;
@@ -1473,7 +1475,7 @@ export class TransactionForm extends LitElement {
           ${this.accountField(`Account/category ${index + 1}`, `account-${row.id}`, row.accountId, this.availableAccounts.filter(a => !('accountId' in entry) || a.id !== entry.accountId).sort((a,b) => Number(b.type === (entry.kind === 'income' ? 'INCOME' : 'EXPENSE')) - Number(a.type === (entry.kind === 'income' ? 'INCOME' : 'EXPENSE'))), id => this.handleAccountSelect(row.id, id))}
           <div class="split-row-controls"><label class="form-group"><span class="form-label">Amount (${APP_CURRENCY})</span><input class="amount-input" inputmode="decimal" .value=${live(row.amount)} @input=${(e: any) => this.handleAmountInput(row.id, e.target.value)} @blur=${() => this.touch(`amount-${row.id}`)}>${this.fieldError(`amount-${row.id}`)}</label>
           ${summary.remaining !== 0 ? html`<button class="btn-auto-balance" @click=${() => this.entry = useRemaining(this.entry, row.id)}>Use remaining ${formatMoney(summary.remaining)}</button>` : nothing}
-          <button class="btn-remove-row" aria-label=${`Remove ${entry.kind === 'advanced' ? 'line' : 'allocation'} ${index + 1}`} @click=${() => this.removeSplitRow(row.id)}>×</button></div>
+          <button class="btn-remove-row" aria-label=${`Remove ${entry.kind === 'advanced' ? 'line' : 'allocation'} ${index + 1}`} @click=${() => this.removeSplitRow(row.id)} aria-label="Remove" title="Remove">${icon("x", "ASSET", 16)}</button></div>
         </div>`)}
         ${this.fieldError('rows')}
         <div class="balance-summary" role="status" aria-live="polite" aria-atomic="true">${entry.kind !== 'advanced' ? html`<span>Total <strong>${formatMoney(summary.total)}</strong></span><span>Allocated <strong>${formatMoney(summary.allocated)}</strong></span>` : nothing}<span>Remaining <strong>${formatMoney(summary.remaining)}</strong></span>${summary.remaining === 0 && entry.rows.length && entry.rows.every(r => parseMoney(r.amount)) ? html`<span>Balanced</span>` : nothing}</div>
@@ -1553,7 +1555,7 @@ export class TransactionForm extends LitElement {
                   : 'Record everyday spending, income and account changes'}
               </p>
             </div>
-            <button class="close-btn" @click="${this.closeModal}" aria-label="Close modal">✕</button>
+            <button class="close-btn" @click="${this.closeModal}" aria-label="Close modal" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
           </div>
 
           <!-- Body -->
@@ -1569,7 +1571,7 @@ export class TransactionForm extends LitElement {
                         class="btn-template-picker ${this.isTemplateDropdownOpen ? 'active' : ''}"
                         @click="${this.toggleTemplateDropdown}"
                       >
-                        <span>⚡</span>
+                        <span>${icon("copy", "ASSET", 16)}</span>
                         <span>Use Template</span>
                         <span class="template-badge">${this.availableTemplates.length}</span>
                         <span>${this.isTemplateDropdownOpen ? '▲' : '▼'}</span>
@@ -1592,11 +1594,11 @@ export class TransactionForm extends LitElement {
                                         class="template-item-btn"
                                         @click="${() => this.applyTemplate(tpl)}"
                                       >
-                                        <span class="template-item-icon">${tpl.icon || '⚡'}</span>
+                                        <span class="template-item-icon">${icon(tpl.icon, "TEMPLATE")}</span>
                                         <div class="template-item-info">
                                           <div class="template-item-name">${tpl.name}</div>
                                           <div class="template-item-meta">
-                                            ${tpl.payee ? html`<span>🏢 ${tpl.payee}</span>` : nothing}
+                                            ${tpl.payee ? html`<span>${icon("building-2", "ASSET", 16)} ${tpl.payee}</span>` : nothing}
                                             <span>(${tpl.splits.length} splits)</span>
                                           </div>
                                         </div>
@@ -1642,11 +1644,11 @@ export class TransactionForm extends LitElement {
                   ${Array.from(this.selectedTagIds).map((id) => {
                     const tag = this.availableTags.find((t) => t.id === id);
                     if (!tag) return nothing;
-                    const color = tag.color || '#6366f1';
+                    const color = tag.color || 'var(--tag-default)';
                     return html`
                       <span
                         class="tag-chip"
-                        style="background: ${color}1c; color: ${color}; border-color: ${color}45;"
+                        style="background: color-mix(in srgb, ${color} 11%, var(--bg-surface)); color: ${color}; border-color: color-mix(in srgb, ${color} 28%, var(--border-subtle));"
                       >
                         <span>#${tag.name}</span>
                         <button
@@ -1656,7 +1658,7 @@ export class TransactionForm extends LitElement {
                           title="Remove tag"
                           aria-label="Remove tag ${tag.name}"
                         >
-                          ✕
+                          ${icon("x", "ASSET", 16)}
                         </button>
                       </span>
                     `;
@@ -1696,7 +1698,7 @@ export class TransactionForm extends LitElement {
                           class="tag-dropdown-item"
                           @click="${() => this.selectTag(tag.id)}"
                         >
-                          <span class="tag-dot" style="background: ${tag.color || '#6366f1'};"></span>
+                          <span class="tag-dot" style="background: ${tag.color || 'var(--tag-default)'};"></span>
                           <span>#${tag.name}</span>
                         </button>
                       `
@@ -1708,7 +1710,7 @@ export class TransactionForm extends LitElement {
                             class="tag-dropdown-item create-new"
                             @click="${this.createAndSelectTag}"
                           >
-                            <span>➕ Create new tag "<strong>#${rawSearch}</strong>" (Press Enter)</span>
+                            <span>${icon("plus", "ASSET", 16)} Create new tag "<strong>#${rawSearch}</strong>" (Press Enter)</span>
                           </button>
                         `
                       : nothing}
@@ -1734,7 +1736,7 @@ export class TransactionForm extends LitElement {
                 @click="${this.handleOpenSaveTemplateModal}"
                 title="Save current split setup as a reusable template"
               >
-                <span>⭐</span>
+                <span>${icon("star", "ASSET", 16)}</span>
                 <span>Save as Template</span>
               </button>
             </div>
@@ -1770,8 +1772,8 @@ export class TransactionForm extends LitElement {
             >
               <div class="mini-modal-card">
                 <div class="mini-modal-header">
-                  <h4>⭐ Save as Template</h4>
-                  <button class="close-btn" @click="${() => (this.isSaveTemplateModalOpen = false)}">✕</button>
+                  <h4>${icon("star", "ASSET", 16)} Save as Template</h4>
+                  <button class="close-btn" @click="${() => (this.isSaveTemplateModalOpen = false)}" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
                 </div>
                 <div class="mini-modal-body">
                   <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">

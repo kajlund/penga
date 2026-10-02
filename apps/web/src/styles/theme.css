@@ -13,40 +13,68 @@
 
   --text-primary: #1c1917;
   --text-secondary: #57534e;
-  --text-muted: #78716c;
+  --text-muted: #69635d;
   --text-inverse: #ffffff;
 
   --border-subtle: #e7e0d3;
   --border-strong: #d6ccba;
-  --border-focus: #059669;
+  --border-focus: #47735d;
 
-  /* Brand Emerald */
-  --color-primary: #059669;
-  --color-primary-hover: #047857;
-  --color-primary-subtle: #ecfdf5;
-  --color-primary-border: #a7f3d0;
-  --color-primary-text: #065f46;
+  /* Forest / sage accent */
+  --color-primary: #47735d;
+  --color-primary-hover: #385c49;
+  --color-primary-subtle: #edf3ee;
+  --color-primary-border: #bdcebf;
+  --color-primary-text: #355541;
 
   /* Account Domain Color Codes */
-  --color-asset: #0d9488;
-  --color-asset-bg: #f0fdfa;
-  --color-asset-border: #99f6e4;
+  --color-asset: #52677c;
+  --color-asset-bg: #eef2f6;
+  --color-asset-border: #d8e0e8;
 
-  --color-liability: #d97706;
-  --color-liability-bg: #fffbeb;
-  --color-liability-border: #fde68a;
+  --color-liability: #795e73;
+  --color-liability-bg: #f4eef2;
+  --color-liability-border: #e4d8e1;
 
-  --color-income: #2563eb;
-  --color-income-bg: #eff6ff;
-  --color-income-border: #bfdbfe;
+  --color-income: #526d52;
+  --color-income-bg: #eff4ed;
+  --color-income-border: #d7e3d4;
 
-  --color-expense: #e11d48;
-  --color-expense-bg: #fff1f2;
-  --color-expense-border: #fecdd3;
+  --color-expense: #895e57;
+  --color-expense-bg: #f8efec;
+  --color-expense-border: #ead9d3;
 
-  --color-settlement: #0284c7;
-  --color-settlement-bg: #f0f9ff;
-  --color-settlement-border: #bae6fd;
+  --color-settlement: #476f6c;
+  --color-settlement-bg: #edf4f2;
+  --color-settlement-border: #d3e3df;
+
+  /* Semantic roles inherit through every Lit shadow root. */
+  --border-control: #8c867c;
+  --color-info-border: var(--color-asset-border);
+  --icon-color: var(--text-secondary);
+  --color-positive: #47735d;
+  --color-negative: #a34f4f;
+  --color-danger: var(--color-negative);
+  --color-danger-bg: #faeeee;
+  --color-danger-border: #dab5b5;
+  --color-danger-hover: #873f3f;
+  --color-warning: #866022;
+  --color-warning-text: var(--color-warning);
+  --color-warning-bg: #faf2df;
+  --color-warning-border: #dccaa2;
+  --color-warning-hover: #6c4c1c;
+  --color-info: #52677c;
+  --color-info-bg: #eef2f6;
+  --color-equity: #70665c;
+  --color-equity-bg: #f3f0eb;
+  --color-equity-border: #e0d9cf;
+  --on-accent: #ffffff;
+  --on-danger: #ffffff;
+  --on-warning: #ffffff;
+  --overlay: rgba(0, 0, 0, 0.6);
+  --tag-default: #656781;
+  --chart-secondary: #607b8e;
+  --chart-tertiary: #9a8060;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(28, 25, 23, 0.05);
@@ -71,55 +99,77 @@
 
 /* Charcoal Dark Mode */
 [data-theme="dark"] {
-  --bg-base: #0f1217;
-  --bg-surface: #181c24;
-  --bg-surface-elevated: #202632;
-  --bg-subtle: #222834;
-  --bg-muted: #2b3342;
-  --bg-glass: rgba(24, 28, 36, 0.85);
+  --bg-base: #171a18;
+  --bg-surface: #202420;
+  --bg-surface-elevated: #282d28;
+  --bg-subtle: #292e29;
+  --bg-muted: #343a34;
+  --bg-glass: rgba(32, 36, 32, 0.92);
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverse: #0f1217;
+  --text-primary: #e7e9e1;
+  --text-secondary: #b8bdb3;
+  --text-muted: #a0a79c;
+  --text-inverse: #171a18;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --border-focus: #10b981;
+  --border-subtle: #363d36;
+  --border-strong: #505a50;
+  --border-focus: #a3bfa9;
 
-  /* Brand Emerald */
-  --color-primary: #10b981;
-  --color-primary-hover: #059669;
-  --color-primary-subtle: rgba(16, 185, 129, 0.12);
-  --color-primary-border: rgba(16, 185, 129, 0.3);
-  --color-primary-text: #34d399;
+  /* Forest / sage accent */
+  --color-primary: #8eaf98;
+  --color-primary-hover: #a0bda8;
+  --color-primary-subtle: #2c3b30;
+  --color-primary-border: #698773;
+  --color-primary-text: #c0d5c3;
 
   /* Account Domain Color Codes */
-  --color-asset: #2dd4bf;
-  --color-asset-bg: rgba(45, 212, 191, 0.12);
-  --color-asset-border: rgba(45, 212, 191, 0.25);
+  --color-asset: #a9b8c6;
+  --color-asset-bg: #2b3339;
+  --color-asset-border: #45535d;
 
-  --color-liability: #fbbf24;
-  --color-liability-bg: rgba(251, 191, 36, 0.12);
-  --color-liability-border: rgba(251, 191, 36, 0.25);
+  --color-liability: #c0aabd;
+  --color-liability-bg: #342d34;
+  --color-liability-border: #574855;
 
-  --color-income: #60a5fa;
-  --color-income-bg: rgba(96, 165, 250, 0.12);
-  --color-income-border: rgba(96, 165, 250, 0.25);
+  --color-income: #acc0a1;
+  --color-income-bg: #2c352b;
+  --color-income-border: #4b5b45;
 
-  --color-expense: #fb7185;
-  --color-expense-bg: rgba(251, 113, 133, 0.12);
-  --color-expense-border: rgba(251, 113, 133, 0.25);
+  --color-expense: #cda99c;
+  --color-expense-bg: #382e29;
+  --color-expense-border: #604b43;
 
-  --color-settlement: #38bdf8;
-  --color-settlement-bg: rgba(56, 189, 248, 0.12);
-  --color-settlement-border: rgba(56, 189, 248, 0.25);
+  --color-settlement: #a2beb5;
+  --color-settlement-bg: #293530;
+  --color-settlement-border: #465c53;
+
+  --border-control: #808b7e;
+  --color-positive: #a6c3a8;
+  --color-negative: #d6a09a;
+  --color-danger-bg: #3b2b29;
+  --color-danger-border: #815a55;
+  --color-danger-hover: #e2b4ac;
+  --color-warning: #ccb888;
+  --color-warning-bg: #373225;
+  --color-warning-border: #76684b;
+  --color-warning-hover: #ddcda7;
+  --color-info: #a9b8c6;
+  --color-info-bg: #2b3339;
+  --color-equity: #bcb4a3;
+  --color-equity-bg: #333129;
+  --color-equity-border: #565144;
+  --on-accent: #18251c;
+  --on-danger: #291b18;
+  --on-warning: #282317;
+  --tag-default: #b2b3bf;
+  --chart-secondary: #90a9bb;
+  --chart-tertiary: #b79f78;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 4px 24px -2px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.18);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.24), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.32), 0 4px 6px -4px rgba(0, 0, 0, 0.24);
+  --shadow-card: 0 4px 24px -2px rgba(0, 0, 0, 0.22);
 }
 
 /* Global Reset & Base Rules */

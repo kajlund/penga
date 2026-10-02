@@ -1,10 +1,12 @@
+import { calmStyles } from './calm-styles.js';
+import { icon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { formatMoney, getSettlementPresentation, type DashboardSummary, type AccountBalanceSummary, type TransactionWithSplits } from '@penga/shared';
 
 @customElement('penga-dashboard')
 export class PengaDashboard extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: block;
       padding: 2rem 2.5rem 4rem;
@@ -49,20 +51,20 @@ export class PengaDashboard extends LitElement {
       padding: 0.65rem 1.25rem;
       border-radius: var(--radius-md);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
       border: 1px solid transparent;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+      box-shadow: 0 2px 8px var(--border-subtle);
       transition: all var(--transition-fast);
     }
 
     .btn-primary:hover {
       background: var(--color-primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+      box-shadow: 0 4px 12px var(--border-subtle);
     }
 
     .btn-secondary {
@@ -83,7 +85,7 @@ export class PengaDashboard extends LitElement {
 
     .btn-secondary:hover {
       background: var(--bg-subtle);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
     }
 
     /* Hero Net Available Liquidity Card */
@@ -93,7 +95,7 @@ export class PengaDashboard extends LitElement {
       border-radius: var(--radius-lg);
       padding: 2rem;
       margin-bottom: 2rem;
-      box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.06);
+      box-shadow: var(--shadow-md);
       position: relative;
       overflow: hidden;
     }
@@ -105,7 +107,7 @@ export class PengaDashboard extends LitElement {
       left: 0;
       right: 0;
       height: 4px;
-      background: linear-gradient(90deg, var(--color-primary) 0%, #0d9488 50%, #3b82f6 100%);
+      background: linear-gradient(90deg, var(--color-primary) 0%, var(--chart-tertiary) 50%, var(--chart-secondary) 100%);
     }
 
     .hero-top {
@@ -142,7 +144,7 @@ export class PengaDashboard extends LitElement {
     }
 
     .hero-amount.negative {
-      color: var(--color-expense-text);
+      color: var(--color-negative);
     }
 
     .hero-badge {
@@ -162,9 +164,9 @@ export class PengaDashboard extends LitElement {
     }
 
     .hero-badge.deficit {
-      background: var(--color-expense-subtle);
-      color: var(--color-expense-text);
-      border: 1px solid var(--color-expense-border);
+      background: var(--color-danger-bg);
+      color: var(--color-negative);
+      border: 1px solid var(--color-danger-border);
     }
 
     /* Liquidity Ratio Progress Bar */
@@ -212,13 +214,13 @@ export class PengaDashboard extends LitElement {
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       padding: 1.25rem 1.5rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+      box-shadow: var(--shadow-md);
       transition: transform var(--transition-fast), border-color var(--transition-fast);
     }
 
     .metric-card:hover {
       transform: translateY(-2px);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
     }
 
     .metric-header {
@@ -271,7 +273,7 @@ export class PengaDashboard extends LitElement {
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       padding: 1.5rem;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+      box-shadow: var(--shadow-md);
     }
 
     .section-header {
@@ -330,7 +332,7 @@ export class PengaDashboard extends LitElement {
 
     .account-row:hover {
       background: var(--bg-base);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
       transform: translateX(2px);
     }
 
@@ -381,8 +383,8 @@ export class PengaDashboard extends LitElement {
     }
 
     .badge-rollup {
-      background: var(--color-info-subtle);
-      color: var(--color-info-text);
+      background: var(--color-info-bg);
+      color: var(--color-info);
       border: 1px solid var(--color-info-border);
       font-size: 0.68rem;
       font-weight: 600;
@@ -407,7 +409,7 @@ export class PengaDashboard extends LitElement {
     }
 
     .account-balance.negative {
-      color: var(--color-expense-text);
+      color: var(--color-negative);
     }
 
     .account-balance.neutral {
@@ -440,7 +442,7 @@ export class PengaDashboard extends LitElement {
 
     .tx-item:hover {
       background: var(--bg-base);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
     }
 
     .tx-left {
@@ -552,16 +554,16 @@ export class PengaDashboard extends LitElement {
     .error-banner {
       padding: 1rem 1.25rem;
       border-radius: var(--radius-md);
-      background: var(--color-expense-subtle);
-      border: 1px solid var(--color-expense-border);
-      color: var(--color-expense-text);
+      background: var(--color-danger-bg);
+      border: 1px solid var(--color-danger-border);
+      color: var(--color-negative);
       font-size: 0.875rem;
       margin-bottom: 1.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-  `;
+  `, calmStyles];
 
   @state()
   private summary: DashboardSummary | null = null;
@@ -645,7 +647,7 @@ export class PengaDashboard extends LitElement {
     if (this.errorMessage && !this.summary) {
       return html`
         <div class="error-banner">
-          <span>⚠️ ${this.errorMessage}</span>
+          <span>${icon("triangle-alert", "ASSET", 16)} ${this.errorMessage}</span>
           <button class="btn-secondary" @click="${this.fetchSummary}">Retry</button>
         </div>
       `;
@@ -675,7 +677,7 @@ export class PengaDashboard extends LitElement {
 
         <div class="header-actions">
           <button class="btn-secondary" @click="${this.fetchSummary}" title="Refresh balances">
-            <span>🔄</span> Refresh
+            <span>${icon("refresh-cw", "ASSET", 16)}</span> Refresh
           </button>
           <button class="btn-primary" @click="${this.handleRecordTx}">
             <span>+</span> Record Transaction
@@ -686,7 +688,7 @@ export class PengaDashboard extends LitElement {
       ${this.errorMessage
         ? html`
             <div class="error-banner">
-              <span>⚠️ ${this.errorMessage}</span>
+              <span>${icon("triangle-alert", "ASSET", 16)} ${this.errorMessage}</span>
               <button class="btn-secondary" @click="${this.fetchSummary}">Retry</button>
             </div>
           `
@@ -697,7 +699,7 @@ export class PengaDashboard extends LitElement {
         <div class="hero-top">
           <div>
             <div class="hero-label">
-              <span>💧</span> Net Available Cash & Liquidity
+              <span>${icon("droplets", "ASSET", 16)}</span> Net Available Cash & Liquidity
             </div>
             <div class="hero-amount ${isHealthy ? 'positive' : 'negative'}">
               ${this.formatCents(data.netAvailableCents)}
@@ -706,7 +708,7 @@ export class PengaDashboard extends LitElement {
 
           <div>
             <span class="hero-badge ${isHealthy ? 'healthy' : 'deficit'}">
-              <span>${isHealthy ? '✓' : '⚠️'}</span>
+              <span>${icon(isHealthy ? "check" : "triangle-alert")}</span>
               <span>${isHealthy ? 'Positive Net Liquidity' : 'Liquidity Deficit'}</span>
             </span>
           </div>
@@ -729,7 +731,7 @@ export class PengaDashboard extends LitElement {
         <div class="metric-card">
           <div class="metric-header">
             <span class="metric-title">Total Assets</span>
-            <span class="metric-icon">🏦</span>
+            <span class="metric-icon">${icon("landmark", "ASSET", 18)}</span>
           </div>
           <div class="metric-value" style="color: var(--color-primary-text);">
             ${this.formatCents(data.totalAssetsCents)}
@@ -742,9 +744,9 @@ export class PengaDashboard extends LitElement {
         <div class="metric-card">
           <div class="metric-header">
             <span class="metric-title">Total Liabilities</span>
-            <span class="metric-icon">💳</span>
+            <span class="metric-icon">${icon("credit-card", "ASSET", 18)}</span>
           </div>
-          <div class="metric-value" style="color: ${data.totalLiabilitiesCents > 0 ? 'var(--color-expense-text)' : 'var(--text-primary)'};">
+          <div class="metric-value" style="color: ${data.totalLiabilitiesCents > 0 ? 'var(--color-negative)' : 'var(--text-primary)'};">
             ${this.formatCents(data.totalLiabilitiesCents)}
           </div>
           <div class="metric-footnote">
@@ -755,9 +757,9 @@ export class PengaDashboard extends LitElement {
         <div class="metric-card">
           <div class="metric-header">
             <span class="metric-title">Total Inflows / Income</span>
-            <span class="metric-icon">📈</span>
+            <span class="metric-icon">${icon("trending-up", "ASSET", 18)}</span>
           </div>
-          <div class="metric-value" style="color: var(--color-income-text);">
+          <div class="metric-value" style="color: var(--color-positive);">
             ${this.formatCents(data.totalIncomeCents)}
           </div>
           <div class="metric-footnote">Tracked across income streams</div>
@@ -766,9 +768,9 @@ export class PengaDashboard extends LitElement {
         <div class="metric-card">
           <div class="metric-header">
             <span class="metric-title">Total Outflows / Expenses</span>
-            <span class="metric-icon">📉</span>
+            <span class="metric-icon">${icon("trending-down", "ASSET", 18)}</span>
           </div>
-          <div class="metric-value" style="color: var(--color-expense-text);">
+          <div class="metric-value" style="color: var(--color-negative);">
             ${this.formatCents(data.totalExpensesCents)}
           </div>
           <div class="metric-footnote">Consolidated split expenses</div>
@@ -780,7 +782,7 @@ export class PengaDashboard extends LitElement {
         <!-- Left: Account Balances & Hierarchy Rollups -->
         <div class="section-card">
           <div class="section-header">
-            <h3><span>🌳</span> Account Balances & Rollups</h3>
+            <h3><span>${icon("wallet", "ASSET", 16)}</span> Account Balances & Rollups</h3>
             <button class="link-action" @click="${() => this.handleNavigate('accounts')}">
               Manage Accounts →
             </button>
@@ -811,16 +813,15 @@ export class PengaDashboard extends LitElement {
                         <div class="account-left">
                           <div
                             class="account-avatar"
-                            style="background-color: ${acc.color ? `${acc.color}22` : 'var(--bg-muted)'}; color: ${acc.color || 'var(--text-primary)'};"
                           >
-                            ${acc.icon || '📁'}
+                            ${icon(acc.icon, acc.type)}
                           </div>
                           <div class="account-meta">
                             <div class="account-name">${acc.name}</div>
                             <div class="account-tags">
                               <span
                                 class="badge-pill"
-                                style="background-color: var(--color-${acc.type.toLowerCase()}-subtle); color: var(--color-${acc.type.toLowerCase()}-text);"
+                                style="background-color: var(--color-${acc.type.toLowerCase()}-bg); color: var(--color-${acc.type.toLowerCase()});"
                               >
                                 ${acc.type}
                               </span>
@@ -853,7 +854,7 @@ export class PengaDashboard extends LitElement {
                       <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle);">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                           <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
-                            <span>🤝</span> Settlements
+                            <span>${icon("handshake", "ASSET", 16)}</span> Settlements
                           </div>
                           <div style="font-size: 0.75rem; color: var(--text-secondary);">
                             ${data.totalSettlementAssetsCents ? `Owed to you: ${this.formatCents(data.totalSettlementAssetsCents)}` : ''}
@@ -874,9 +875,8 @@ export class PengaDashboard extends LitElement {
                                 <div class="account-left">
                                   <div
                                     class="account-avatar"
-                                    style="background-color: ${acc.color ? `${acc.color}22` : 'var(--bg-muted)'}; color: ${acc.color || 'var(--color-settlement)'};"
                                   >
-                                    ${acc.icon || '🤝'}
+                                    ${icon(acc.icon, acc.type)}
                                   </div>
                                   <div class="account-meta">
                                     <div class="account-name">${acc.name}</div>
@@ -914,7 +914,7 @@ export class PengaDashboard extends LitElement {
         <!-- Right: Recent Transactions Feed -->
         <div class="section-card">
           <div class="section-header">
-            <h3><span>⚡</span> Recent Activity</h3>
+            <h3><span>${icon("copy", "ASSET", 16)}</span> Recent Activity</h3>
             <button class="link-action" @click="${() => this.handleNavigate('transactions')}">
               View Full Ledger →
             </button>
@@ -935,14 +935,14 @@ export class PengaDashboard extends LitElement {
                     const primarySplit = tx.splits.find((s) => s.amountCents < 0) || tx.splits[0];
                     const amount = primarySplit ? Math.abs(primarySplit.amountCents) : 0;
                     const splitSummary = tx.splits
-                      .map((s) => `${s.accountIcon || ''} ${s.accountName || 'Account'}`)
+                      .map((s) => `${icon(s.accountIcon, s.accountType || "EXPENSE")} ${s.accountName || 'Account'}`)
                       .join(' ⇄ ');
 
                     return html`
                       <div class="tx-item">
                         <div class="tx-left">
                           <div class="tx-icon-bubble">
-                            ${primarySplit?.accountIcon || '💸'}
+                            ${icon(primarySplit?.accountIcon, primarySplit?.accountType)}
                           </div>
                           <div class="tx-info">
                             <div class="tx-payee">${tx.payee || 'Unspecified Payee'}</div>
@@ -963,9 +963,9 @@ export class PengaDashboard extends LitElement {
                           type="button"
                           class="btn-edit-tx-dash"
                           @click="${() => this.handleEditTx(tx)}"
-                          title="Edit transaction and splits"
+                          title="Edit transaction and splits" aria-label="Edit transaction and splits"
                         >
-                          ✏️
+                          ${icon("pencil", "ASSET", 16)}
                         </button>
                       </div>
                     `;

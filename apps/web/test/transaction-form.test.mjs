@@ -8,7 +8,7 @@ for (const key of ['window','document','customElements','HTMLElement','HTMLDetai
 // Compile the actual component sources with the project's decorator settings.
 const generated = new URL('./.compiled/',import.meta.url);
 await fs.mkdir(generated,{recursive:true});
-for (const file of ['transaction-form','account-combobox']) {
+for (const file of ['icons','calm-styles','transaction-form','account-combobox']) {
  const source = await fs.readFile(new URL(`../src/components/${file}.ts`,import.meta.url),'utf8');
  const result = ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,experimentalDecorators:true,useDefineForClassFields:false}});
  await fs.writeFile(new URL(`${file}.js`,generated),result.outputText);

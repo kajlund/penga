@@ -1,10 +1,12 @@
+import { calmStyles } from './calm-styles.js';
+import { icon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { formatMoney, type TransactionWithSplits, type Account, type Tag } from '@penga/shared';
 
 @customElement('penga-transactions')
 export class PengaTransactions extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: block;
       padding: 2rem 2.5rem 4rem;
@@ -49,20 +51,20 @@ export class PengaTransactions extends LitElement {
       padding: 0.65rem 1.25rem;
       border-radius: var(--radius-md);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
       border: 1px solid transparent;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+      box-shadow: 0 2px 8px var(--border-subtle);
       transition: all var(--transition-fast);
     }
 
     .btn-primary:hover {
       background: var(--color-primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+      box-shadow: 0 4px 12px var(--border-subtle);
     }
 
     .btn-secondary {
@@ -83,7 +85,7 @@ export class PengaTransactions extends LitElement {
 
     .btn-secondary:hover {
       background: var(--bg-subtle);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
     }
 
     /* Reconciliation Stats & Controls Banner */
@@ -93,7 +95,7 @@ export class PengaTransactions extends LitElement {
       border-radius: var(--radius-lg);
       padding: 1.25rem 1.5rem;
       margin-bottom: 1.5rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+      box-shadow: var(--shadow-md);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -134,7 +136,7 @@ export class PengaTransactions extends LitElement {
     }
 
     .stat-value.pending {
-      color: var(--color-warning-text, #d97706);
+      color: var(--color-warning-text);
     }
 
     /* Filters Bar */
@@ -178,7 +180,7 @@ export class PengaTransactions extends LitElement {
       background: var(--bg-surface);
       color: var(--text-primary);
       font-weight: 600;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      box-shadow: var(--shadow-md);
     }
 
     .account-select {
@@ -203,7 +205,7 @@ export class PengaTransactions extends LitElement {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+      box-shadow: var(--shadow-md);
       overflow: visible;
     }
 
@@ -344,9 +346,9 @@ export class PengaTransactions extends LitElement {
       font-weight: 600;
       padding: 0.15rem 0.45rem;
       border-radius: var(--radius-full);
-      background: color-mix(in srgb, var(--tag-color, #6366f1) 15%, transparent);
-      color: var(--tag-color, #6366f1);
-      border: 1px solid color-mix(in srgb, var(--tag-color, #6366f1) 30%, transparent);
+      background: color-mix(in srgb, var(--tag-color) 15%, transparent);
+      color: var(--tag-color);
+      border: 1px solid color-mix(in srgb, var(--tag-color) 30%, transparent);
       letter-spacing: 0.01em;
       line-height: 1.2;
     }
@@ -392,8 +394,8 @@ export class PengaTransactions extends LitElement {
 
     .cleared-toggle.cleared:hover {
       background: var(--color-primary);
-      color: #ffffff;
-      box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+      color: var(--on-accent);
+      box-shadow: 0 2px 6px var(--border-subtle);
     }
 
     .cleared-toggle.pending {
@@ -468,7 +470,7 @@ export class PengaTransactions extends LitElement {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+      box-shadow: var(--shadow-md);
       padding: 0.35rem 0;
       display: flex;
       flex-direction: column;
@@ -531,21 +533,21 @@ export class PengaTransactions extends LitElement {
     }
 
     .actions-menu-item.danger {
-      color: var(--color-expense, #dc2626);
+      color: var(--color-negative);
     }
 
     .actions-menu-item.danger:hover:not(:disabled) {
-      background: var(--color-expense-bg, rgba(239, 68, 68, 0.1));
-      color: var(--color-expense, #dc2626);
+      background: var(--color-danger-bg);
+      color: var(--color-negative);
     }
 
     .actions-menu-item.warning {
-      color: #d97706;
+      color: var(--color-warning);
     }
 
     .actions-menu-item.warning:hover:not(:disabled) {
-      background: rgba(245, 158, 11, 0.1);
-      color: #b45309;
+      background: var(--color-warning-bg);
+      color: var(--color-warning-hover);
     }
 
     .actions-menu-divider {
@@ -585,15 +587,15 @@ export class PengaTransactions extends LitElement {
     }
 
     .tx-status-badge.voided {
-      background: rgba(100, 116, 139, 0.15);
+      background: var(--bg-subtle);
       color: var(--text-secondary);
-      border: 1px solid var(--border-default);
+      border: 1px solid var(--border-strong);
     }
 
     .tx-status-badge.reversal {
-      background: rgba(14, 165, 233, 0.12);
-      color: #0284c7;
-      border: 1px solid rgba(14, 165, 233, 0.25);
+      background: var(--color-info-bg);
+      color: var(--color-info);
+      border: 1px solid var(--color-info-border);
     }
 
     .tx-void-meta {
@@ -609,7 +611,7 @@ export class PengaTransactions extends LitElement {
       font-family: var(--font-sans);
       font-size: 0.75rem;
       font-weight: 500;
-      color: var(--color-primary-text, #059669);
+      color: var(--color-primary-text);
       cursor: pointer;
       text-decoration: underline;
       display: inline-flex;
@@ -618,7 +620,7 @@ export class PengaTransactions extends LitElement {
     }
 
     .btn-link:hover {
-      color: var(--color-primary-hover, #047857);
+      color: var(--color-primary-hover);
     }
 
     @keyframes highlightPulse {
@@ -634,7 +636,7 @@ export class PengaTransactions extends LitElement {
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: var(--overlay);
       backdrop-filter: blur(4px);
       z-index: 2000;
       display: flex;
@@ -653,7 +655,7 @@ export class PengaTransactions extends LitElement {
       background: var(--bg-surface);
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-lg);
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--shadow-md);
       width: 100%;
       max-width: 500px;
       overflow: hidden;
@@ -721,14 +723,14 @@ export class PengaTransactions extends LitElement {
       gap: 0.4rem;
       padding: 0.6rem 1.15rem;
       border-radius: var(--radius-md);
-      background: var(--color-expense, #dc2626);
-      color: #ffffff;
+      background: var(--color-negative);
+      color: var(--on-accent);
       border: none;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--shadow-md);
       transition: all var(--transition-fast);
     }
 
@@ -748,19 +750,19 @@ export class PengaTransactions extends LitElement {
       gap: 0.4rem;
       padding: 0.6rem 1.15rem;
       border-radius: var(--radius-md);
-      background: #d97706;
-      color: #ffffff;
+      background: var(--color-warning);
+      color: var(--on-accent);
       border: none;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--shadow-md);
       transition: all var(--transition-fast);
     }
 
     .btn-warning-action:hover:not(:disabled) {
-      background: #b45309;
+      background: var(--color-warning-hover);
       transform: translateY(-1px);
     }
 
@@ -784,7 +786,7 @@ export class PengaTransactions extends LitElement {
     .dialog-input {
       padding: 0.55rem 0.75rem;
       border-radius: var(--radius-md);
-      border: 1px solid var(--border-default);
+      border: 1px solid var(--border-strong);
       background: var(--bg-surface);
       color: var(--text-primary);
       font-family: var(--font-sans);
@@ -800,9 +802,9 @@ export class PengaTransactions extends LitElement {
     .dialog-error-banner {
       padding: 0.65rem 0.85rem;
       border-radius: var(--radius-md);
-      background: var(--color-expense-bg, rgba(239, 68, 68, 0.1));
-      border: 1px solid var(--color-expense-border, rgba(239, 68, 68, 0.3));
-      color: var(--color-expense, #dc2626);
+      background: var(--color-danger-bg);
+      border: 1px solid var(--color-danger-border);
+      color: var(--color-negative);
       font-size: 0.825rem;
       font-weight: 500;
     }
@@ -836,7 +838,7 @@ export class PengaTransactions extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
-      background: rgba(0, 0, 0, 0.015);
+      background: var(--bg-subtle);
       border-top: 1px dashed var(--border-subtle);
     }
 
@@ -862,7 +864,7 @@ export class PengaTransactions extends LitElement {
     }
 
     .split-amount.negative {
-      color: var(--color-expense-text);
+      color: var(--color-negative);
     }
 
     .split-amount.positive {
@@ -897,7 +899,7 @@ export class PengaTransactions extends LitElement {
         transform: rotate(360deg);
       }
     }
-  `;
+  `, calmStyles];
 
   @property({ type: Boolean })
   reconciliationMode = false;
@@ -1515,7 +1517,7 @@ export class PengaTransactions extends LitElement {
         </div>
         <div class="header-actions">
           <button class="btn-secondary" @click="${this.fetchData}" title="Refresh transactions">
-            <span>🔄</span> Refresh
+            <span>${icon("refresh-cw", "ASSET", 16)}</span> Refresh
           </button>
           <button class="btn-primary" @click="${this.handleOpenCreate}">
             <span>+</span> Record Transaction
@@ -1532,7 +1534,7 @@ export class PengaTransactions extends LitElement {
           </div>
           <div class="stat-box">
             <span class="stat-label">Cleared with Bank</span>
-            <span class="stat-value cleared">✓ ${clearedCount} reconciled</span>
+            <span class="stat-value cleared">${icon("check", "ASSET", 16)} ${clearedCount} reconciled</span>
           </div>
           <div class="stat-box">
             <span class="stat-label">Uncleared / Pending</span>
@@ -1551,7 +1553,7 @@ export class PengaTransactions extends LitElement {
             ${this.accounts.map(
               (acc) => html`
                 <option value="${acc.id}">
-                  ${acc.icon || '📁'} ${acc.name} (${acc.type})
+                  ${acc.name} (${acc.type})
                 </option>
               `
             )}
@@ -1566,7 +1568,7 @@ export class PengaTransactions extends LitElement {
             <option value="">All Tags</option>
             ${this.tags.map(
               (tag) => html`
-                <option value="${tag.id}">🏷️ #${tag.name}</option>
+                <option value="${tag.id}">#${tag.name}</option>
               `
             )}
           </select>
@@ -1604,7 +1606,7 @@ export class PengaTransactions extends LitElement {
       <!-- Ledger Table -->
       <div class="ledger-card">
         <div class="ledger-header">
-          <span style="text-align: center; color: var(--text-muted); opacity: 0.4; font-size: 0.85rem;" title="Drag handle to reorder within date">⠿</span>
+          <span style="text-align: center; color: var(--text-muted); font-size: 0.85rem;" title="Drag handle to reorder within date">${icon("grip-vertical", "ASSET", 16)}</span>
           <span>Date</span>
           <span>Payee & Notes</span>
           <span style="text-align: center;">Status</span>
@@ -1630,7 +1632,7 @@ export class PengaTransactions extends LitElement {
           : filteredTxs.length === 0
           ? html`
               <div class="empty-state">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💸</div>
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${icon("arrow-left-right", "ASSET", 32)}</div>
                 <h4 style="margin: 0 0 0.5rem; color: var(--text-primary);">No Matching Transactions</h4>
                 <p style="margin: 0 0 1.5rem;">No transactions match the selected filters.</p>
                 <button class="btn-primary" @click="${this.handleOpenCreate}">
@@ -1673,7 +1675,7 @@ export class PengaTransactions extends LitElement {
                             @dragstart="${(e: DragEvent) => this.handleDragStart(e, tx, canReorder)}"
                             @dragend="${this.handleDragEnd}"
                           >
-                            ⠿
+                            ${icon("grip-vertical", "ASSET", 16)}
                           </div>
                         </div>
 
@@ -1689,7 +1691,7 @@ export class PengaTransactions extends LitElement {
                                       (tag) => html`
                                         <span
                                           class="tx-tag-badge"
-                                          style="--tag-color: ${tag.color || '#6366f1'};"
+                                          style="--tag-color: ${tag.color || 'var(--tag-default)'};"
                                         >
                                           #${tag.name}
                                         </span>
@@ -1703,7 +1705,7 @@ export class PengaTransactions extends LitElement {
                           ${isVoided
                             ? html`
                                 <div class="tx-void-meta-row">
-                                  <span class="tx-status-badge voided">🚫 Voided</span>
+                                  <span class="tx-status-badge voided">${icon("ban", "ASSET", 16)} Voided</span>
                                   ${tx.voidReason ? html`<span class="tx-void-meta">“${tx.voidReason}”</span>` : nothing}
                                   ${tx.reversalTransactionId
                                     ? html`
@@ -1712,7 +1714,7 @@ export class PengaTransactions extends LitElement {
                                           class="btn-link"
                                           @click="${() => this.scrollToTx(tx.reversalTransactionId!)}"
                                         >
-                                          View reversal ↗
+                                          View reversal ${icon("arrow-up-right", "ASSET", 16)}
                                         </button>
                                       `
                                     : nothing}
@@ -1721,7 +1723,7 @@ export class PengaTransactions extends LitElement {
                             : isReversal
                             ? html`
                                 <div class="tx-void-meta-row">
-                                  <span class="tx-status-badge reversal">↩️ Reversal</span>
+                                  <span class="tx-status-badge reversal">${icon("undo-2", "ASSET", 16)} Reversal</span>
                                   ${tx.reversesTransactionId
                                     ? html`
                                         <button
@@ -1729,7 +1731,7 @@ export class PengaTransactions extends LitElement {
                                           class="btn-link"
                                           @click="${() => this.scrollToTx(tx.reversesTransactionId!)}"
                                         >
-                                          View original ↗
+                                          View original ${icon("arrow-up-right", "ASSET", 16)}
                                         </button>
                                       `
                                     : nothing}
@@ -1747,7 +1749,7 @@ export class PengaTransactions extends LitElement {
                             title="${isVoided || isReversal ? 'Cleared state is locked on voided/reversal transactions' : 'Click to toggle cleared status for bank reconciliation'}"
                             ?disabled="${this.updatingTxId === tx.id || isVoided || isReversal}"
                           >
-                            <span class="cleared-icon">${tx.isCleared ? '✓' : '○'}</span>
+                            <span class="cleared-icon">${icon(tx.isCleared ? "check" : "circle", "ASSET", 16)}</span>
                             <span>${tx.isCleared ? 'Cleared' : 'Uncleared'}</span>
                           </button>
                         </div>
@@ -1763,7 +1765,7 @@ export class PengaTransactions extends LitElement {
                               title="Transaction actions"
                               aria-label="Actions"
                             >
-                              ···
+                              ${icon("ellipsis", "ASSET", 16)}
                             </button>
 
                              ${this.openMenuTxId === tx.id
@@ -1779,7 +1781,7 @@ export class PengaTransactions extends LitElement {
                                               this.handleDuplicateTransaction(tx);
                                             }}"
                                           >
-                                            <span>⚡</span>
+                                            <span>${icon("copy", "ASSET", 16)}</span>
                                             <span>Duplicate as New</span>
                                           </button>
                                           ${tx.reversalTransactionId
@@ -1792,7 +1794,7 @@ export class PengaTransactions extends LitElement {
                                                     this.scrollToTx(tx.reversalTransactionId!);
                                                   }}"
                                                 >
-                                                  <span>↩️</span>
+                                                  <span>${icon("undo-2", "ASSET", 16)}</span>
                                                   <span>View Reversal</span>
                                                 </button>
                                               `
@@ -1808,7 +1810,7 @@ export class PengaTransactions extends LitElement {
                                               this.handleDuplicateTransaction(tx);
                                             }}"
                                           >
-                                            <span>⚡</span>
+                                            <span>${icon("copy", "ASSET", 16)}</span>
                                             <span>Duplicate as New</span>
                                           </button>
                                           ${tx.reversesTransactionId
@@ -1821,7 +1823,7 @@ export class PengaTransactions extends LitElement {
                                                     this.scrollToTx(tx.reversesTransactionId!);
                                                   }}"
                                                 >
-                                                  <span>📄</span>
+                                                  <span>${icon("file-text", "ASSET", 16)}</span>
                                                   <span>View Original</span>
                                                 </button>
                                               `
@@ -1836,7 +1838,7 @@ export class PengaTransactions extends LitElement {
                                               this.handleEditTransaction(tx);
                                             }}"
                                           >
-                                            <span>✏️</span>
+                                            <span>${icon("pencil", "ASSET", 16)}</span>
                                             <span>Edit Transaction</span>
                                           </button>
 
@@ -1848,7 +1850,7 @@ export class PengaTransactions extends LitElement {
                                               this.handleDuplicateTransaction(tx);
                                             }}"
                                           >
-                                            <span>⚡</span>
+                                            <span>${icon("copy", "ASSET", 16)}</span>
                                             <span>Duplicate as New</span>
                                           </button>
 
@@ -1860,7 +1862,7 @@ export class PengaTransactions extends LitElement {
                                               this.handleSaveAsTemplate(tx);
                                             }}"
                                           >
-                                            <span>⭐</span>
+                                            <span>${icon("star", "ASSET", 16)}</span>
                                             <span>Save as Template</span>
                                           </button>
 
@@ -1872,7 +1874,7 @@ export class PengaTransactions extends LitElement {
                                               this.toggleCleared(tx);
                                             }}"
                                           >
-                                            <span>${tx.isCleared ? '○' : '✓'}</span>
+                                            <span>${icon(tx.isCleared ? "circle" : "check", "ASSET", 16)}</span>
                                             <span>Mark as ${tx.isCleared ? 'Uncleared' : 'Cleared'}</span>
                                           </button>
 
@@ -1914,7 +1916,7 @@ export class PengaTransactions extends LitElement {
                                                   disabled
                                                   title="Opening balance transactions are protected. Use Balance Adjustment to adjust account balance."
                                                 >
-                                                  <span>🔒</span>
+                                                  <span>${icon("lock", "ASSET", 16)}</span>
                                                   <span>Protected Opening Balance</span>
                                                 </button>
                                               `
@@ -1928,7 +1930,7 @@ export class PengaTransactions extends LitElement {
                                                     this.openVoidModal(tx);
                                                   }}"
                                                 >
-                                                  <span>↩️</span>
+                                                  <span>${icon("undo-2", "ASSET", 16)}</span>
                                                   <span>Reverse / Void</span>
                                                 </button>
                                               `
@@ -1941,7 +1943,7 @@ export class PengaTransactions extends LitElement {
                                                     this.openDeleteModal(tx);
                                                   }}"
                                                 >
-                                                  <span>🗑️</span>
+                                                  <span>${icon("trash-2", "ASSET", 16)}</span>
                                                   <span>Delete Transaction</span>
                                                 </button>
                                               `}
@@ -1959,7 +1961,7 @@ export class PengaTransactions extends LitElement {
                           (s) => html`
                             <div class="split-detail-line">
                               <span class="split-account-tag">
-                                <span>${s.accountIcon || '📁'}</span>
+                                <span>${icon(s.accountIcon, s.accountType || "EXPENSE")}</span>
                                 <strong>${s.accountName || 'Account'}</strong>
                                 <span style="font-size: 0.7rem; color: var(--text-muted);">(${s.accountType})</span>
                               </span>
@@ -1982,7 +1984,7 @@ export class PengaTransactions extends LitElement {
       ${this.toastMessage
         ? html`
             <div class="toast-banner">
-              <span>✓</span>
+              <span>${icon("check", "ASSET", 16)}</span>
               <span>${this.toastMessage}</span>
             </div>
           `
@@ -1998,7 +2000,7 @@ export class PengaTransactions extends LitElement {
         <div class="modal-card" @click="${(e: Event) => e.stopPropagation()}">
           <div class="modal-header">
             <h3>Delete transaction?</h3>
-            <button type="button" class="modal-close-btn" @click="${this.closeModals}" title="Close">✕</button>
+            <button type="button" class="modal-close-btn" @click="${this.closeModals}" title="Close" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
           </div>
           <div class="modal-body">
             ${this.actionError ? html`<div class="dialog-error-banner">${this.actionError}</div>` : nothing}
@@ -2035,7 +2037,7 @@ export class PengaTransactions extends LitElement {
         <div class="modal-card" @click="${(e: Event) => e.stopPropagation()}">
           <div class="modal-header">
             <h3>Reverse cleared transaction?</h3>
-            <button type="button" class="modal-close-btn" @click="${this.closeModals}" title="Close">✕</button>
+            <button type="button" class="modal-close-btn" @click="${this.closeModals}" title="Close" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
           </div>
           <div class="modal-body">
             ${this.actionError ? html`<div class="dialog-error-banner">${this.actionError}</div>` : nothing}

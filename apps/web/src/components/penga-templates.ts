@@ -1,3 +1,6 @@
+import { calmStyles } from './calm-styles.js';
+import './icon-picker.js';
+import { icon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -12,7 +15,7 @@ interface TemplateSplitRow {
 
 @customElement('penga-templates')
 export class PengaTemplates extends LitElement {
-  static override styles = css`
+  static override styles = [css`
     :host {
       display: block;
       padding: 2rem 2.5rem 4rem;
@@ -57,20 +60,20 @@ export class PengaTemplates extends LitElement {
       padding: 0.65rem 1.25rem;
       border-radius: var(--radius-md);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
       border: 1px solid transparent;
       font-family: var(--font-sans);
       font-size: 0.875rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
+      box-shadow: 0 2px 8px var(--border-subtle);
       transition: all var(--transition-fast);
     }
 
     .btn-primary:hover {
       background: var(--color-primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+      box-shadow: 0 4px 12px var(--border-subtle);
     }
 
     .btn-secondary {
@@ -91,7 +94,7 @@ export class PengaTemplates extends LitElement {
 
     .btn-secondary:hover {
       background: var(--bg-subtle);
-      border-color: var(--border-default);
+      border-color: var(--border-strong);
     }
 
     /* Search & Filter Bar */
@@ -240,8 +243,8 @@ export class PengaTemplates extends LitElement {
     }
 
     .btn-icon.danger:hover {
-      background: #fee2e2;
-      color: #dc2626;
+      background: var(--color-danger-bg);
+      color: var(--color-danger);
     }
 
     /* Template Note */
@@ -349,20 +352,20 @@ export class PengaTemplates extends LitElement {
       padding: 0.6rem 1rem;
       border-radius: var(--radius-md);
       background: var(--color-primary);
-      color: #ffffff;
+      color: var(--on-accent);
       border: none;
       font-family: var(--font-sans);
       font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+      box-shadow: 0 2px 6px var(--border-subtle);
       transition: all var(--transition-fast);
     }
 
     .btn-record:hover {
       background: var(--color-primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 4px 10px rgba(5, 150, 105, 0.3);
+      box-shadow: 0 4px 10px var(--border-subtle);
     }
 
     /* Empty state */
@@ -405,7 +408,7 @@ export class PengaTemplates extends LitElement {
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.65);
+      background: var(--overlay);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       z-index: 1000;
@@ -596,7 +599,7 @@ export class PengaTemplates extends LitElement {
       background: var(--bg-muted);
       color: var(--text-primary);
     }
-  `;
+  `, calmStyles];
 
   @state()
   private templates: TransactionTemplateWithSplits[] = [];
@@ -629,7 +632,7 @@ export class PengaTemplates extends LitElement {
   private templateNote = '';
 
   @state()
-  private templateIcon = '⚡';
+  private templateIcon = 'lucide:copy';
 
   @state()
   private templateSplits: TemplateSplitRow[] = [];
@@ -702,7 +705,7 @@ export class PengaTemplates extends LitElement {
     this.templateName = '';
     this.templatePayee = '';
     this.templateNote = '';
-    this.templateIcon = '⚡';
+    this.templateIcon = 'lucide:copy';
 
     const sourceAccId = this.accounts[0]?.id || '';
     const destAccId = this.accounts.find((a) => a.id !== sourceAccId)?.id || '';
@@ -719,7 +722,7 @@ export class PengaTemplates extends LitElement {
     this.templateName = template.name;
     this.templatePayee = template.payee || '';
     this.templateNote = template.note || '';
-    this.templateIcon = template.icon || '⚡';
+    this.templateIcon = template.icon || '';
 
     this.templateSplits = (template.splits || []).map((s, idx) => ({
       id: `split-${idx}`,
@@ -790,7 +793,7 @@ export class PengaTemplates extends LitElement {
         name: this.templateName.trim(),
         payee: this.templatePayee.trim() || null,
         note: this.templateNote.trim() || null,
-        icon: this.templateIcon.trim() || '⚡',
+        icon: this.templateIcon.trim() || 'lucide:copy',
         splits: this.templateSplits.map((s, idx) => ({
           accountId: s.accountId,
           amountCents: this.parseCents(s.amount),
@@ -845,7 +848,7 @@ export class PengaTemplates extends LitElement {
       <!-- Page Header -->
       <div class="page-header">
         <div class="header-title">
-          <h2>Transaction Templates ⚡</h2>
+          <h2>Transaction Templates ${icon("copy", "ASSET", 16)}</h2>
           <p>Reusable blueprints for recurring bills, regular paychecks, and frequent split entries</p>
         </div>
         <div class="header-actions">
@@ -859,7 +862,7 @@ export class PengaTemplates extends LitElement {
       <!-- Filter & Search Bar -->
       <div class="filter-bar">
         <div class="search-input-wrap">
-          <span class="search-icon">🔍</span>
+          <span class="search-icon">${icon("search", "ASSET", 16)}</span>
           <input
             type="text"
             class="search-input"
@@ -879,7 +882,7 @@ export class PengaTemplates extends LitElement {
         : filtered.length === 0
         ? html`
             <div class="empty-state">
-              <div class="empty-icon">📑</div>
+              <div class="empty-icon">${icon("list-checks", "ASSET", 32)}</div>
               <h3>${this.searchQuery ? 'No templates match your search' : 'No templates yet'}</h3>
               <p>
                 ${this.searchQuery
@@ -907,26 +910,26 @@ export class PengaTemplates extends LitElement {
                       <!-- Card Header -->
                       <div class="card-top">
                         <div class="card-header-main">
-                          <div class="template-icon-badge">${t.icon || '⚡'}</div>
+                          <div class="template-icon-badge">${icon(t.icon, "TEMPLATE")}</div>
                           <div class="template-titles">
                             <h3>${t.name}</h3>
-                            ${t.payee ? html`<div class="template-payee">🏢 ${t.payee}</div>` : nothing}
+                            ${t.payee ? html`<div class="template-payee">${icon("building-2", "ASSET", 16)} ${t.payee}</div>` : nothing}
                           </div>
                         </div>
                         <div class="template-card-menu">
                           <button
                             class="btn-icon"
                             @click="${() => this.handleOpenEdit(t)}"
-                            title="Edit template"
+                            title="Edit template" aria-label="Edit template"
                           >
-                            ✏️
+                            ${icon("pencil", "ASSET", 16)}
                           </button>
                           <button
                             class="btn-icon danger"
                             @click="${() => this.handleDelete(t)}"
-                            title="Delete template"
+                            title="Delete template" aria-label="Delete template"
                           >
-                            🗑️
+                            ${icon("trash-2", "ASSET", 16)}
                           </button>
                         </div>
                       </div>
@@ -939,8 +942,7 @@ export class PengaTemplates extends LitElement {
                           (s) => html`
                             <div class="split-preview-row">
                               <span class="split-acc">
-                                <span class="split-dot" style="background: ${s.accountColor || '#64748b'};"></span>
-                                <span>${s.accountIcon || '📁'} ${s.accountName || 'Account'}</span>
+                                                                <span>${icon(s.accountIcon, s.accountType || "EXPENSE")} ${s.accountName || 'Account'}</span>
                               </span>
                               <span class="split-amt ${s.amountCents < 0 ? 'negative' : s.amountCents > 0 ? 'positive' : 'variable'}">
                                 ${s.amountCents !== 0 ? this.formatCents(s.amountCents) : 'Variable'}
@@ -956,7 +958,7 @@ export class PengaTemplates extends LitElement {
                             <div class="template-tags">
                               ${t.tags.map(
                                 (tag) => html`
-                                  <span class="tag-badge" style="border-color: ${tag.color || '#6366f1'};">
+                                  <span class="tag-badge" style="border-color: ${tag.color || 'var(--tag-default)'};">
                                     #${tag.name}
                                   </span>
                                 `
@@ -969,7 +971,7 @@ export class PengaTemplates extends LitElement {
                     <!-- Footer Action: 1-Click Instantiate -->
                     <div class="card-footer">
                       <button class="btn-record" @click="${() => this.handleRecordNow(t)}">
-                        <span>⚡</span>
+                        <span>${icon("copy", "ASSET", 16)}</span>
                         <span>Record Now</span>
                       </button>
                     </div>
@@ -994,7 +996,7 @@ export class PengaTemplates extends LitElement {
                     <h3>${this.editingTemplate ? 'Edit Template' : 'Create Transaction Template'}</h3>
                     <p>Configure a blueprint for recurring or frequent transactions</p>
                   </div>
-                  <button class="close-btn" @click="${() => (this.isModalOpen = false)}">✕</button>
+                  <button class="close-btn" @click="${() => (this.isModalOpen = false)}" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
                 </div>
 
                 <div class="modal-body">
@@ -1010,14 +1012,8 @@ export class PengaTemplates extends LitElement {
                       />
                     </div>
                     <div class="form-group">
-                      <label class="form-label">Icon / Emoji</label>
-                      <input
-                        type="text"
-                        class="form-input"
-                        placeholder="⚡"
-                        .value="${this.templateIcon}"
-                        @input="${(e: any) => (this.templateIcon = e.target.value)}"
-                      />
+                      <label class="form-label">Icon</label>
+                      <penga-icon-picker .value=${this.templateIcon} accountType="TEMPLATE" @icon-selected=${(event: CustomEvent) => this.templateIcon = event.detail.value}></penga-icon-picker>
                     </div>
                   </div>
 
@@ -1087,9 +1083,9 @@ export class PengaTemplates extends LitElement {
                             class="btn-icon danger"
                             ?disabled="${this.templateSplits.length <= 2}"
                             @click="${() => this.removeSplitRow(row.id)}"
-                            title="Remove split"
+                            title="Remove split" aria-label="Remove split"
                           >
-                            ✕
+                            ${icon("x", "ASSET", 16)}
                           </button>
                         </div>
                       `
