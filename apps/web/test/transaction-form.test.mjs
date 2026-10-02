@@ -80,3 +80,28 @@ test('template with settlement allocation loads and roundtrips in guided expense
   assert.equal(form.entry.rows.length, 2);
 });
 
+
+test('opening balance edit exposes calendar date and automatically balances the equity amount', async () => {
+  await form.edit({ id: 'opening', transactionDate: '2026-10-01', payee: 'Opening Balance', note: 'Starting balance for card', isCleared: true,
+    splits: [{ accountId: 'card', accountType: 'LIABILITY', amountCents: -45000 }, { accountId: 'equity', accountType: 'EQUITY', amountCents: 45000 }], tags: [] });
+  await settle();
+  await type('Opening-balance date', '2026-09-30');
+  await type('Description (optional)', 'Balance from September statement');
+  await type('Opening balance (', '-500.25');
+  assert.equal(form.canSubmit(), true);
+  await form.submitTransaction();
+  assert.equal(requests[0].url, '/api/transactions/opening');
+  assert.equal(requests[0].transactionDate, '2026-09-30');
+  assert.equal(requests[0].note, 'Balance from September statement');
+  assert.deepEqual(requests[0].splits, [{ accountId: 'card', amountCents: -50025 }, { accountId: 'equity', amountCents: 50025 }]);
+});
+
+test('opening balance can be edited to zero while preserving two balanced entries', async () => {
+  await form.edit({ id: 'opening', transactionDate: '2026-10-01', payee: 'Opening Balance', note: 'Starting balance for bank', isCleared: true,
+    splits: [{ accountId: 'bank', accountType: 'ASSET', amountCents: 100 }, { accountId: 'equity', accountType: 'EQUITY', amountCents: -100 }], tags: [] });
+  await settle();
+  await type('Opening balance (', '0');
+  assert.equal(form.canSubmit(), true);
+  await form.submitTransaction();
+  assert.deepEqual(requests[0].splits, [{ accountId: 'bank', amountCents: 0 }, { accountId: 'equity', amountCents: 0 }]);
+});

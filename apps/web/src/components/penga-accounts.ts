@@ -3,7 +3,7 @@ import './icon-picker.js';
 import { icon, resolveIcon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { AccountType, type AccountTreeNode } from '@penga/shared';
+import { AccountType, parseMoney, type AccountTreeNode } from '@penga/shared';
 
 @customElement('penga-accounts')
 export class PengaAccounts extends LitElement {
@@ -777,6 +777,9 @@ export class PengaAccounts extends LitElement {
   @state()
   private createSettlementDate = '';
 
+  @state() private actionError = '';
+  private today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
   @state()
   private flatAccounts: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
 
@@ -911,13 +914,18 @@ export class PengaAccounts extends LitElement {
     this.createColor = this.getDefaultColor(this.createType);
     this.createInitialBalance = '';
     this.createSettlementPosition = 'they-owe';
-    this.createSettlementDate = '';
+    this.createSettlementDate = this.today();
+    this.actionError = '';
     this.isCreateModalOpen = true;
   }
 
   private openEditModal(node: AccountTreeNode) {
     this.closeMenu();
     this.editingAccountId = node.id;
+    this.createInitialBalance = '';
+    this.createSettlementDate = this.today();
+    this.createSettlementPosition = 'they-owe';
+    this.actionError = '';
     this.createName = node.name;
     this.createDescription = node.description || '';
     this.createType = node.type;
@@ -963,40 +971,22 @@ export class PengaAccounts extends LitElement {
 
   private async submitCreate(e: Event) {
     e.preventDefault();
+    this.actionError = '';
     if (!this.createName.trim()) {
-      alert('Account name is required');
+      this.actionError = 'Account name is required';
       return;
     }
 
     try {
+      const parsed = this.createInitialBalance ? parseMoney(this.createInitialBalance) : 0;
+      if (!Number.isFinite(parsed)) throw new Error('Enter a valid opening balance with at most two decimal places within the supported range.');
       let initialBalanceCents: number | undefined;
-      let initialBalanceDate: string | undefined;
-
-      if (!this.editingAccountId) {
-        if (this.createType === 'SETTLEMENT') {
-          if (this.createSettlementPosition !== 'settled' && this.createInitialBalance) {
-            const clean = this.createInitialBalance.replace(',', '.').trim();
-            const num = parseFloat(clean);
-            if (!isNaN(num) && num !== 0) {
-              const abs = Math.abs(num);
-              initialBalanceCents = this.createSettlementPosition === 'they-owe' ? Math.round(abs * 100) : -Math.round(abs * 100);
-            }
-          }
-          if (this.createSettlementDate && /^\d{4}-\d{2}-\d{2}$/.test(this.createSettlementDate)) {
-            initialBalanceDate = this.createSettlementDate;
-          }
-        } else if (
-          this.createInitialBalance &&
-          (this.createType === 'ASSET' || this.createType === 'LIABILITY')
-        ) {
-          const clean = this.createInitialBalance.replace(',', '.').trim();
-          const num = parseFloat(clean);
-          if (!isNaN(num) && num !== 0) {
-            initialBalanceCents = Math.round(num * 100);
-          }
-        }
+      const initialBalanceDate = this.createSettlementDate;
+      if (parsed !== 0 && this.createType === 'SETTLEMENT' && this.createSettlementPosition !== 'settled') {
+        initialBalanceCents = this.createSettlementPosition === 'they-owe' ? Math.abs(parsed) : -Math.abs(parsed);
+      } else if (parsed !== 0 && (this.createType === 'ASSET' || this.createType === 'LIABILITY')) {
+        initialBalanceCents = parsed;
       }
-
       const payload = {
         name: this.createName.trim(),
         description: this.createDescription.trim() || null,
@@ -1028,15 +1018,13 @@ export class PengaAccounts extends LitElement {
       this.editingAccountId = null;
       await this.fetchAccounts();
     } catch (err: any) {
-      alert(err.message);
+      this.actionError = err.message || 'Unable to complete the account action.';
     }
   }
 
   private async deleteAccount(node: AccountTreeNode) {
-    const hasChildren = node.children && node.children.length > 0;
-    const confirmPrompt = hasChildren
-      ? `Account "${node.name}" has ${node.children.length} sub-account(s). Deleting it will also delete its sub-accounts! Proceed?`
-      : `Delete account "${node.name}"?`;
+    this.actionError = '';
+    const confirmPrompt = `Delete account "${node.name}"? Accounts with transactions, templates, budgets or sub-accounts must have those dependencies removed or reassigned first.`;
 
     if (!confirm(confirmPrompt)) {
       return;
@@ -1054,7 +1042,7 @@ export class PengaAccounts extends LitElement {
 
       await this.fetchAccounts();
     } catch (err: any) {
-      alert(err.message);
+      this.actionError = err.message || 'Unable to complete the account action.';
     }
   }
 
@@ -1330,6 +1318,7 @@ export class PengaAccounts extends LitElement {
         </div>
       </div>
 
+${this.actionError ? html`<p class="empty-state" role="alert">${this.actionError}</p>` : nothing}
       <!-- Account Tree Content -->
       <div class="tree-card">
         <div class="tree-header">
@@ -1445,7 +1434,7 @@ export class PengaAccounts extends LitElement {
                         : nothing}
                     </div>
 
-                    ${!this.editingAccountId && this.createType === 'SETTLEMENT'
+                    ${this.createType === 'SETTLEMENT'
                       ? html`
                           <div class="form-group" style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
                             <label class="form-label" style="margin-bottom: 0.4rem; font-weight: 600;">Opening position</label>
@@ -1514,11 +1503,11 @@ export class PengaAccounts extends LitElement {
                         `
                       : nothing}
 
-                    ${!this.editingAccountId && (this.createType === 'ASSET' || this.createType === 'LIABILITY')
+                    ${(this.createType === 'ASSET' || this.createType === 'LIABILITY')
                       ? html`
                           <div class="form-group">
                             <label class="form-label">
-                              Initial Balance (Optional)
+                              Opening Balance (Optional)
                               <span style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">
                                 — auto-creates opening transaction against Equity
                               </span>
@@ -1534,6 +1523,11 @@ export class PengaAccounts extends LitElement {
                         `
                       : nothing}
 
+                    ${['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(this.createType) ? html`<div class="form-group">
+                      ${this.createType !== 'SETTLEMENT' ? html`<label class="form-label">Opening-balance date</label><input type="date" class="form-input" .value=${this.createSettlementDate} @input=${(e: any) => this.createSettlementDate = e.target.value}>` : nothing}
+                      <p>Enter the balance at the beginning of the selected date, before ordinary transactions on that date. Negative amounts represent debt. Opening balances use equity, never income or expenses. Leave the amount empty to keep the existing balance. To change an existing opening balance, edit it in Transactions; delete it there before entering a replacement.</p>
+                    </div>` : nothing}
+                    ${this.actionError ? html`<p role="alert">${this.actionError}</p>` : nothing}
                     <div class="form-group">
                       <label class="form-label">Parent Account (Tree Hierarchy)</label>
                       <select

@@ -1646,7 +1646,7 @@ export class PengaTransactions extends LitElement {
                   const sameDateTxs = this.transactions.filter(
                     (t) => t.transactionDate === tx.transactionDate
                   );
-                  const canReorder = sameDateTxs.length > 1;
+                  const canReorder = sameDateTxs.length > 1 && !this.isOpeningBalance(tx);
                   const sameDateIndex = sameDateTxs.findIndex((t) => t.id === tx.id);
                   const isFirst = sameDateIndex === 0;
                   const isLast = sameDateIndex === sameDateTxs.length - 1;
@@ -1912,12 +1912,11 @@ export class PengaTransactions extends LitElement {
                                             ? html`
                                                 <button
                                                   type="button"
-                                                  class="actions-menu-item"
-                                                  disabled
-                                                  title="Opening balance transactions are protected. Use Balance Adjustment to adjust account balance."
+                                                  class="actions-menu-item danger"
+                                                  @click="${() => { this.closeMenu(); this.openDeleteModal(tx); }}"
                                                 >
                                                   <span>${icon("lock", "ASSET", 16)}</span>
-                                                  <span>Protected Opening Balance</span>
+                                                  <span>Delete opening balance</span>
                                                 </button>
                                               `
                                             : tx.isCleared
@@ -1999,7 +1998,7 @@ export class PengaTransactions extends LitElement {
       <div class="modal-backdrop" @click="${this.closeModals}">
         <div class="modal-card" @click="${(e: Event) => e.stopPropagation()}">
           <div class="modal-header">
-            <h3>Delete transaction?</h3>
+            <h3>${this.isOpeningBalance(tx) ? 'Delete opening balance?' : 'Delete transaction?'}</h3>
             <button type="button" class="modal-close-btn" @click="${this.closeModals}" title="Close" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
           </div>
           <div class="modal-body">
@@ -2010,7 +2009,7 @@ export class PengaTransactions extends LitElement {
               <strong>${tx.transactionDate}</strong>?
             </p>
             <p style="color: var(--text-secondary); font-size: 0.85rem;">
-              ${tx.splits.length > 2
+              ${this.isOpeningBalance(tx) ? 'Deleting this opening balance changes the account balance and reports. Both the account entry and equity counterpart will be removed. You can enter a replacement in the account form.' : tx.splits.length > 2
                 ? `This split transaction contains ${tx.splits.length} split lines. All lines will be permanently deleted.`
                 : 'This will update all affected account balances and reports.'}
               This action cannot be undone.
@@ -2021,7 +2020,7 @@ export class PengaTransactions extends LitElement {
               Cancel
             </button>
             <button type="button" class="btn-danger" @click="${this.handleDeleteSubmit}" ?disabled="${this.isDeleting}">
-              ${this.isDeleting ? 'Deleting...' : 'Delete transaction'}
+              ${this.isDeleting ? 'Deleting...' : this.isOpeningBalance(tx) ? 'Delete opening balance' : 'Delete transaction'}
             </button>
           </div>
         </div>

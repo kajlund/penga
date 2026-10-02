@@ -81,3 +81,40 @@ test('editing preserves legacy values unless the picker selects a new stable key
     assert.equal(reopened.shadowRoot.querySelector('[aria-pressed="true"]').getAttribute('aria-label'),'Shirt');
   } finally {accounts.remove();globalThis.fetch=originalFetch;globalThis.alert=originalAlert;}
 });
+
+test('asset opening date defaults locally and sends the chosen date unchanged for creation and replacement', async () => {
+  const previousFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options) => { if (options) requests.push({ url, method: options.method, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({ data: [] }) }; };
+  const component = document.createElement('penga-accounts'); document.body.append(component); await settle(component);
+  try {
+    component.openCreateModal(); await settle(component);
+    assert.equal(component.createSettlementDate, component.today());
+    const date = component.shadowRoot.querySelector('input[type=date]');
+    assert.ok(date);
+    date.value = '2026-10-01'; date.dispatchEvent(new Event('input'));
+    component.createName = 'New account'; component.createInitialBalance = '1500.25';
+    await component.submitCreate({ preventDefault() {} });
+    assert.equal(requests[0].method, 'POST');
+    assert.equal(requests[0].body.initialBalanceDate, '2026-10-01');
+    assert.equal(requests[0].body.initialBalanceCents, 150025);
+    component.openEditModal({ id: 'existing', name: 'Existing', type: 'ASSET', children: [] }); await settle(component);
+    component.createSettlementDate = '2026-09-30'; component.createInitialBalance = '12';
+    await component.submitCreate({ preventDefault() {} });
+    assert.equal(requests[1].method, 'PATCH');
+    assert.equal(requests[1].body.initialBalanceDate, '2026-09-30');
+    assert.equal(requests[1].body.initialBalanceCents, 1200);
+  } finally { component.remove(); globalThis.fetch = previousFetch; }
+});
+
+test('account deletion shows the API dependency explanation inline without a browser alert', async () => {
+  const previousFetch = globalThis.fetch, previousConfirm = globalThis.confirm, previousAlert = globalThis.alert;
+  globalThis.fetch = async (url, options) => options ? { ok: false, json: async () => ({ error: 'Cannot delete this account because it is used by saved transaction templates.' }) } : { ok: true, json: async () => ({ data: [] }) };
+  globalThis.confirm = () => true;
+  globalThis.alert = () => { throw new Error('Browser alert must not be used'); };
+  const component = document.createElement('penga-accounts'); document.body.append(component); await settle(component);
+  try {
+    await component.deleteAccount({ id: 'existing', name: 'Existing', type: 'ASSET', children: [] }); await settle(component);
+    assert.match(component.shadowRoot.querySelector('[role=alert]').textContent, /saved transaction templates/);
+  } finally { component.remove(); globalThis.fetch = previousFetch; globalThis.confirm = previousConfirm; globalThis.alert = previousAlert; }
+});

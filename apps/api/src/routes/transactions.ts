@@ -1,5 +1,5 @@
 import { lockLedgerHistory } from '../domain/ledger-history.js';
-import { openingBalanceAccount } from '../domain/opening-balances.js';
+import { openingBalanceAccount, isOpeningBalance, validOpeningDate } from '../domain/opening-balances.js';
 import { buildEntryTransaction, type TransactionEntry } from '@penga/shared';
 import { Hono } from 'hono';
 import { eq, desc, asc, inArray, and, sql } from 'drizzle-orm';
@@ -7,6 +7,10 @@ import { db, transactions, splits, accounts, tags, transactionTags } from '../db
 import type { CreateTransactionInput, SplitInput, UpdateTransactionInput, ReorderTransactionsInput } from '@penga/shared';
 
 export const transactionsRoute = new Hono();
+transactionsRoute.onError((err, c) => {
+  console.error('Transaction operation failed', err);
+  return c.json({ error: 'Unable to save the transaction. Please try again.' }, 500);
+});
 
 ﻿/** Resolve a balance correction against the live ledger, atomically. */
 transactionsRoute.post('/adjustments', async (c) => {
@@ -35,6 +39,7 @@ transactionsRoute.post('/adjustments', async (c) => {
         transactionDate: body.transactionDate, payee: body.payee || null, note: body.note || null,
         isCleared: body.isCleared ?? false, tagIds: body.tagIds || [],
       });
+      if (isOpeningBalance({ payee: payload.payee ?? null, note: payload.note ?? null })) throw new Error('Create an opening balance from the account form to prevent duplicates.');
       const [record] = await tx.insert(transactions).values({ transactionDate: payload.transactionDate, payee: payload.payee, note: payload.note, isCleared: payload.isCleared }).returning();
       const lines = await tx.insert(splits).values(payload.splits.map(s => ({ ...s, transactionId: record.id }))).returning();
       for (const tagId of new Set<string>(payload.tagIds)) await tx.insert(transactionTags).values({ transactionId: record.id, tagId }).onConflictDoNothing();
@@ -43,6 +48,10 @@ transactionsRoute.post('/adjustments', async (c) => {
     });
     return c.json({ data: result }, 201);
   } catch (error) {
+    if (error && typeof error === 'object' && ('code' in error || 'cause' in error)) {
+      console.error('Adjustment failed', error);
+      return c.json({ error: 'Unable to record the adjustment. Please try again.' }, 500);
+    }
     return c.json({ error: error instanceof Error ? error.message : 'Could not record adjustment' }, 400);
   }
 });
@@ -91,8 +100,8 @@ transactionsRoute.post('/', async (c) => {
       return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
     }
 
-    if (!Number.isInteger(split.amountCents)) {
-      return c.json({ error: `Split at index ${i} "amountCents" must be an integer` }, 400);
+    if (!Number.isInteger(split.amountCents) || Math.abs(split.amountCents) > 2147483647) {
+      return c.json({ error: `Split at index ${i} "amountCents" must be an integer within the supported range` }, 400);
     }
 
     if (split.amountCents === 0) {
@@ -126,6 +135,7 @@ transactionsRoute.post('/', async (c) => {
     return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
   }
 
+  if (isOpeningBalance({ payee: typeof payee === 'string' ? payee.trim() : null, note: typeof note === 'string' ? note.trim() : null })) return c.json({ error: 'Create an opening balance from the account form to prevent duplicates.' }, 409);
   const accountMap = new Map(foundAccounts.map((a) => [a.id, a]));
 
   // 6. Execute atomic transaction in PostgreSQL
@@ -407,9 +417,10 @@ transactionsRoute.patch('/reorder', async (c) => {
   await db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
     for (const item of items) {
+      const [record] = await tx.select().from(transactions).where(eq(transactions.id, item.id));
       await tx
         .update(transactions)
-        .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
+        .set({ sortOrder: record && isOpeningBalance(record) ? -2147483648 : item.sortOrder, updatedAt: new Date() })
         .where(eq(transactions.id, item.id));
     }
   });
@@ -430,117 +441,131 @@ transactionsRoute.patch('/:id', async (c) => {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  const [existing] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
-  if (!existing) {
-    return c.json({ error: 'Transaction not found' }, 404);
-  }
-
-  if (existing.voidedAt) {
-    return c.json({ error: 'Cannot edit a voided transaction' }, 409);
-  }
-
-  if (existing.reversesTransactionId) {
-    return c.json({ error: 'Cannot edit an automatically generated reversal transaction' }, 409);
-  }
-
-  if (existing.reversalTransactionId) {
-    return c.json({ error: 'Cannot edit a transaction that has been reversed' }, 409);
-  }
-
-  if (body.isCleared !== undefined && (existing.voidedAt || existing.reversalTransactionId || existing.reversesTransactionId)) {
-    return c.json({ error: 'Cannot change cleared status of voided or reversal transactions' }, 409);
-  }
-
-  const updateData: Partial<typeof transactions.$inferInsert> = {
-    updatedAt: new Date(),
-  };
-
-  if (body.isCleared !== undefined) {
-    updateData.isCleared = Boolean(body.isCleared);
-  }
-
-  if (body.sortOrder !== undefined) {
-    if (!Number.isInteger(body.sortOrder)) {
-      return c.json({ error: 'Field "sortOrder" must be an integer' }, 400);
-    }
-    updateData.sortOrder = body.sortOrder;
-  }
-
-  if (body.payee !== undefined) {
-    updateData.payee = typeof body.payee === 'string' && body.payee.trim() ? body.payee.trim() : null;
-  }
-
-  if (body.note !== undefined) {
-    updateData.note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
-  }
-
-  if (body.transactionDate !== undefined) {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (
-      typeof body.transactionDate !== 'string' ||
-      !dateRegex.test(body.transactionDate) ||
-      isNaN(Date.parse(body.transactionDate))
-    ) {
-      return c.json({ error: 'Field "transactionDate" must be a valid date in YYYY-MM-DD format' }, 400);
-    }
-    updateData.transactionDate = body.transactionDate;
-  }
-
-  // Validate splits if provided
-  if (body.splits !== undefined) {
-    if (!Array.isArray(body.splits) || body.splits.length < 2) {
-      return c.json({ error: 'Transaction must have at least 2 split lines to balance' }, 400);
-    }
-
-    let totalCents = 0;
-    const referencedAccountIds = new Set<string>();
-
-    for (let i = 0; i < body.splits.length; i++) {
-      const split = body.splits[i];
-      if (!split || typeof split !== 'object') {
-        return c.json({ error: `Split at index ${i} is invalid` }, 400);
-      }
-
-      if (!split.accountId || typeof split.accountId !== 'string') {
-        return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
-      }
-
-      if (!Number.isInteger(split.amountCents)) {
-        return c.json({ error: `Split at index ${i} "amountCents" must be an integer` }, 400);
-      }
-
-      if (split.amountCents === 0) {
-        return c.json({ error: `Split at index ${i} "amountCents" cannot be zero` }, 400);
-      }
-
-      totalCents += split.amountCents;
-      referencedAccountIds.add(split.accountId);
-    }
-
-    if (totalCents !== 0) {
-      return c.json(
-        {
-          error: `Transaction splits must balance to exactly zero. Current net sum: ${totalCents} cents`,
-          imbalanceCents: totalCents,
-        },
-        400
-      );
-    }
-
-    const foundAccounts = await db
-      .select({ id: accounts.id })
-      .from(accounts)
-      .where(inArray(accounts.id, Array.from(referencedAccountIds)));
-
-    if (foundAccounts.length !== referencedAccountIds.size) {
-      const foundIds = new Set(foundAccounts.map((a) => a.id));
-      const missingIds = Array.from(referencedAccountIds).filter((accId) => !foundIds.has(accId));
-      return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
-    }
-  }
-
-  const updated = await db.transaction(async (tx) => {
+  return db.transaction(async tx => {
     await lockLedgerHistory(tx);
+    const [existing] = await tx.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+    if (!existing) {
+      return c.json({ error: 'Transaction not found' }, 404);
+    }
+
+    if (existing.voidedAt) {
+      return c.json({ error: 'Cannot edit a voided transaction' }, 409);
+    }
+
+    if (existing.reversesTransactionId) {
+      return c.json({ error: 'Cannot edit an automatically generated reversal transaction' }, 409);
+    }
+
+    if (existing.reversalTransactionId) {
+      return c.json({ error: 'Cannot edit a transaction that has been reversed' }, 409);
+    }
+
+    if (body.isCleared !== undefined && (existing.voidedAt || existing.reversalTransactionId || existing.reversesTransactionId)) {
+      return c.json({ error: 'Cannot change cleared status of voided or reversal transactions' }, 409);
+    }
+
+    const updateData: Partial<typeof transactions.$inferInsert> = {
+      updatedAt: new Date(),
+    };
+
+    if (body.isCleared !== undefined) {
+      updateData.isCleared = Boolean(body.isCleared);
+    }
+
+    if (body.sortOrder !== undefined) {
+      if (!Number.isInteger(body.sortOrder)) {
+        return c.json({ error: 'Field "sortOrder" must be an integer' }, 400);
+      }
+      if (!isOpeningBalance(existing)) updateData.sortOrder = body.sortOrder;
+    }
+
+    if (body.payee !== undefined) {
+      updateData.payee = typeof body.payee === 'string' && body.payee.trim() ? body.payee.trim() : null;
+    }
+
+    if (body.note !== undefined) {
+      updateData.note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
+    }
+
+    if (body.transactionDate !== undefined) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (
+        typeof body.transactionDate !== 'string' ||
+        !dateRegex.test(body.transactionDate) ||
+        isNaN(Date.parse(body.transactionDate))
+      ) {
+        return c.json({ error: 'Field "transactionDate" must be a valid date in YYYY-MM-DD format' }, 400);
+      }
+      updateData.transactionDate = body.transactionDate;
+    }
+
+    if (!isOpeningBalance(existing) && isOpeningBalance({ payee: body.payee === undefined ? existing.payee : body.payee, note: body.note === undefined ? existing.note : body.note })) {
+      return c.json({ error: 'Create an opening balance from the account form to prevent duplicates.' }, 409);
+    }
+    if (isOpeningBalance(existing)) {
+      updateData.sortOrder = -2147483648;
+      if (body.payee !== undefined && body.payee !== existing.payee && body.payee !== 'Opening Balance') return c.json({ error: 'Opening balances keep the Opening Balance transaction label. Edit the description, amount or date instead.' }, 409);
+      // Keep a stable identity even when the legacy note was the only opening marker.
+      updateData.payee = 'Opening Balance';
+      if (body.transactionDate !== undefined && !validOpeningDate(body.transactionDate)) return c.json({ error: 'Choose a valid opening-balance date.' }, 400);
+      if (body.splits !== undefined) {
+        const original = await tx.select().from(splits).where(eq(splits.transactionId, id));
+        if (!Array.isArray(body.splits) || body.splits.length !== 2 || original.length !== 2 || !original.every(line => body.splits.filter((s: SplitInput) => s?.accountId === line.accountId).length === 1)) return c.json({ error: 'Keep the original account and equity counterpart when editing an opening balance.' }, 409);
+      }
+    }
+    // Validate splits if provided
+    if (body.splits !== undefined) {
+      if (!Array.isArray(body.splits) || body.splits.length < 2) {
+        return c.json({ error: 'Transaction must have at least 2 split lines to balance' }, 400);
+      }
+
+      let totalCents = 0;
+      const referencedAccountIds = new Set<string>();
+
+      for (let i = 0; i < body.splits.length; i++) {
+        const split = body.splits[i];
+        if (!split || typeof split !== 'object') {
+          return c.json({ error: `Split at index ${i} is invalid` }, 400);
+        }
+
+        if (!split.accountId || typeof split.accountId !== 'string') {
+          return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
+        }
+
+        if (!Number.isInteger(split.amountCents)) {
+          return c.json({ error: `Split at index ${i} "amountCents" must be an integer` }, 400);
+        }
+
+        if (split.amountCents === 0 && !isOpeningBalance(existing)) {
+          return c.json({ error: `Split at index ${i} "amountCents" cannot be zero` }, 400);
+        }
+
+        totalCents += split.amountCents;
+        referencedAccountIds.add(split.accountId);
+      }
+
+      if (totalCents !== 0) {
+        return c.json(
+          {
+            error: `Transaction splits must balance to exactly zero. Current net sum: ${totalCents} cents`,
+            imbalanceCents: totalCents,
+          },
+          400
+        );
+      }
+
+      const foundAccounts = await tx
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(inArray(accounts.id, Array.from(referencedAccountIds)));
+
+      if (foundAccounts.length !== referencedAccountIds.size) {
+        const foundIds = new Set(foundAccounts.map((a) => a.id));
+        const missingIds = Array.from(referencedAccountIds).filter((accId) => !foundIds.has(accId));
+        return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
+      }
+    }
+
     const [updatedTx] = await tx
       .update(transactions)
       .set(updateData)
@@ -576,48 +601,46 @@ transactionsRoute.patch('/:id', async (c) => {
       }
     }
 
-    return updatedTx;
-  });
+    const splitRows = await tx
+      .select({
+        id: splits.id,
+        transactionId: splits.transactionId,
+        accountId: splits.accountId,
+        amountCents: splits.amountCents,
+        createdAt: splits.createdAt,
+        accountName: accounts.name,
+        accountType: accounts.type,
+        accountIcon: accounts.icon,
+        accountColor: accounts.color,
+      })
+      .from(splits)
+      .innerJoin(accounts, eq(splits.accountId, accounts.id))
+      .where(eq(splits.transactionId, id));
 
-  const splitRows = await db
-    .select({
-      id: splits.id,
-      transactionId: splits.transactionId,
-      accountId: splits.accountId,
-      amountCents: splits.amountCents,
-      createdAt: splits.createdAt,
-      accountName: accounts.name,
-      accountType: accounts.type,
-      accountIcon: accounts.icon,
-      accountColor: accounts.color,
-    })
-    .from(splits)
-    .innerJoin(accounts, eq(splits.accountId, accounts.id))
-    .where(eq(splits.transactionId, id));
+    const tagRows = await tx
+      .select({
+        id: tags.id,
+        name: tags.name,
+        color: tags.color,
+      })
+      .from(transactionTags)
+      .innerJoin(tags, eq(transactionTags.tagId, tags.id))
+      .where(eq(transactionTags.transactionId, id))
+      .orderBy(asc(tags.name));
 
-  const tagRows = await db
-    .select({
-      id: tags.id,
-      name: tags.name,
-      color: tags.color,
-    })
-    .from(transactionTags)
-    .innerJoin(tags, eq(transactionTags.tagId, tags.id))
-    .where(eq(transactionTags.transactionId, id))
-    .orderBy(asc(tags.name));
-
-  return c.json({
-    data: {
-      ...updated,
-      splits: splitRows,
-      tags: tagRows,
-    },
+    return c.json({
+      data: {
+        ...updatedTx,
+        splits: splitRows,
+        tags: tagRows,
+      },
+    });
   });
 });
 
 /**
  * DELETE /api/transactions/:id
- * Permanently deletes an unclear transaction and its splits atomically.
+ * Permanently deletes a pending transaction or an explicit opening balance, atomically.
  */
 transactionsRoute.delete('/:id', async (c) => {
   const id = c.req.param('id');
@@ -639,23 +662,11 @@ transactionsRoute.delete('/:id', async (c) => {
         return { error: 'Cannot delete a voided transaction', status: 409 };
       }
 
-      if (existing.reversesTransactionId) {
-        return { error: 'Cannot delete an automatically generated reversal transaction', status: 409 };
+      if (existing.reversesTransactionId || existing.reversalTransactionId) {
+        return { error: 'Cannot delete a transaction linked to a reversal', status: 409 };
       }
 
-      const txSplits = await tx
-        .select({ accountId: splits.accountId })
-        .from(splits)
-        .where(eq(splits.transactionId, id));
-
-      if (isOpeningBalanceTransaction(existing, txSplits)) {
-        return {
-          error: 'Opening balance transactions cannot be deleted directly. Use account balance adjustments instead.',
-          status: 409,
-        };
-      }
-
-      if (existing.isCleared) {
+      if (existing.isCleared && !isOpeningBalance(existing)) {
         return { error: 'Cleared transactions cannot be deleted. Use reverse/void instead.', status: 409 };
       }
 
@@ -673,7 +684,8 @@ transactionsRoute.delete('/:id', async (c) => {
       message: 'Transaction deleted successfully',
     });
   } catch (err: any) {
-    return c.json({ error: err.message || 'Failed to delete transaction' }, 500);
+    console.error('Transaction deletion failed', err);
+    return c.json({ error: 'Unable to delete the transaction. Please try again.' }, 500);
   }
 });
 
@@ -728,7 +740,7 @@ transactionsRoute.post('/:id/void', async (c) => {
         .from(splits)
         .where(eq(splits.transactionId, id));
 
-      if (isOpeningBalanceTransaction(original, originalSplits)) {
+      if (isOpeningBalance(original)) {
         return {
           error: 'Opening balance transactions cannot be voided directly. Use account balance adjustments instead.',
           status: 409,
@@ -818,15 +830,7 @@ transactionsRoute.post('/:id/void', async (c) => {
       201
     );
   } catch (err: any) {
-    return c.json({ error: err.message || 'Failed to void transaction' }, 500);
+    console.error('Transaction void failed', err);
+    return c.json({ error: 'Unable to void the transaction. Please try again.' }, 500);
   }
 });
-
-function isOpeningBalanceTransaction(
-  tx: { payee: string | null; note: string | null },
-  transactionSplits?: { accountId: string }[]
-): boolean {
-  if (tx.payee === 'Opening Balance') return true;
-  if (typeof tx.note === 'string' && tx.note.startsWith('Starting balance for ')) return true;
-  return false;
-}

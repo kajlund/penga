@@ -22,8 +22,10 @@ removed; there is no separate reusable payee definition to preserve.
 
 Opening balances are ordinary transactions. All balances, dashboard totals and
 historical reports are calculated from splits, so they become zero without
-special display rules. Re-enter opening balances through the existing Balance
-Adjustment flow. Nothing generates replacement transactions during the reset.
+special display rules. Re-enter opening balances in the account edit form with
+an amount and effective date. Saved templates and budgets remain legitimate
+account dependencies after reset; remove or reassign them before deleting an
+account. Nothing generates replacement transactions during the reset.
 
 Reconciliation currently consists of transaction cleared flags. There are no
 separate reconciliation sessions, statements, period locks, attachments, import
@@ -58,7 +60,8 @@ changes and edits restoring previous values, rather than relying on counts or
 timestamps. The summary scans the whole ledger and briefly serializes writes;
 this deliberately favors correctness for this personal-finance application.
 
-Existing single-transaction delete/void protections remain in place. Reset uses
+Pending transactions and opening balances can be deleted individually. Other
+cleared transactions require reversal/void; void and reversal protections remain. Reset uses
 explicit deletes, without TRUNCATE, schema changes or identity resets. There are
 no server caches to invalidate. The application refreshes mounted views and
 clears its selected transaction; views fetch fresh data when remounted, and the
@@ -79,7 +82,7 @@ The test role must have permission to create databases. The test creates a
 randomly named `penga_reset_test_*` database, verifies the actual connection's
 database name before migrations or fixtures, applies existing migrations only
 there, and drops only that generated database afterward. No reset test runs on
-the configured application database. There are no cross-ledger/authorization
+the configured application database or its existing tables. There are no cross-ledger/authorization
 tests because the current app has neither multiple ledgers nor authentication.
 
 For manual verification, use a disposable test ledger: add accounts with opening
@@ -91,3 +94,15 @@ Transactions, Reconciliation and budget reports for empty history/zero totals.
 Check that accounts, tags, budgets and templates remain, and add a fresh opening
 balance through Balance Adjustment. Reopening the action should show the new
 count; clearing an empty ledger shows the empty state.
+
+A role without CREATEDB can instead run the suite in a new isolated schema:
+
+```powershell
+$env:PENGA_SCHEMA_DATABASE_TESTS = '1'
+node --test apps/api/test/clear-history.test.mjs
+```
+
+This requires CREATE permission on the configured database. The suite restricts
+search_path to a random test schema, rewrites migration references to that schema,
+and verifies table resolution before running any reset. Cleanup drops only the
+verified, generated test schema. Existing application data is never cleared.

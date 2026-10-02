@@ -193,18 +193,17 @@ test('cleared transaction row shows Reverse/Void action in dropdown', async () =
   assert.equal(deleteBtn, undefined, 'Delete button should NOT be present for cleared transaction');
 });
 
-test('opening balance transaction shows locked disabled action with explanation', async () => {
-  const root = component.shadowRoot;
+test('opening balance offers explicit deletion and balance-change confirmation', async () => {
   component.openMenuTxId = 'tx-open';
   await settle();
-
-  const menu = root.querySelector('.actions-menu');
-  assert.ok(menu, 'Menu should be open');
-  const disabledItem = [...menu.querySelectorAll('.actions-menu-item[disabled]')].find((b) =>
-    b.textContent.includes('Protected Opening Balance')
-  );
-  assert.ok(disabledItem, 'Disabled item should be present');
-  assert.match(disabledItem.getAttribute('title') || '', /Opening balance transactions are protected/);
+  const button = [...component.shadowRoot.querySelectorAll('.actions-menu-item.danger')].find(b => b.textContent.includes('Delete opening balance'));
+  assert.ok(button);
+  assert.equal(button.disabled, false);
+  button.click();
+  await settle();
+  assert.match(component.shadowRoot.querySelector('.modal-card').textContent, /changes the account balance/);
+  await component.handleDeleteSubmit();
+  assert.ok(requests.some(r => r.method === 'DELETE' && r.url === '/api/transactions/tx-open'));
 });
 
 test('delete dialog opens with transaction details and issues DELETE request upon confirm', async () => {

@@ -1,12 +1,22 @@
 import { lockLedgerHistory } from '../domain/ledger-history.js';
-import { openingBalanceAccount } from '../domain/opening-balances.js';
+import { createOpeningBalance, OpeningBalanceError, validOpeningDate } from '../domain/opening-balances.js';
 import { Hono } from 'hono';
-import { eq, and, isNull, asc } from 'drizzle-orm';
-import { db, accounts, transactions, splits, type Account } from '../db/index.js';
+import { eq, and, isNull, asc, sql } from 'drizzle-orm';
+import { db, accounts, splits, templateSplits, transactionTemplates, budgets, type Account } from '../db/index.js';
 import { AccountType, type AccountTreeNode, type CreateAccountInput } from '@penga/shared';
 
 export const accountsRoute = new Hono();
 
+accountsRoute.onError((err, c) => {
+  if (err instanceof OpeningBalanceError) return c.json({ error: err.message }, 409);
+  console.error('Account operation failed', err);
+  return c.json({ error: 'Unable to save or delete the account. Please try again.' }, 500);
+});
+function openingInputError(body: any) {
+  if (body.initialBalanceCents !== undefined && (!Number.isInteger(body.initialBalanceCents) || Math.abs(body.initialBalanceCents) > 2147483647)) return 'Opening balance must be an integer amount of cents within the supported range.';
+  if (body.initialBalanceCents && !validOpeningDate(body.initialBalanceDate)) return 'Choose a valid opening-balance date in YYYY-MM-DD format.';
+  return null;
+}
 const validAccountTypes = new Set<string>(Object.values(AccountType));
 
 /**
@@ -183,6 +193,10 @@ accountsRoute.post('/', async (c) => {
     }
   }
 
+  if (body.initialBalanceDate === undefined) body.initialBalanceDate = new Date().toLocaleDateString('en-CA');
+  const openingError = openingInputError(body);
+  if (openingError) return c.json({ error: openingError }, 400);
+  if (initialBalanceCents && !['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(normalizedType)) return c.json({ error: 'This account type cannot have an opening balance.' }, 400);
   const created = await db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
     const [acc] = await tx
@@ -203,35 +217,7 @@ accountsRoute.post('/', async (c) => {
       initialBalanceCents !== 0 &&
       (normalizedType === 'ASSET' || normalizedType === 'LIABILITY' || normalizedType === 'SETTLEMENT')
     ) {
-      const openingEquityAcc = await openingBalanceAccount(tx);
-
-      const dateStr =
-        initialBalanceDate && /^\d{4}-\d{2}-\d{2}$/.test(initialBalanceDate)
-          ? initialBalanceDate
-          : new Date().toISOString().slice(0, 10);
-
-      const [initTx] = await tx
-        .insert(transactions)
-        .values({
-          transactionDate: dateStr,
-          payee: 'Opening Balance',
-          note: `Starting balance for ${name.trim()}`,
-          isCleared: true,
-        })
-        .returning();
-
-      await tx.insert(splits).values([
-        {
-          transactionId: initTx.id,
-          accountId: acc.id,
-          amountCents: initialBalanceCents,
-        },
-        {
-          transactionId: initTx.id,
-          accountId: openingEquityAcc.id,
-          amountCents: -initialBalanceCents,
-        },
-      ]);
+      await createOpeningBalance(tx, acc, initialBalanceCents!, body.initialBalanceDate);
     }
 
     return acc;
@@ -296,9 +282,9 @@ accountsRoute.patch('/:id', async (c) => {
       if (splitExists && (existing.type === 'SETTLEMENT' || normalizedType === 'SETTLEMENT')) {
         return c.json(
           {
-            error: 'Cannot change account type to or from Settlement for an account with existing transactions',
+            error: `Cannot change the type of account "${existing.name}" to or from Settlement because it has transactions. Its existing entries rely on the current account type. Keep this type or create a separate account with the required type.`,
           },
-          400
+          409
         );
       }
     }
@@ -326,7 +312,7 @@ accountsRoute.patch('/:id', async (c) => {
       if (isCycle) {
         return c.json(
           {
-            error: 'Cannot set parent: would create a circular dependency in the account tree',
+            error: `Cannot move account "${existing.name}" under itself or one of its sub-accounts. Choose a parent outside this account's own hierarchy.`,
           },
           400
         );
@@ -346,11 +332,18 @@ accountsRoute.patch('/:id', async (c) => {
     updateValues.color = typeof body.color === 'string' && body.color.trim() ? body.color.trim() : null;
   }
 
-  const [updated] = await db
-    .update(accounts)
-    .set(updateValues)
-    .where(eq(accounts.id, id))
-    .returning();
+  const openingError = openingInputError(body);
+  if (openingError) return c.json({ error: openingError }, 400);
+  const updated = await db.transaction(async tx => {
+    await lockLedgerHistory(tx);
+    if (updateValues.type && updateValues.type !== existing.type && (existing.type === 'EQUITY' || !['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(updateValues.type))) {
+      const rows = await tx.execute(sql`SELECT 1 FROM splits s JOIN transactions t ON t.id=s.transaction_id WHERE s.account_id=${id} AND (t.payee='Opening Balance' OR t.note LIKE 'Starting balance for %') LIMIT 1`);
+      if (rows.length) throw new OpeningBalanceError(`Cannot change the type of account "${existing.name}" because it is part of an opening balance. Edit or delete the related opening balance in Transactions first. Keep the equity counterpart as Equity while any opening balances use it.`);
+    }
+    const [account] = await tx.update(accounts).set(updateValues).where(eq(accounts.id, id)).returning();
+    if (body.initialBalanceCents) await createOpeningBalance(tx, account, body.initialBalanceCents, body.initialBalanceDate);
+    return account;
+  });
 
   return c.json({ data: updated });
 });
@@ -362,16 +355,31 @@ accountsRoute.patch('/:id', async (c) => {
 accountsRoute.delete('/:id', async (c) => {
   const id = c.req.param('id');
 
-  const [existing] = await db.select().from(accounts).where(eq(accounts.id, id)).limit(1);
-  if (!existing) {
-    return c.json({ error: 'Account not found' }, 404);
-  }
+  const result = await db.transaction(async tx => {
+    await lockLedgerHistory(tx);
+    const [existing] = await tx.select().from(accounts).where(eq(accounts.id, id)).for('update');
+    if (!existing) return { error: 'Account not found', status: 404 as const };
+    const reasons: string[] = [];
+    const [history] = await tx.select({ count: sql<number>`count(*)::int` }).from(splits).where(eq(splits.accountId, id));
+    if (history.count) reasons.push('It still has transactions. Review its entries in Transactions and remove or reassign them first; cleared transactions require reversal rather than ordinary deletion.');
 
-  await db.delete(accounts).where(eq(accounts.id, id));
+    const templates = await tx.selectDistinct({ name: transactionTemplates.name, id: transactionTemplates.id })
+      .from(templateSplits).innerJoin(transactionTemplates, eq(templateSplits.templateId, transactionTemplates.id))
+      .where(eq(templateSplits.accountId, id)).orderBy(asc(transactionTemplates.name));
+    if (templates.length) {
+      const names = templates.slice(0, 3).map(template => '"' + template.name + '"').join(', ');
+      const extra = templates.length > 3 ? ' and ' + (templates.length - 3) + ' more' : '';
+      reasons.push('It is used by saved transaction templates: ' + names + extra + '. Open Templates and change the account in those templates or delete the templates. Clearing transactions keeps saved templates.');
+    }
 
-  return c.json({
-    success: true,
-    deletedId: id,
-    message: `Account "${existing.name}" deleted successfully`,
+    const [budget] = await tx.select({ count: sql<number>`count(*)::int` }).from(budgets).where(eq(budgets.accountId, id));
+    if (budget.count) reasons.push('It has ' + budget.count + ' budget(s). Open Budgets and remove or reassign those budgets. Clearing transactions keeps budgets.');
+    const children = await tx.select({ name: accounts.name }).from(accounts).where(eq(accounts.parentId, id)).orderBy(asc(accounts.name));
+    if (children.length) reasons.push('It has sub-accounts: ' + children.slice(0, 3).map(child => '"' + child.name + '"').join(', ') + (children.length > 3 ? ' and ' + (children.length - 3) + ' more' : '') + '. Move those sub-accounts to another parent or delete them individually first.');
+    if (reasons.length) return { error: 'Cannot delete account "' + existing.name + '". ' + reasons.join(' '), status: 409 as const };
+    await tx.delete(accounts).where(eq(accounts.id, id));
+    return { success: true };
   });
+  if ('error' in result) return c.json({ error: result.error }, result.status);
+  return c.json({ success: true, deletedId: id });
 });

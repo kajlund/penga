@@ -331,7 +331,7 @@ test('transaction deletion and reversal/voiding lifecycle (database tests)', {
       assert.equal(toggleRes.status, 409);
     });
 
-    await t.test('12. opening-balance transactions are protected against delete and void', async () => {
+    await t.test('12. opening-balance transactions can be deleted but cannot be voided', async () => {
       const openAccRes = await postAccount({
         name: `Protected Acc ${crypto.randomUUID()}`,
         type: 'ASSET',
@@ -345,15 +345,11 @@ test('transaction deletion and reversal/voiding lifecycle (database tests)', {
       assert.ok(initSplit);
       createdTxIds.push(initSplit.transactionId);
 
-      // Attempt delete opening balance transaction
-      const delRes = await deleteTx(initSplit.transactionId);
-      assert.equal(delRes.status, 409);
-      assert.match((await delRes.json()).error, /Opening balance transactions cannot be deleted directly/);
-
       // Attempt void opening balance transaction
       const voidRes = await voidTx(initSplit.transactionId);
       assert.equal(voidRes.status, 409);
       assert.match((await voidRes.json()).error, /Opening balance transactions cannot be voided directly/);
+      assert.equal((await deleteTx(initSplit.transactionId)).status, 200);
     });
 
     await t.test('13. historical reporting behaves correctly across original and reversal periods', async () => {

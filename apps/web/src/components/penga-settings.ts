@@ -113,7 +113,7 @@ export class PengaSettings extends LitElement {
       <dialog aria-labelledby="clear-heading" aria-describedby="clear-description" aria-busy=${this.processing}
         @cancel=${(event: Event) => { event.preventDefault(); this.cancel(); }}>
         <h2 id="clear-heading">Clear all transactions?</h2>
-        <p id="clear-description">This permanently deletes all transactions, including opening balances, transfers and void/reversal history. Your accounts, categories and other setup will be kept. Balances will return to zero. You will need to enter opening balances again. This cannot be undone within Penga.</p>
+        <p id="clear-description">This permanently deletes all transactions, including opening balances, transfers and void/reversal history. Your accounts, categories and other setup will be kept. Balances will return to zero. You can enter replacement opening balances, with their effective dates, in the account edit form. Saved templates and budgets still referencing an account must be removed or reassigned before deleting that account. This cannot be undone within Penga.</p>
         <p>Consider making a database backup first.</p>
         <p>Cleared and reconciliation marks are removed with their transactions.</p>
         ${this.loading ? html`<p role="status">Loading transaction count…</p>` : this.summary ? html`

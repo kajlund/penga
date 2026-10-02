@@ -1222,6 +1222,7 @@ export class TransactionForm extends LitElement {
 
   private populateForEdit(tx: TransactionWithSplits) {
     this.preparedOpen = true;
+    this.submitError = '';
     this.touched = new Set();
     this.transactionToEdit = tx;
     this.transactionDate = tx.transactionDate;
@@ -1241,6 +1242,7 @@ export class TransactionForm extends LitElement {
   }
 
   private resetForm(preselectedAccountId?: string) {
+    this.submitError = '';
     this.transactionToEdit = null;
     this.transactionDate = new Date().toISOString().slice(0, 10);
     this.payee = '';
@@ -1411,6 +1413,9 @@ export class TransactionForm extends LitElement {
   private formatCentsToDecimal(cents: number): string { return (cents / 100).toFixed(2); }
   private getValidationState() {
     const errors = entryErrors(this.entry, this.entryContext, this.transactionDate, this.payee);
+    if (this.isOpeningEdit() && this.entry.kind === 'advanced') {
+      for (const row of this.entry.rows) if (parseMoney(row.amount) === 0) delete errors['amount-' + row.id];
+    }
     return { isValid: Object.keys(errors).length === 0, message: Object.values(errors)[0] || 'Balanced' };
   }
   private canSubmit(): boolean { return !this.isSubmitting && this.getValidationState().isValid; }
@@ -1446,8 +1451,11 @@ export class TransactionForm extends LitElement {
     return html`<div class="form-group"><span class="form-label">${label}</span><account-combobox .label=${label} .accounts=${accounts} .value=${value}
       @focusout=${() => this.touch(key)} @account-selected=${(e: CustomEvent) => change(e.detail.accountId)}></account-combobox>${this.fieldError(key)}</div>`;
   }
+  private isOpeningEdit() { return this.transactionToEdit?.payee === 'Opening Balance' || Boolean(this.transactionToEdit?.note?.startsWith('Starting balance for ')); }
+  @state() private submitError = '';
   private renderTypeSelector() {
     const entry = this.entry;
+    if (this.isOpeningEdit()) return html`<p class="entry-help">Edit the opening amount, date and description below. The balance applies at the beginning of that date. Keep the account and equity counterpart; signed amounts must balance to zero.</p>`;
     return html`      <div class="type-selector" role="group" aria-label="Transaction type">
         ${(['expense', 'income', 'transfer', 'adjustment'] as const).map(kind => html`<button type="button" class="btn-cancel" aria-pressed=${entry.kind === kind} ?disabled=${!!this.transactionToEdit && kind === 'adjustment'} @click=${() => this.switchMode(kind)}>${kind[0].toUpperCase() + kind.slice(1)}</button>`)}
       </div>
@@ -1456,12 +1464,20 @@ export class TransactionForm extends LitElement {
   }
   private renderEntry() {
     const entry = this.entry;
+    if (this.isOpeningEdit() && entry.kind === 'advanced') {
+      const account = this.transactionToEdit!.splits.find(s => ['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(s.accountType || this.availableAccounts.find(a => a.id === s.accountId)?.type || ''));
+      const row = entry.rows.find(r => r.accountId === account?.accountId);
+      if (row) return html`<div class="grid-2">
+        <label class="form-group"><span class="form-label">Opening-balance date</span><input type="date" class="form-input" .value=${this.transactionDate} @input=${(e: any) => this.transactionDate = e.target.value}></label>
+        <label class="form-group"><span class="form-label">Opening balance (${APP_CURRENCY})</span><input class="form-input" inputmode="decimal" .value=${row.amount} @input=${(e: any) => { const amount = e.target.value; const cents = parseMoney(amount); this.entry = { kind: 'advanced', rows: entry.rows.map(r => ({ ...r, amount: r.id === row.id ? amount : Number.isFinite(cents) ? this.formatCentsToDecimal(-cents) : '' })) }; }}></label>
+      </div><label class="form-group"><span class="form-label">Description (optional)</span><input id="opening-description" class="form-input" .value=${this.note} @input=${(e: any) => this.note = e.target.value} placeholder="Describe this opening balance"></label><p class="entry-help">Balance at the beginning of the selected date, before ordinary transactions. Negative amounts represent debt. The equity counterpart updates automatically.</p>`;
+    }
     const balanceAccounts = this.availableAccounts.filter(isBalanceAccount);
     const summary = allocationSummary(entry);
     return html`
       <div class="grid-2">
         <label class="form-group"><span class="form-label">Date</span><input class="form-input" type="date" .value=${this.transactionDate} @input=${(e: any) => this.transactionDate = e.target.value} @blur=${() => this.touch('date')}>${this.fieldError('date')}</label>
-        ${entry.kind === 'expense' || entry.kind === 'income' || entry.kind === 'advanced' ? html`<label class="form-group"><span class="form-label">${entry.kind === 'income' ? 'Payer/source' : entry.kind === 'advanced' ? 'Payee (optional)' : 'Payee'}</span><input class="form-input" .value=${this.payee} @input=${(e: any) => this.payee = e.target.value} @blur=${() => this.touch('payee')}>${this.fieldError('payee')}</label>` : nothing}
+        ${entry.kind === 'expense' || entry.kind === 'income' || entry.kind === 'advanced' ? html`<label class="form-group"><span class="form-label">${entry.kind === 'income' ? 'Payer/source' : entry.kind === 'advanced' ? 'Payee (optional)' : 'Payee'}</span><input class="form-input" ?disabled=${this.isOpeningEdit()} .value=${this.payee} @input=${(e: any) => this.payee = e.target.value} @blur=${() => this.touch('payee')}>${this.fieldError('payee')}</label>` : nothing}
       </div>
       ${'accountId' in entry ? html`<div class="grid-2">
         ${this.accountField(entry.kind === 'expense' ? 'Paid from' : entry.kind === 'income' ? 'Received into' : entry.kind === 'transfer' ? 'From account' : 'Account', 'account', entry.accountId, balanceAccounts, accountId => this.updateEntry({ accountId }))}
@@ -1495,10 +1511,12 @@ export class TransactionForm extends LitElement {
       const method = isEditing && this.entry.kind !== 'adjustment' ? 'PATCH' : 'POST';
 
       const details = {
-        transactionDate: this.transactionDate, payee: this.payee.trim() || null,
+        transactionDate: this.transactionDate, payee: this.isOpeningEdit() ? this.transactionToEdit!.payee : this.payee.trim() || null,
         note: this.note.trim() || null, isCleared: this.isCleared, tagIds: Array.from(this.selectedTagIds),
       };
-      const payload = this.entry.kind === 'adjustment'
+      const payload = this.isOpeningEdit() && this.entry.kind === 'advanced'
+        ? { ...details, splits: this.entry.rows.map(row => ({ accountId: row.accountId, amountCents: parseMoney(row.amount) })) }
+        : this.entry.kind === 'adjustment'
         ? { ...details, adjustment: this.entry, expectedBalanceCents: this.entryContext.currentBalanceCents }
         : buildEntryTransaction(this.entry, this.entryContext, details);
 
@@ -1525,7 +1543,7 @@ export class TransactionForm extends LitElement {
 
       this.closeModal();
     } catch (err: any) {
-      alert(err.message);
+      this.submitError = err.message || 'Unable to save transaction.';
     } finally {
       this.isSubmitting = false;
     }
@@ -1616,6 +1634,7 @@ export class TransactionForm extends LitElement {
                 `
               : nothing}
 
+            ${this.submitError ? html`<p role="alert" class="entry-help">${this.submitError}</p>` : nothing}
             ${this.renderEntry()}
             <details class="more-details"><summary>More details</summary>
             <div class="grid-2">
