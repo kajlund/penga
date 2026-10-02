@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './components/theme-toggle.js';
+import './components/penga-settings.js';
 import './components/penga-sidebar.js';
 import './components/penga-dashboard.js';
 import './components/penga-budgets.js';
@@ -231,7 +232,9 @@ export class PengaApp extends LitElement {
           </header>
 
           <main class="content-area">
-            ${this.currentView === 'dashboard'
+            ${this.currentView === 'settings'
+              ? html`<penga-settings @ledger-cleared="${this.handleTransactionUpdated}"></penga-settings>`
+              : this.currentView === 'dashboard'
               ? html`
                   <penga-dashboard
                     @open-transaction-modal="${this.handleOpenCreateModal}"

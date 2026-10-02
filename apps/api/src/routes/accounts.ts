@@ -1,3 +1,4 @@
+import { lockLedgerHistory } from '../domain/ledger-history.js';
 import { openingBalanceAccount } from '../domain/opening-balances.js';
 import { Hono } from 'hono';
 import { eq, and, isNull, asc } from 'drizzle-orm';
@@ -183,6 +184,7 @@ accountsRoute.post('/', async (c) => {
   }
 
   const created = await db.transaction(async (tx) => {
+    await lockLedgerHistory(tx);
     const [acc] = await tx
       .insert(accounts)
       .values({

@@ -1,3 +1,4 @@
+import { lockLedgerHistory } from '../domain/ledger-history.js';
 import { openingBalanceAccount } from '../domain/opening-balances.js';
 import { buildEntryTransaction, type TransactionEntry } from '@penga/shared';
 import { Hono } from 'hono';
@@ -20,6 +21,7 @@ transactionsRoute.post('/adjustments', async (c) => {
   }
   try {
     const result = await db.transaction(async tx => {
+      await lockLedgerHistory(tx);
       const equity = await openingBalanceAccount(tx);
       // Also serializes against existing split writes, which do not take advisory locks.
       await tx.execute(sql`LOCK TABLE splits IN SHARE ROW EXCLUSIVE MODE`);
@@ -128,6 +130,7 @@ transactionsRoute.post('/', async (c) => {
 
   // 6. Execute atomic transaction in PostgreSQL
   const result = await db.transaction(async (tx) => {
+    await lockLedgerHistory(tx);
     const [newTx] = await tx
       .insert(transactions)
       .values({
@@ -402,6 +405,7 @@ transactionsRoute.patch('/reorder', async (c) => {
   }
 
   await db.transaction(async (tx) => {
+    await lockLedgerHistory(tx);
     for (const item of items) {
       await tx
         .update(transactions)
@@ -536,6 +540,7 @@ transactionsRoute.patch('/:id', async (c) => {
   }
 
   const updated = await db.transaction(async (tx) => {
+    await lockLedgerHistory(tx);
     const [updatedTx] = await tx
       .update(transactions)
       .set(updateData)
@@ -619,6 +624,7 @@ transactionsRoute.delete('/:id', async (c) => {
 
   try {
     const result = await db.transaction(async (tx) => {
+      await lockLedgerHistory(tx);
       const [existing] = await tx
         .select()
         .from(transactions)
@@ -698,6 +704,7 @@ transactionsRoute.post('/:id/void', async (c) => {
 
   try {
     const result = await db.transaction(async (tx) => {
+      await lockLedgerHistory(tx);
       const [original] = await tx
         .select()
         .from(transactions)

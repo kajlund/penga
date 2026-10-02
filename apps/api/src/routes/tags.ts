@@ -1,3 +1,4 @@
+import { lockLedgerHistory } from '../domain/ledger-history.js';
 import { Hono } from 'hono';
 import { eq, asc } from 'drizzle-orm';
 import { db, tags } from '../db/index.js';
@@ -92,7 +93,10 @@ tagsRoute.post('/', async (c) => {
  */
 tagsRoute.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  const [deleted] = await db.delete(tags).where(eq(tags.id, id)).returning();
+  const [deleted] = await db.transaction(async tx => {
+    await lockLedgerHistory(tx);
+    return tx.delete(tags).where(eq(tags.id, id)).returning();
+  });
 
   if (!deleted) {
     return c.json({ error: 'Tag not found' }, 404);

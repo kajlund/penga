@@ -26,9 +26,11 @@ import { reportsRoute } from './routes/reports.js';
 import { budgetsRoute } from './routes/budgets.js';
 import { tagsRoute } from './routes/tags.js';
 import { templatesRoute } from './routes/templates.js';
+import { dataManagementRoute } from './routes/data-management.js';
 
 export const app = new Hono();
 export const webDistDir = path.resolve(repoRootDir, 'apps/web/dist');
+app.route('/api/data-management', dataManagementRoute);
 
 const healthHandler = async (c: any) => {
   let dbStatus = 'disconnected';
