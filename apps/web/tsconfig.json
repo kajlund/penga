@@ -8,8 +8,6 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false
   },
-  "references": [
-    { "path": "../../packages/shared" }
-  ],
+  "references": [{ "path": "../../packages/shared" }],
   "include": ["src/**/*"]
 }

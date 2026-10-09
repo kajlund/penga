@@ -1,7 +1,19 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { eq, desc, asc, inArray, lte } from 'drizzle-orm';
-import { db, transactions, splits, accounts, tags, transactionTags } from '../db/index.js';
-import { getSettlementPresentation, type DashboardSummary, type AccountBalanceSummary, type TransactionWithSplits } from '@penga/shared';
+import {
+  db,
+  transactions,
+  splits,
+  accounts,
+  tags,
+  transactionTags,
+} from '../db/index.js';
+import {
+  getSettlementPresentation,
+  type DashboardSummary,
+  type AccountBalanceSummary,
+  type TransactionWithSplits,
+} from '@penga/shared';
 
 export const reportsRoute = new Hono();
 
@@ -22,7 +34,7 @@ reportsRoute.get('/', async (c) => {
   return handleSummary(c);
 });
 
-async function handleSummary(c: any) {
+async function handleSummary(c: Context) {
   const asOfDate = c.req.query('date') || c.req.query('asOf');
 
   // 1. Fetch all accounts
@@ -65,7 +77,10 @@ async function handleSummary(c: any) {
     directBalances.set(accId, (directBalances.get(accId) || 0) + s.amountCents);
     splitCounts.set(accId, (splitCounts.get(accId) || 0) + 1);
     if (s.isCleared) {
-      clearedBalances.set(accId, (clearedBalances.get(accId) || 0) + s.amountCents);
+      clearedBalances.set(
+        accId,
+        (clearedBalances.get(accId) || 0) + s.amountCents,
+      );
     }
   }
 
@@ -151,7 +166,10 @@ async function handleSummary(c: any) {
       clearedBalanceCents: clearedBal,
       splitCount: count,
       rollupBalanceCents: rollupBal,
-      settlementPresentation: acc.type === 'SETTLEMENT' ? getSettlementPresentation(directBal) : undefined,
+      settlementPresentation:
+        acc.type === 'SETTLEMENT'
+          ? getSettlementPresentation(directBal)
+          : undefined,
     };
   });
 
@@ -161,10 +179,16 @@ async function handleSummary(c: any) {
   const recentQuery = db
     .select()
     .from(transactions)
-    .orderBy(desc(transactions.transactionDate), asc(transactions.sortOrder), desc(transactions.createdAt));
+    .orderBy(
+      desc(transactions.transactionDate),
+      asc(transactions.sortOrder),
+      desc(transactions.createdAt),
+    );
 
   const recentTxs = asOfDate
-    ? await recentQuery.where(lte(transactions.transactionDate, asOfDate)).limit(6)
+    ? await recentQuery
+        .where(lte(transactions.transactionDate, asOfDate))
+        .limit(6)
     : await recentQuery.limit(6);
 
   let recentTransactionsWithSplits: TransactionWithSplits[] = [];
@@ -187,7 +211,7 @@ async function handleSummary(c: any) {
       .innerJoin(accounts, eq(splits.accountId, accounts.id))
       .where(inArray(splits.transactionId, txIds));
 
-    const recentSplitMap = new Map<string, any[]>();
+    const recentSplitMap = new Map<string, typeof recentSplitRows>();
     for (const s of recentSplitRows) {
       const list = recentSplitMap.get(s.transactionId) || [];
       list.push(s);
@@ -206,7 +230,10 @@ async function handleSummary(c: any) {
       .where(inArray(transactionTags.transactionId, txIds))
       .orderBy(asc(tags.name));
 
-    const recentTagMap = new Map<string, any[]>();
+    const recentTagMap = new Map<
+      string,
+      Array<Omit<(typeof recentTagRows)[number], 'transactionId'>>
+    >();
     for (const tr of recentTagRows) {
       const list = recentTagMap.get(tr.transactionId) || [];
       list.push({ id: tr.id, name: tr.name, color: tr.color });

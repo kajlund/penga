@@ -1,20 +1,22 @@
 # Penga - Personal Finance Manager: Design & Architecture Specification
 
 ## 1. Project Overview & Scope
-* **Name:** Penga (derived from a local slang word for money)
-* **Goal:** A custom, self-hosted personal finance manager optimized for manual transaction entry, multi-account management, deep split-cost allocation, and structured statement reconciliation.
-* **Architecture:** Monorepo containing a Node.js / Hono REST API backend using Drizzle ORM against PostgreSQL, paired with a TypeScript/Lit Single Page Application (SPA) frontend.
-* **Constraints:** Single currency only. No automated bank scraping or direct open-banking API hookups.
+
+- **Name:** Penga (derived from a local slang word for money)
+- **Goal:** A custom, self-hosted personal finance manager optimized for manual transaction entry, multi-account management, deep split-cost allocation, and structured statement reconciliation.
+- **Architecture:** Monorepo containing a Node.js / Hono REST API backend using Drizzle ORM against PostgreSQL, paired with a TypeScript/Lit Single Page Application (SPA) frontend.
+- **Constraints:** Single currency only. No automated bank scraping or direct open-banking API hookups.
 
 ---
 
 ## 2. Domain Model & Database Schema (Drizzle ORM)
 
-The core engine relies on a simplified double-entry bookkeeping model. Every financial movement is balanced across accounts using integer-based cents to avoid floating-point inaccuracies. 
+The core engine relies on a simplified double-entry bookkeeping model. Every financial movement is balanced across accounts using integer-based cents to avoid floating-point inaccuracies.
 
 To eliminate separate reporting abstractions, **categories and rollups are handled via a Self-Referencing Hierarchical Account Tree (`parent_id`)**. This allows accounts and expense groups to exist natively in the same structure.
 
 ### Entities & Relationships
+
 1. **`accounts`**: Tracks all liquidity, liabilities, income, and expense categories in a unified tree. Includes optional `icon` (string/emoji) and `color` metadata for UI rendering.
    - `id` (UUID, PK)
    - `name` (String)
@@ -39,11 +41,12 @@ To eliminate separate reporting abstractions, **categories and rollups are handl
 6. **`budgets`**: Monthly soft targets mapped to accounts to track spending progress via UI status bars.
 
 ### Mermaid Entity-Relationship Diagram
+
 ```mermaid
 erDiagram
     ACCOUNTS ||--o{ ACCOUNTS : "parent-child hierarchy"
     ACCOUNTS ||--o{ SPLITS : "records"
-    
+
     ACCOUNTS {
         uuid id PK
         string name
@@ -82,3 +85,4 @@ erDiagram
         uuid target_account_id FK
         integer default_ratio_percent
     }
+```

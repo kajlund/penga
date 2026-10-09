@@ -5,68 +5,71 @@ import { customElement, state } from 'lit/decorators.js';
 
 @customElement('theme-toggle')
 export class ThemeToggle extends LitElement {
-  static override styles = [css`
-    :host {
-      display: inline-flex;
-    }
+  static override styles = [
+    css`
+      :host {
+        display: inline-flex;
+      }
 
-    .toggle-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.8rem;
-      border-radius: var(--radius-full, 9999px);
-      background-color: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      user-select: none;
-      outline: none;
-    }
+      .toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: var(--radius-full, 9999px);
+        background-color: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        user-select: none;
+        outline: none;
+      }
 
-    .toggle-btn:hover {
-      background-color: var(--bg-muted);
-      color: var(--text-primary);
-      border-color: var(--border-strong);
-      transform: translateY(-1px);
-    }
+      .toggle-btn:hover {
+        background-color: var(--bg-muted);
+        color: var(--text-primary);
+        border-color: var(--border-strong);
+        transform: translateY(-1px);
+      }
 
-    .toggle-btn:focus-visible {
-      border-color: var(--border-focus);
-      box-shadow: 0 0 0 2px var(--color-primary-subtle);
-    }
+      .toggle-btn:focus-visible {
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 2px var(--color-primary-subtle);
+      }
 
-    .icon-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-    }
+      .icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+      }
 
-    svg {
-      width: 16px;
-      height: 16px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transition: transform var(--transition-normal);
-    }
+      svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: transform var(--transition-normal);
+      }
 
-    .toggle-btn:hover svg {
-      transform: rotate(15deg);
-    }
+      .toggle-btn:hover svg {
+        transform: rotate(15deg);
+      }
 
-    .theme-label {
-      text-transform: capitalize;
-    }
-  `, calmStyles];
+      .theme-label {
+        text-transform: capitalize;
+      }
+    `,
+    calmStyles,
+  ];
 
   @state()
   private currentTheme: 'light' | 'dark' = 'light';
@@ -85,7 +88,10 @@ export class ThemeToggle extends LitElement {
   }
 
   private handleStorageChange = (e: StorageEvent) => {
-    if (e.key === 'penga-theme' && (e.newValue === 'light' || e.newValue === 'dark')) {
+    if (
+      e.key === 'penga-theme' &&
+      (e.newValue === 'light' || e.newValue === 'dark')
+    ) {
       this.currentTheme = e.newValue;
       document.documentElement.setAttribute('data-theme', e.newValue);
     }
@@ -101,7 +107,9 @@ export class ThemeToggle extends LitElement {
         this.currentTheme = saved;
         document.documentElement.setAttribute('data-theme', saved);
       } else {
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
         this.currentTheme = prefersDark ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', this.currentTheme);
       }
@@ -109,7 +117,8 @@ export class ThemeToggle extends LitElement {
   }
 
   private toggleTheme() {
-    const nextTheme: 'light' | 'dark' = this.currentTheme === 'dark' ? 'light' : 'dark';
+    const nextTheme: 'light' | 'dark' =
+      this.currentTheme === 'dark' ? 'light' : 'dark';
     this.currentTheme = nextTheme;
     document.documentElement.setAttribute('data-theme', nextTheme);
     try {
@@ -123,7 +132,7 @@ export class ThemeToggle extends LitElement {
         detail: { theme: nextTheme },
         bubbles: true,
         composed: true,
-      })
+      }),
     );
   }
 
@@ -138,9 +147,7 @@ export class ThemeToggle extends LitElement {
         aria-label="Switch to ${isDark ? 'parchment light' : 'charcoal dark'} mode"
         title="Switch to ${isDark ? 'parchment light' : 'charcoal dark'} mode"
       >
-        <span class="icon-wrap">
-          ${icon(isDark ? "sun" : "moon")}
-        </span>
+        <span class="icon-wrap"> ${icon(isDark ? 'sun' : 'moon')} </span>
         <span class="theme-label">${isDark ? 'Light' : 'Dark'}</span>
       </button>
     `;

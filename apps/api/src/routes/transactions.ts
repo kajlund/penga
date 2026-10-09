@@ -1,89 +1,227 @@
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { lockLedgerHistory } from '../domain/ledger-history.js';
-import { openingBalanceAccount, isOpeningBalance, validOpeningDate } from '../domain/opening-balances.js';
+import {
+  openingBalanceAccount,
+  isOpeningBalance,
+  validOpeningDate,
+} from '../domain/opening-balances.js';
 import { buildEntryTransaction, type TransactionEntry } from '@penga/shared';
 import { Hono } from 'hono';
 import { eq, desc, asc, inArray, and, sql } from 'drizzle-orm';
-import { db, transactions, splits, accounts, tags, transactionTags } from '../db/index.js';
-import type { CreateTransactionInput, SplitInput, UpdateTransactionInput, ReorderTransactionsInput } from '@penga/shared';
+import {
+  db,
+  transactions,
+  splits,
+  accounts,
+  tags,
+  transactionTags,
+} from '../db/index.js';
+import type {
+  CreateTransactionInput,
+  SplitInput,
+  ReorderTransactionsInput,
+} from '@penga/shared';
+
+type TransactionRequest = CreateTransactionInput &
+  Partial<ReorderTransactionsInput> & {
+    adjustment?: TransactionEntry;
+    expectedBalanceCents?: number;
+    reason?: string;
+    reversalDate?: string;
+    date?: string;
+  };
 
 export const transactionsRoute = new Hono();
 transactionsRoute.onError((err, c) => {
   console.error('Transaction operation failed', err);
-  return c.json({ error: 'Unable to save the transaction. Please try again.' }, 500);
+  return c.json(
+    { error: 'Unable to save the transaction. Please try again.' },
+    500,
+  );
 });
 
-﻿/** Resolve a balance correction against the live ledger, atomically. */
+/** Resolve a balance correction against the live ledger, atomically. */
 transactionsRoute.post('/adjustments', async (c) => {
-  let body: any;
-  try { body = await c.req.json(); } catch { return c.json({ error: 'Invalid JSON request body' }, 400); }
+  let body: TransactionRequest;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON request body' }, 400);
+  }
   const entry = body?.adjustment as TransactionEntry;
-  if (!entry || entry.kind !== 'adjustment' || !['amount', 'balance'].includes(entry.method) || typeof entry.total !== 'string' || typeof entry.accountId !== 'string' || typeof body.transactionDate !== 'string'
-    || (body.payee != null && typeof body.payee !== 'string') || (body.note != null && typeof body.note !== 'string')
-    || (body.isCleared !== undefined && typeof body.isCleared !== 'boolean')
-    || (body.tagIds !== undefined && (!Array.isArray(body.tagIds) || body.tagIds.some((id: unknown) => typeof id !== 'string')))) {
+  if (
+    !entry ||
+    entry.kind !== 'adjustment' ||
+    !['amount', 'balance'].includes(entry.method) ||
+    typeof entry.total !== 'string' ||
+    typeof entry.accountId !== 'string' ||
+    typeof body.transactionDate !== 'string' ||
+    (body.payee != null && typeof body.payee !== 'string') ||
+    (body.note != null && typeof body.note !== 'string') ||
+    (body.isCleared !== undefined && typeof body.isCleared !== 'boolean') ||
+    (body.tagIds !== undefined &&
+      (!Array.isArray(body.tagIds) ||
+        body.tagIds.some((id: unknown) => typeof id !== 'string')))
+  ) {
     return c.json({ error: 'Invalid adjustment' }, 400);
   }
   try {
-    const result = await db.transaction(async tx => {
+    const result = await db.transaction(async (tx) => {
       await lockLedgerHistory(tx);
       const equity = await openingBalanceAccount(tx);
       // Also serializes against existing split writes, which do not take advisory locks.
       await tx.execute(sql`LOCK TABLE splits IN SHARE ROW EXCLUSIVE MODE`);
       const allAccounts = await tx.select().from(accounts);
-      const [balance] = await tx.select({ cents: sql<string>`coalesce(sum(${splits.amountCents}), 0)` }).from(splits).where(eq(splits.accountId, entry.accountId));
+      const [balance] = await tx
+        .select({ cents: sql<string>`coalesce(sum(${splits.amountCents}), 0)` })
+        .from(splits)
+        .where(eq(splits.accountId, entry.accountId));
       const currentBalanceCents = Number(balance.cents);
-      if (entry.method === 'balance' && body.expectedBalanceCents !== currentBalanceCents) {
-        throw new Error('The account balance changed. Reopen the dialog to load the latest balance.');
+      if (
+        entry.method === 'balance' &&
+        body.expectedBalanceCents !== currentBalanceCents
+      ) {
+        throw new Error(
+          'The account balance changed. Reopen the dialog to load the latest balance.',
+        );
       }
-      const payload = buildEntryTransaction(entry, { accounts: allAccounts, currentBalanceCents, equityAccountId: equity.id }, {
-        transactionDate: body.transactionDate, payee: body.payee || null, note: body.note || null,
-        isCleared: body.isCleared ?? false, tagIds: body.tagIds || [],
-      });
-      if (isOpeningBalance({ payee: payload.payee ?? null, note: payload.note ?? null })) throw new Error('Create an opening balance from the account form to prevent duplicates.');
-      const [record] = await tx.insert(transactions).values({ transactionDate: payload.transactionDate, payee: payload.payee, note: payload.note, isCleared: payload.isCleared }).returning();
-      const lines = await tx.insert(splits).values(payload.splits.map(s => ({ ...s, transactionId: record.id }))).returning();
-      for (const tagId of new Set<string>(payload.tagIds)) await tx.insert(transactionTags).values({ transactionId: record.id, tagId }).onConflictDoNothing();
-      const attachedTags = payload.tagIds?.length ? await tx.select().from(tags).where(inArray(tags.id, payload.tagIds)) : [];
-      return { ...record, splits: lines.map(s => { const account = [...allAccounts, equity].find(a => a.id === s.accountId)!; return { ...s, accountName: account.name, accountType: account.type, accountIcon: account.icon, accountColor: account.color }; }), tags: attachedTags };
+      const payload = buildEntryTransaction(
+        entry,
+        {
+          accounts: allAccounts,
+          currentBalanceCents,
+          equityAccountId: equity.id,
+        },
+        {
+          transactionDate: body.transactionDate,
+          payee: body.payee || null,
+          note: body.note || null,
+          isCleared: body.isCleared ?? false,
+          tagIds: body.tagIds || [],
+        },
+      );
+      if (
+        isOpeningBalance({
+          payee: payload.payee ?? null,
+          note: payload.note ?? null,
+        })
+      )
+        throw new Error(
+          'Create an opening balance from the account form to prevent duplicates.',
+        );
+      const [record] = await tx
+        .insert(transactions)
+        .values({
+          transactionDate: payload.transactionDate,
+          payee: payload.payee,
+          note: payload.note,
+          isCleared: payload.isCleared,
+        })
+        .returning();
+      const lines = await tx
+        .insert(splits)
+        .values(payload.splits.map((s) => ({ ...s, transactionId: record.id })))
+        .returning();
+      for (const tagId of new Set<string>(payload.tagIds))
+        await tx
+          .insert(transactionTags)
+          .values({ transactionId: record.id, tagId })
+          .onConflictDoNothing();
+      const attachedTags = payload.tagIds?.length
+        ? await tx.select().from(tags).where(inArray(tags.id, payload.tagIds))
+        : [];
+      return {
+        ...record,
+        splits: lines.map((s) => {
+          const account = [...allAccounts, equity].find(
+            (a) => a.id === s.accountId,
+          )!;
+          return {
+            ...s,
+            accountName: account.name,
+            accountType: account.type,
+            accountIcon: account.icon,
+            accountColor: account.color,
+          };
+        }),
+        tags: attachedTags,
+      };
     });
     return c.json({ data: result }, 201);
   } catch (error) {
-    if (error && typeof error === 'object' && ('code' in error || 'cause' in error)) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      ('code' in error || 'cause' in error)
+    ) {
       console.error('Adjustment failed', error);
-      return c.json({ error: 'Unable to record the adjustment. Please try again.' }, 500);
+      return c.json(
+        { error: 'Unable to record the adjustment. Please try again.' },
+        500,
+      );
     }
-    return c.json({ error: error instanceof Error ? error.message : 'Could not record adjustment' }, 400);
+    return c.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Could not record adjustment',
+      },
+      400,
+    );
   }
 });
-
 
 /**
  * POST /api/transactions
  * Creates a transaction with balanced double-entry splits and optional tags.
  */
 transactionsRoute.post('/', async (c) => {
-  let body: any;
+  let body: TransactionRequest;
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  const { transactionDate, sortOrder, payee, isCleared, note, splits: inputSplits, tagIds } = body as CreateTransactionInput;
+  const {
+    transactionDate,
+    sortOrder,
+    payee,
+    isCleared,
+    note,
+    splits: inputSplits,
+    tagIds,
+  } = body as CreateTransactionInput;
 
   // 1. Validate transaction date (YYYY-MM-DD)
   if (!transactionDate || typeof transactionDate !== 'string') {
-    return c.json({ error: 'Field "transactionDate" is required and must be a string (YYYY-MM-DD)' }, 400);
+    return c.json(
+      {
+        error:
+          'Field "transactionDate" is required and must be a string (YYYY-MM-DD)',
+      },
+      400,
+    );
   }
 
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (!dateRegex.test(transactionDate) || isNaN(Date.parse(transactionDate))) {
-    return c.json({ error: 'Field "transactionDate" must be a valid date in YYYY-MM-DD format' }, 400);
+    return c.json(
+      {
+        error:
+          'Field "transactionDate" must be a valid date in YYYY-MM-DD format',
+      },
+      400,
+    );
   }
 
   // 2. Validate splits array existence and length
   if (!Array.isArray(inputSplits) || inputSplits.length < 2) {
-    return c.json({ error: 'Transaction must have at least 2 split lines to balance' }, 400);
+    return c.json(
+      { error: 'Transaction must have at least 2 split lines to balance' },
+      400,
+    );
   }
 
   // 3. Validate each split
@@ -97,15 +235,29 @@ transactionsRoute.post('/', async (c) => {
     }
 
     if (!split.accountId || typeof split.accountId !== 'string') {
-      return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
+      return c.json(
+        { error: `Split at index ${i} is missing a valid "accountId"` },
+        400,
+      );
     }
 
-    if (!Number.isInteger(split.amountCents) || Math.abs(split.amountCents) > 2147483647) {
-      return c.json({ error: `Split at index ${i} "amountCents" must be an integer within the supported range` }, 400);
+    if (
+      !Number.isInteger(split.amountCents) ||
+      Math.abs(split.amountCents) > 2147483647
+    ) {
+      return c.json(
+        {
+          error: `Split at index ${i} "amountCents" must be an integer within the supported range`,
+        },
+        400,
+      );
     }
 
     if (split.amountCents === 0) {
-      return c.json({ error: `Split at index ${i} "amountCents" cannot be zero` }, 400);
+      return c.json(
+        { error: `Split at index ${i} "amountCents" cannot be zero` },
+        400,
+      );
     }
 
     totalCents += split.amountCents;
@@ -119,23 +271,48 @@ transactionsRoute.post('/', async (c) => {
         error: `Transaction splits must balance to exactly zero. Current net sum: ${totalCents} cents`,
         imbalanceCents: totalCents,
       },
-      400
+      400,
     );
   }
 
   // 5. Validate that all referenced account IDs exist in PostgreSQL
   const foundAccounts = await db
-    .select({ id: accounts.id, name: accounts.name, type: accounts.type, icon: accounts.icon, color: accounts.color })
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      type: accounts.type,
+      icon: accounts.icon,
+      color: accounts.color,
+    })
     .from(accounts)
     .where(inArray(accounts.id, Array.from(referencedAccountIds)));
 
   if (foundAccounts.length !== referencedAccountIds.size) {
     const foundIds = new Set(foundAccounts.map((a) => a.id));
-    const missingIds = Array.from(referencedAccountIds).filter((id) => !foundIds.has(id));
-    return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
+    const missingIds = Array.from(referencedAccountIds).filter(
+      (id) => !foundIds.has(id),
+    );
+    return c.json(
+      {
+        error: `The following accountId(s) do not exist: ${missingIds.join(', ')}`,
+      },
+      400,
+    );
   }
 
-  if (isOpeningBalance({ payee: typeof payee === 'string' ? payee.trim() : null, note: typeof note === 'string' ? note.trim() : null })) return c.json({ error: 'Create an opening balance from the account form to prevent duplicates.' }, 409);
+  if (
+    isOpeningBalance({
+      payee: typeof payee === 'string' ? payee.trim() : null,
+      note: typeof note === 'string' ? note.trim() : null,
+    })
+  )
+    return c.json(
+      {
+        error:
+          'Create an opening balance from the account form to prevent duplicates.',
+      },
+      409,
+    );
   const accountMap = new Map(foundAccounts.map((a) => [a.id, a]));
 
   // 6. Execute atomic transaction in PostgreSQL
@@ -145,7 +322,10 @@ transactionsRoute.post('/', async (c) => {
       .insert(transactions)
       .values({
         transactionDate,
-        sortOrder: typeof sortOrder === 'number' && Number.isInteger(sortOrder) ? sortOrder : 0,
+        sortOrder:
+          typeof sortOrder === 'number' && Number.isInteger(sortOrder)
+            ? sortOrder
+            : 0,
         payee: typeof payee === 'string' && payee.trim() ? payee.trim() : null,
         isCleared: Boolean(isCleared),
         note: typeof note === 'string' && note.trim() ? note.trim() : null,
@@ -158,7 +338,10 @@ transactionsRoute.post('/', async (c) => {
       amountCents: s.amountCents,
     }));
 
-    const insertedSplits = await tx.insert(splits).values(splitsToInsert).returning();
+    const insertedSplits = await tx
+      .insert(splits)
+      .values(splitsToInsert)
+      .returning();
 
     const enrichedSplits = insertedSplits.map((s) => {
       const acc = accountMap.get(s.accountId);
@@ -173,20 +356,24 @@ transactionsRoute.post('/', async (c) => {
 
     if (tagIds && Array.isArray(tagIds) && tagIds.length > 0) {
       for (const tagId of tagIds) {
-        await tx.insert(transactionTags).values({
-          transactionId: newTx.id,
-          tagId,
-        }).onConflictDoNothing();
+        await tx
+          .insert(transactionTags)
+          .values({
+            transactionId: newTx.id,
+            tagId,
+          })
+          .onConflictDoNothing();
       }
     }
 
-    const attachedTags = tagIds && tagIds.length > 0
-      ? await tx
-          .select({ id: tags.id, name: tags.name, color: tags.color })
-          .from(tags)
-          .where(inArray(tags.id, tagIds))
-          .orderBy(asc(tags.name))
-      : [];
+    const attachedTags =
+      tagIds && tagIds.length > 0
+        ? await tx
+            .select({ id: tags.id, name: tags.name, color: tags.color })
+            .from(tags)
+            .where(inArray(tags.id, tagIds))
+            .orderBy(asc(tags.name))
+        : [];
 
     return {
       ...newTx,
@@ -226,7 +413,10 @@ transactionsRoute.get('/', async (c) => {
   // If filtering by tag, find transaction IDs
   let tagTxIdFilter: string[] | null = null;
   if (tagQuery) {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tagQuery);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        tagQuery,
+      );
     const matchedTags = isUuid
       ? await db
           .select({ transactionId: transactionTags.transactionId })
@@ -241,7 +431,9 @@ transactionsRoute.get('/', async (c) => {
     if (matchedTags.length === 0) {
       return c.json({ data: [] });
     }
-    tagTxIdFilter = Array.from(new Set(matchedTags.map((r) => r.transactionId)));
+    tagTxIdFilter = Array.from(
+      new Set(matchedTags.map((r) => r.transactionId)),
+    );
   }
 
   let finalTxIdFilter: string[] | null = null;
@@ -265,20 +457,29 @@ transactionsRoute.get('/', async (c) => {
     conditions.push(eq(transactions.isCleared, isClearedQuery === 'true'));
   }
 
-  const txRows = conditions.length > 0
-    ? await db
-        .select()
-        .from(transactions)
-        .where(and(...conditions))
-        .orderBy(desc(transactions.transactionDate), asc(transactions.sortOrder), desc(transactions.createdAt))
-        .limit(limit)
-        .offset(offset)
-    : await db
-        .select()
-        .from(transactions)
-        .orderBy(desc(transactions.transactionDate), asc(transactions.sortOrder), desc(transactions.createdAt))
-        .limit(limit)
-        .offset(offset);
+  const txRows =
+    conditions.length > 0
+      ? await db
+          .select()
+          .from(transactions)
+          .where(and(...conditions))
+          .orderBy(
+            desc(transactions.transactionDate),
+            asc(transactions.sortOrder),
+            desc(transactions.createdAt),
+          )
+          .limit(limit)
+          .offset(offset)
+      : await db
+          .select()
+          .from(transactions)
+          .orderBy(
+            desc(transactions.transactionDate),
+            asc(transactions.sortOrder),
+            desc(transactions.createdAt),
+          )
+          .limit(limit)
+          .offset(offset);
 
   if (txRows.length === 0) {
     return c.json({ data: [] });
@@ -303,7 +504,7 @@ transactionsRoute.get('/', async (c) => {
     .where(inArray(splits.transactionId, txIds));
 
   // Group splits by transactionId
-  const splitMap = new Map<string, any[]>();
+  const splitMap = new Map<string, typeof splitRows>();
   for (const s of splitRows) {
     const list = splitMap.get(s.transactionId) || [];
     list.push(s);
@@ -323,7 +524,10 @@ transactionsRoute.get('/', async (c) => {
     .where(inArray(transactionTags.transactionId, txIds))
     .orderBy(asc(tags.name));
 
-  const tagMap = new Map<string, any[]>();
+  const tagMap = new Map<
+    string,
+    Array<Omit<(typeof tagRows)[number], 'transactionId'>>
+  >();
   for (const tr of tagRows) {
     const list = tagMap.get(tr.transactionId) || [];
     list.push({ id: tr.id, name: tr.name, color: tr.color });
@@ -346,7 +550,11 @@ transactionsRoute.get('/', async (c) => {
 transactionsRoute.get('/:id', async (c) => {
   const id = c.req.param('id');
 
-  const [tx] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+  const [tx] = await db
+    .select()
+    .from(transactions)
+    .where(eq(transactions.id, id))
+    .limit(1);
   if (!tx) {
     return c.json({ error: 'Transaction not found' }, 404);
   }
@@ -392,7 +600,7 @@ transactionsRoute.get('/:id', async (c) => {
  * Batch updates the sortOrder for multiple transactions.
  */
 transactionsRoute.patch('/reorder', async (c) => {
-  let body: any;
+  let body: TransactionRequest;
   try {
     body = await c.req.json();
   } catch {
@@ -401,7 +609,10 @@ transactionsRoute.patch('/reorder', async (c) => {
 
   const { items } = body as ReorderTransactionsInput;
   if (!Array.isArray(items) || items.length === 0) {
-    return c.json({ error: 'Field "items" must be a non-empty array of { id, sortOrder }' }, 400);
+    return c.json(
+      { error: 'Field "items" must be a non-empty array of { id, sortOrder }' },
+      400,
+    );
   }
 
   for (let i = 0; i < items.length; i++) {
@@ -410,17 +621,27 @@ transactionsRoute.patch('/reorder', async (c) => {
       return c.json({ error: `Item at index ${i} missing valid "id"` }, 400);
     }
     if (!Number.isInteger(item.sortOrder)) {
-      return c.json({ error: `Item at index ${i} "sortOrder" must be an integer` }, 400);
+      return c.json(
+        { error: `Item at index ${i} "sortOrder" must be an integer` },
+        400,
+      );
     }
   }
 
   await db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
     for (const item of items) {
-      const [record] = await tx.select().from(transactions).where(eq(transactions.id, item.id));
+      const [record] = await tx
+        .select()
+        .from(transactions)
+        .where(eq(transactions.id, item.id));
       await tx
         .update(transactions)
-        .set({ sortOrder: record && isOpeningBalance(record) ? -2147483648 : item.sortOrder, updatedAt: new Date() })
+        .set({
+          sortOrder:
+            record && isOpeningBalance(record) ? -2147483648 : item.sortOrder,
+          updatedAt: new Date(),
+        })
         .where(eq(transactions.id, item.id));
     }
   });
@@ -434,16 +655,20 @@ transactionsRoute.patch('/reorder', async (c) => {
  */
 transactionsRoute.patch('/:id', async (c) => {
   const id = c.req.param('id');
-  let body: any;
+  let body: TransactionRequest;
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  return db.transaction(async tx => {
+  return db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
-    const [existing] = await tx.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+    const [existing] = await tx
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id))
+      .limit(1);
     if (!existing) {
       return c.json({ error: 'Transaction not found' }, 404);
     }
@@ -453,15 +678,34 @@ transactionsRoute.patch('/:id', async (c) => {
     }
 
     if (existing.reversesTransactionId) {
-      return c.json({ error: 'Cannot edit an automatically generated reversal transaction' }, 409);
+      return c.json(
+        {
+          error: 'Cannot edit an automatically generated reversal transaction',
+        },
+        409,
+      );
     }
 
     if (existing.reversalTransactionId) {
-      return c.json({ error: 'Cannot edit a transaction that has been reversed' }, 409);
+      return c.json(
+        { error: 'Cannot edit a transaction that has been reversed' },
+        409,
+      );
     }
 
-    if (body.isCleared !== undefined && (existing.voidedAt || existing.reversalTransactionId || existing.reversesTransactionId)) {
-      return c.json({ error: 'Cannot change cleared status of voided or reversal transactions' }, 409);
+    if (
+      body.isCleared !== undefined &&
+      (existing.voidedAt ||
+        existing.reversalTransactionId ||
+        existing.reversesTransactionId)
+    ) {
+      return c.json(
+        {
+          error:
+            'Cannot change cleared status of voided or reversal transactions',
+        },
+        409,
+      );
     }
 
     const updateData: Partial<typeof transactions.$inferInsert> = {
@@ -480,11 +724,17 @@ transactionsRoute.patch('/:id', async (c) => {
     }
 
     if (body.payee !== undefined) {
-      updateData.payee = typeof body.payee === 'string' && body.payee.trim() ? body.payee.trim() : null;
+      updateData.payee =
+        typeof body.payee === 'string' && body.payee.trim()
+          ? body.payee.trim()
+          : null;
     }
 
     if (body.note !== undefined) {
-      updateData.note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
+      updateData.note =
+        typeof body.note === 'string' && body.note.trim()
+          ? body.note.trim()
+          : null;
     }
 
     if (body.transactionDate !== undefined) {
@@ -494,29 +744,85 @@ transactionsRoute.patch('/:id', async (c) => {
         !dateRegex.test(body.transactionDate) ||
         isNaN(Date.parse(body.transactionDate))
       ) {
-        return c.json({ error: 'Field "transactionDate" must be a valid date in YYYY-MM-DD format' }, 400);
+        return c.json(
+          {
+            error:
+              'Field "transactionDate" must be a valid date in YYYY-MM-DD format',
+          },
+          400,
+        );
       }
       updateData.transactionDate = body.transactionDate;
     }
 
-    if (!isOpeningBalance(existing) && isOpeningBalance({ payee: body.payee === undefined ? existing.payee : body.payee, note: body.note === undefined ? existing.note : body.note })) {
-      return c.json({ error: 'Create an opening balance from the account form to prevent duplicates.' }, 409);
+    if (
+      !isOpeningBalance(existing) &&
+      isOpeningBalance({
+        payee: body.payee === undefined ? existing.payee : body.payee,
+        note: body.note === undefined ? existing.note : body.note,
+      })
+    ) {
+      return c.json(
+        {
+          error:
+            'Create an opening balance from the account form to prevent duplicates.',
+        },
+        409,
+      );
     }
     if (isOpeningBalance(existing)) {
       updateData.sortOrder = -2147483648;
-      if (body.payee !== undefined && body.payee !== existing.payee && body.payee !== 'Opening Balance') return c.json({ error: 'Opening balances keep the Opening Balance transaction label. Edit the description, amount or date instead.' }, 409);
+      if (
+        body.payee !== undefined &&
+        body.payee !== existing.payee &&
+        body.payee !== 'Opening Balance'
+      )
+        return c.json(
+          {
+            error:
+              'Opening balances keep the Opening Balance transaction label. Edit the description, amount or date instead.',
+          },
+          409,
+        );
       // Keep a stable identity even when the legacy note was the only opening marker.
       updateData.payee = 'Opening Balance';
-      if (body.transactionDate !== undefined && !validOpeningDate(body.transactionDate)) return c.json({ error: 'Choose a valid opening-balance date.' }, 400);
+      if (
+        body.transactionDate !== undefined &&
+        !validOpeningDate(body.transactionDate)
+      )
+        return c.json({ error: 'Choose a valid opening-balance date.' }, 400);
       if (body.splits !== undefined) {
-        const original = await tx.select().from(splits).where(eq(splits.transactionId, id));
-        if (!Array.isArray(body.splits) || body.splits.length !== 2 || original.length !== 2 || !original.every(line => body.splits.filter((s: SplitInput) => s?.accountId === line.accountId).length === 1)) return c.json({ error: 'Keep the original account and equity counterpart when editing an opening balance.' }, 409);
+        const original = await tx
+          .select()
+          .from(splits)
+          .where(eq(splits.transactionId, id));
+        if (
+          !Array.isArray(body.splits) ||
+          body.splits.length !== 2 ||
+          original.length !== 2 ||
+          !original.every(
+            (line) =>
+              body.splits.filter(
+                (s: SplitInput) => s?.accountId === line.accountId,
+              ).length === 1,
+          )
+        )
+          return c.json(
+            {
+              error:
+                'Keep the original account and equity counterpart when editing an opening balance.',
+            },
+            409,
+          );
       }
     }
     // Validate splits if provided
     if (body.splits !== undefined) {
       if (!Array.isArray(body.splits) || body.splits.length < 2) {
-        return c.json({ error: 'Transaction must have at least 2 split lines to balance' }, 400);
+        return c.json(
+          { error: 'Transaction must have at least 2 split lines to balance' },
+          400,
+        );
       }
 
       let totalCents = 0;
@@ -529,15 +835,24 @@ transactionsRoute.patch('/:id', async (c) => {
         }
 
         if (!split.accountId || typeof split.accountId !== 'string') {
-          return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
+          return c.json(
+            { error: `Split at index ${i} is missing a valid "accountId"` },
+            400,
+          );
         }
 
         if (!Number.isInteger(split.amountCents)) {
-          return c.json({ error: `Split at index ${i} "amountCents" must be an integer` }, 400);
+          return c.json(
+            { error: `Split at index ${i} "amountCents" must be an integer` },
+            400,
+          );
         }
 
         if (split.amountCents === 0 && !isOpeningBalance(existing)) {
-          return c.json({ error: `Split at index ${i} "amountCents" cannot be zero` }, 400);
+          return c.json(
+            { error: `Split at index ${i} "amountCents" cannot be zero` },
+            400,
+          );
         }
 
         totalCents += split.amountCents;
@@ -550,7 +865,7 @@ transactionsRoute.patch('/:id', async (c) => {
             error: `Transaction splits must balance to exactly zero. Current net sum: ${totalCents} cents`,
             imbalanceCents: totalCents,
           },
-          400
+          400,
         );
       }
 
@@ -561,8 +876,15 @@ transactionsRoute.patch('/:id', async (c) => {
 
       if (foundAccounts.length !== referencedAccountIds.size) {
         const foundIds = new Set(foundAccounts.map((a) => a.id));
-        const missingIds = Array.from(referencedAccountIds).filter((accId) => !foundIds.has(accId));
-        return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
+        const missingIds = Array.from(referencedAccountIds).filter(
+          (accId) => !foundIds.has(accId),
+        );
+        return c.json(
+          {
+            error: `The following accountId(s) do not exist: ${missingIds.join(', ')}`,
+          },
+          400,
+        );
       }
     }
 
@@ -582,21 +904,26 @@ transactionsRoute.patch('/:id', async (c) => {
           transactionId: id,
           accountId: s.accountId,
           amountCents: s.amountCents,
-        }))
+        })),
       );
     }
 
     if (body.tagIds !== undefined) {
       // Delete existing tag associations
-      await tx.delete(transactionTags).where(eq(transactionTags.transactionId, id));
+      await tx
+        .delete(transactionTags)
+        .where(eq(transactionTags.transactionId, id));
 
       // Insert new tag associations
       if (Array.isArray(body.tagIds) && body.tagIds.length > 0) {
         for (const tagId of body.tagIds) {
-          await tx.insert(transactionTags).values({
-            transactionId: id,
-            tagId,
-          }).onConflictDoNothing();
+          await tx
+            .insert(transactionTags)
+            .values({
+              transactionId: id,
+              tagId,
+            })
+            .onConflictDoNothing();
         }
       }
     }
@@ -663,11 +990,18 @@ transactionsRoute.delete('/:id', async (c) => {
       }
 
       if (existing.reversesTransactionId || existing.reversalTransactionId) {
-        return { error: 'Cannot delete a transaction linked to a reversal', status: 409 };
+        return {
+          error: 'Cannot delete a transaction linked to a reversal',
+          status: 409,
+        };
       }
 
       if (existing.isCleared && !isOpeningBalance(existing)) {
-        return { error: 'Cleared transactions cannot be deleted. Use reverse/void instead.', status: 409 };
+        return {
+          error:
+            'Cleared transactions cannot be deleted. Use reverse/void instead.',
+          status: 409,
+        };
       }
 
       await tx.delete(transactions).where(eq(transactions.id, id));
@@ -675,7 +1009,10 @@ transactionsRoute.delete('/:id', async (c) => {
     });
 
     if ('error' in result) {
-      return c.json({ error: result.error }, result.status as any);
+      return c.json(
+        { error: result.error },
+        result.status as ContentfulStatusCode,
+      );
     }
 
     return c.json({
@@ -683,9 +1020,12 @@ transactionsRoute.delete('/:id', async (c) => {
       deletedId: id,
       message: 'Transaction deleted successfully',
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Transaction deletion failed', err);
-    return c.json({ error: 'Unable to delete the transaction. Please try again.' }, 500);
+    return c.json(
+      { error: 'Unable to delete the transaction. Please try again.' },
+      500,
+    );
   }
 });
 
@@ -695,23 +1035,30 @@ transactionsRoute.delete('/:id', async (c) => {
  */
 transactionsRoute.post('/:id/void', async (c) => {
   const id = c.req.param('id');
-  let body: any = {};
+  let body: Partial<TransactionRequest> = {};
   try {
     body = await c.req.json();
   } catch {
     // Body is optional
   }
 
-  const reason = typeof body?.reason === 'string' && body.reason.trim() ? body.reason.trim() : null;
-  const reversalDate = typeof body?.date === 'string' && body.date.trim()
-    ? body.date.trim()
-    : (typeof body?.reversalDate === 'string' && body.reversalDate.trim()
-      ? body.reversalDate.trim()
-      : new Date().toISOString().slice(0, 10));
+  const reason =
+    typeof body?.reason === 'string' && body.reason.trim()
+      ? body.reason.trim()
+      : null;
+  const reversalDate =
+    typeof body?.date === 'string' && body.date.trim()
+      ? body.date.trim()
+      : typeof body?.reversalDate === 'string' && body.reversalDate.trim()
+        ? body.reversalDate.trim()
+        : new Date().toISOString().slice(0, 10);
 
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (!dateRegex.test(reversalDate) || isNaN(Date.parse(reversalDate))) {
-    return c.json({ error: 'Field "date" must be a valid date in YYYY-MM-DD format' }, 400);
+    return c.json(
+      { error: 'Field "date" must be a valid date in YYYY-MM-DD format' },
+      400,
+    );
   }
 
   try {
@@ -732,7 +1079,10 @@ transactionsRoute.post('/:id/void', async (c) => {
       }
 
       if (original.reversesTransactionId) {
-        return { error: 'Cannot void an automatically generated reversal transaction', status: 409 };
+        return {
+          error: 'Cannot void an automatically generated reversal transaction',
+          status: 409,
+        };
       }
 
       const originalSplits = await tx
@@ -742,22 +1092,36 @@ transactionsRoute.post('/:id/void', async (c) => {
 
       if (isOpeningBalance(original)) {
         return {
-          error: 'Opening balance transactions cannot be voided directly. Use account balance adjustments instead.',
+          error:
+            'Opening balance transactions cannot be voided directly. Use account balance adjustments instead.',
           status: 409,
         };
       }
 
       if (!original.isCleared) {
-        return { error: 'Only cleared transactions can be voided. Unclear transactions should be deleted.', status: 409 };
+        return {
+          error:
+            'Only cleared transactions can be voided. Unclear transactions should be deleted.',
+          status: 409,
+        };
       }
 
       if (originalSplits.length < 2) {
-        return { error: 'Transaction has invalid splits to reverse', status: 400 };
+        return {
+          error: 'Transaction has invalid splits to reverse',
+          status: 400,
+        };
       }
 
       const now = new Date();
-      const payeeText = original.payee ? `Reversal of: ${original.payee}` : 'Reversal';
-      const noteText = reason ? `Void reason: ${reason}` : (original.note ? `Reversal of note: ${original.note}` : 'Reversal transaction');
+      const payeeText = original.payee
+        ? `Reversal of: ${original.payee}`
+        : 'Reversal';
+      const noteText = reason
+        ? `Void reason: ${reason}`
+        : original.note
+          ? `Reversal of note: ${original.note}`
+          : 'Reversal transaction';
 
       // 1. Create reversal transaction
       const [reversal] = await tx
@@ -779,7 +1143,10 @@ transactionsRoute.post('/:id/void', async (c) => {
         amountCents: -s.amountCents,
       }));
 
-      const createdSplits = await tx.insert(splits).values(reversedSplitsData).returning();
+      const createdSplits = await tx
+        .insert(splits)
+        .values(reversedSplitsData)
+        .returning();
 
       // 3. Mark original transaction as voided and link reversal
       const [updatedOriginal] = await tx
@@ -800,12 +1167,15 @@ transactionsRoute.post('/:id/void', async (c) => {
         .where(eq(transactionTags.transactionId, original.id));
 
       if (originalTags.length > 0) {
-        await tx.insert(transactionTags).values(
-          originalTags.map((t) => ({
-            transactionId: reversal.id,
-            tagId: t.tagId,
-          }))
-        ).onConflictDoNothing();
+        await tx
+          .insert(transactionTags)
+          .values(
+            originalTags.map((t) => ({
+              transactionId: reversal.id,
+              tagId: t.tagId,
+            })),
+          )
+          .onConflictDoNothing();
       }
 
       return {
@@ -818,7 +1188,10 @@ transactionsRoute.post('/:id/void', async (c) => {
     });
 
     if ('error' in result) {
-      return c.json({ error: result.error }, result.status as any);
+      return c.json(
+        { error: result.error },
+        result.status as ContentfulStatusCode,
+      );
     }
 
     return c.json(
@@ -827,10 +1200,13 @@ transactionsRoute.post('/:id/void', async (c) => {
         message: 'Transaction voided and reversal created successfully',
         data: result,
       },
-      201
+      201,
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error('Transaction void failed', err);
-    return c.json({ error: 'Unable to void the transaction. Please try again.' }, 500);
+    return c.json(
+      { error: 'Unable to void the transaction. Please try again.' },
+      500,
+    );
   }
 });

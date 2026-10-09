@@ -4,7 +4,12 @@ import { icon } from './icons.js';
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
-import type { TransactionTemplateWithSplits, Account, Tag, CreateTransactionTemplateInput, UpdateTransactionTemplateInput } from '@penga/shared';
+import type {
+  TransactionTemplateWithSplits,
+  Account,
+  Tag,
+  CreateTransactionTemplateInput,
+} from '@penga/shared';
 import './account-combobox.js';
 
 interface TemplateSplitRow {
@@ -15,591 +20,603 @@ interface TemplateSplitRow {
 
 @customElement('penga-templates')
 export class PengaTemplates extends LitElement {
-  static override styles = [css`
-    :host {
-      display: block;
-      padding: 2rem 2.5rem 4rem;
-      max-width: 1240px;
-      margin: 0 auto;
-      font-family: var(--font-sans);
-    }
-
-    .page-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .header-title h2 {
-      margin: 0 0 0.25rem 0;
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      color: var(--text-primary);
-    }
-
-    .header-title p {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1.25rem;
-      border-radius: var(--radius-md);
-      background: var(--color-primary);
-      color: var(--on-accent);
-      border: 1px solid transparent;
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 8px var(--border-subtle);
-      transition: all var(--transition-fast);
-    }
-
-    .btn-primary:hover {
-      background: var(--color-primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px var(--border-subtle);
-    }
-
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.6rem 1rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-surface);
-      color: var(--text-primary);
-      border: 1px solid var(--border-subtle);
-      font-family: var(--font-sans);
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
-
-    .btn-secondary:hover {
-      background: var(--bg-subtle);
-      border-color: var(--border-strong);
-    }
-
-    /* Search & Filter Bar */
-    .filter-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1.5rem;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .search-input-wrap {
-      position: relative;
-      flex: 1;
-      max-width: 400px;
-    }
-
-    .search-input {
-      width: 100%;
-      padding: 0.65rem 1rem 0.65rem 2.4rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      transition: border-color var(--transition-fast);
-      box-sizing: border-box;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: var(--color-primary);
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 0.85rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      pointer-events: none;
-    }
-
-    .templates-count {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    /* Template Cards Grid */
-    .templates-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 1.25rem;
-    }
-
-    .template-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 1.35rem 1.5rem;
-      box-shadow: var(--shadow-card);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 1.25rem;
-      transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-    }
-
-    .template-card:hover {
-      border-color: var(--border-strong);
-      box-shadow: var(--shadow-md);
-      transform: translateY(-2px);
-    }
-
-    .card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 0.75rem;
-    }
-
-    .card-header-main {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
-    }
-
-    .template-icon-badge {
-      width: 42px;
-      height: 42px;
-      border-radius: var(--radius-md);
-      background: var(--color-primary-subtle);
-      border: 1px solid var(--color-primary-border);
-      color: var(--color-primary-text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-      flex-shrink: 0;
-    }
-
-    .template-titles h3 {
-      margin: 0 0 0.2rem 0;
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: -0.015em;
-    }
-
-    .template-payee {
-      font-size: 0.825rem;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    .template-card-menu {
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
-
-    .btn-icon {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.95rem;
-      transition: background var(--transition-fast), color var(--transition-fast);
-    }
-
-    .btn-icon:hover {
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-    }
-
-    .btn-icon.danger:hover {
-      background: var(--color-danger-bg);
-      color: var(--color-danger);
-    }
-
-    /* Template Note */
-    .template-note {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      font-style: italic;
-      line-height: 1.4;
-      margin-top: -0.5rem;
-    }
-
-    /* Splits Preview List */
-    .splits-preview {
-      background: var(--bg-base);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 0.75rem 0.9rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
-    }
-
-    .split-preview-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      gap: 0.5rem;
-    }
-
-    .split-acc {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      min-width: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--text-secondary);
-    }
-
-    .split-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .split-amt {
-      font-family: var(--font-mono);
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .split-amt.negative {
-      color: var(--text-primary);
-    }
-
-    .split-amt.positive {
-      color: var(--color-primary-text);
-    }
-
-    .split-amt.variable {
-      color: var(--text-muted);
-      font-style: italic;
-      font-size: 0.75rem;
-    }
-
-    /* Tag Badges */
-    .template-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
-
-    .tag-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.15rem 0.5rem;
-      border-radius: var(--radius-full);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-size: 0.72rem;
-      font-weight: 500;
-    }
-
-    /* Card Actions */
-    .card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding-top: 0.75rem;
-      border-top: 1px solid var(--border-subtle);
-    }
-
-    .btn-record {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      width: 100%;
-      padding: 0.6rem 1rem;
-      border-radius: var(--radius-md);
-      background: var(--color-primary);
-      color: var(--on-accent);
-      border: none;
-      font-family: var(--font-sans);
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 6px var(--border-subtle);
-      transition: all var(--transition-fast);
-    }
-
-    .btn-record:hover {
-      background: var(--color-primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 10px var(--border-subtle);
-    }
-
-    /* Empty state */
-    .empty-state {
-      background: var(--bg-surface);
-      border: 1px dashed var(--border-strong);
-      border-radius: var(--radius-lg);
-      padding: 4rem 2rem;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      max-width: 600px;
-      margin: 2rem auto;
-    }
-
-    .empty-icon {
-      font-size: 3.2rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .empty-state h3 {
-      margin: 0;
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .empty-state p {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      line-height: 1.5;
-      max-width: 440px;
-    }
-
-    /* Modal Backdrop and Card */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: var(--overlay);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      animation: backdropFadeIn 0.18s ease-out;
-    }
-
-    @keyframes backdropFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .modal-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
-      width: 100%;
-      max-width: 760px;
-      max-height: 90vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      animation: cardPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes cardPopIn {
-      from {
-        opacity: 0;
-        transform: scale(0.96) translateY(8px);
+  static override styles = [
+    css`
+      :host {
+        display: block;
+        padding: 2rem 2.5rem 4rem;
+        max-width: 1240px;
+        margin: 0 auto;
+        font-family: var(--font-sans);
       }
-      to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
+
+      .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
       }
-    }
 
-    .modal-header {
-      padding: 1.25rem 1.75rem;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--bg-surface);
-    }
+      .header-title h2 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        color: var(--text-primary);
+      }
 
-    .modal-header h3 {
-      margin: 0 0 0.2rem 0;
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
+      .header-title p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
 
-    .modal-header p {
-      margin: 0;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
 
-    .close-btn {
-      background: transparent;
-      border: none;
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1.25rem;
+        border-radius: var(--radius-md);
+        background: var(--color-primary);
+        color: var(--on-accent);
+        border: 1px solid transparent;
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 8px var(--border-subtle);
+        transition: all var(--transition-fast);
+      }
 
-    .close-btn:hover {
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-    }
+      .btn-primary:hover {
+        background: var(--color-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--border-subtle);
+      }
 
-    .modal-body {
-      padding: 1.5rem 1.75rem;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
+      .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.6rem 1rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        border: 1px solid var(--border-subtle);
+        font-family: var(--font-sans);
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
 
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
+      .btn-secondary:hover {
+        background: var(--bg-subtle);
+        border-color: var(--border-strong);
+      }
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
+      /* Search & Filter Bar */
+      .filter-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
 
-    .form-label {
-      font-size: 0.825rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
+      .search-input-wrap {
+        position: relative;
+        flex: 1;
+        max-width: 400px;
+      }
 
-    .form-input {
-      padding: 0.65rem 0.85rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      box-sizing: border-box;
-      width: 100%;
-    }
+      .search-input {
+        width: 100%;
+        padding: 0.65rem 1rem 0.65rem 2.4rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        transition: border-color var(--transition-fast);
+        box-sizing: border-box;
+      }
 
-    .form-input:focus {
-      outline: none;
-      border-color: var(--color-primary);
-    }
+      .search-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+      }
 
-    /* Modal Split lines */
-    .modal-splits-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 0.5rem;
-    }
+      .search-icon {
+        position: absolute;
+        left: 0.85rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        pointer-events: none;
+      }
 
-    .modal-splits-header span {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
+      .templates-count {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
 
-    .btn-add-split {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.35rem 0.75rem;
-      border-radius: var(--radius-sm);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--color-primary);
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
+      /* Template Cards Grid */
+      .templates-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 1.25rem;
+      }
 
-    .btn-add-split:hover {
-      background: var(--color-primary-subtle);
-    }
+      .template-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        padding: 1.35rem 1.5rem;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 1.25rem;
+        transition:
+          transform var(--transition-fast),
+          border-color var(--transition-fast),
+          box-shadow var(--transition-fast);
+      }
 
-    .split-edit-row {
-      display: grid;
-      grid-template-columns: 1fr 150px 36px;
-      gap: 0.6rem;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
+      .template-card:hover {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
 
-    .modal-footer {
-      padding: 1.15rem 1.75rem;
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      background: var(--bg-surface);
-    }
+      .card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
 
-    .btn-cancel {
-      padding: 0.65rem 1.15rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
+      .card-header-main {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+      }
 
-    .btn-cancel:hover {
-      background: var(--bg-muted);
-      color: var(--text-primary);
-    }
-  `, calmStyles];
+      .template-icon-badge {
+        width: 42px;
+        height: 42px;
+        border-radius: var(--radius-md);
+        background: var(--color-primary-subtle);
+        border: 1px solid var(--color-primary-border);
+        color: var(--color-primary-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+      }
+
+      .template-titles h3 {
+        margin: 0 0 0.2rem 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: -0.015em;
+      }
+
+      .template-payee {
+        font-size: 0.825rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .template-card-menu {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+
+      .btn-icon {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        transition:
+          background var(--transition-fast),
+          color var(--transition-fast);
+      }
+
+      .btn-icon:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+
+      .btn-icon.danger:hover {
+        background: var(--color-danger-bg);
+        color: var(--color-danger);
+      }
+
+      /* Template Note */
+      .template-note {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-style: italic;
+        line-height: 1.4;
+        margin-top: -0.5rem;
+      }
+
+      /* Splits Preview List */
+      .splits-preview {
+        background: var(--bg-base);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 0.75rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+
+      .split-preview-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        gap: 0.5rem;
+      }
+
+      .split-acc {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-secondary);
+      }
+
+      .split-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .split-amt {
+        font-family: var(--font-mono);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .split-amt.negative {
+        color: var(--text-primary);
+      }
+
+      .split-amt.positive {
+        color: var(--color-primary-text);
+      }
+
+      .split-amt.variable {
+        color: var(--text-muted);
+        font-style: italic;
+        font-size: 0.75rem;
+      }
+
+      /* Tag Badges */
+      .template-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+
+      .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: var(--radius-full);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        font-weight: 500;
+      }
+
+      /* Card Actions */
+      .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-subtle);
+      }
+
+      .btn-record {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        width: 100%;
+        padding: 0.6rem 1rem;
+        border-radius: var(--radius-md);
+        background: var(--color-primary);
+        color: var(--on-accent);
+        border: none;
+        font-family: var(--font-sans);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 6px var(--border-subtle);
+        transition: all var(--transition-fast);
+      }
+
+      .btn-record:hover {
+        background: var(--color-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px var(--border-subtle);
+      }
+
+      /* Empty state */
+      .empty-state {
+        background: var(--bg-surface);
+        border: 1px dashed var(--border-strong);
+        border-radius: var(--radius-lg);
+        padding: 4rem 2rem;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        max-width: 600px;
+        margin: 2rem auto;
+      }
+
+      .empty-icon {
+        font-size: 3.2rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .empty-state h3 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .empty-state p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        max-width: 440px;
+      }
+
+      /* Modal Backdrop and Card */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: var(--overlay);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        animation: backdropFadeIn 0.18s ease-out;
+      }
+
+      @keyframes backdropFadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .modal-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-width: 760px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        animation: cardPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      @keyframes cardPopIn {
+        from {
+          opacity: 0;
+          transform: scale(0.96) translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .modal-header {
+        padding: 1.25rem 1.75rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--bg-surface);
+      }
+
+      .modal-header h3 {
+        margin: 0 0 0.2rem 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .modal-header p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .close-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.3rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .close-btn:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+
+      .modal-body {
+        padding: 1.5rem 1.75rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .form-label {
+        font-size: 0.825rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .form-input {
+        padding: 0.65rem 0.85rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        box-sizing: border-box;
+        width: 100%;
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+      }
+
+      /* Modal Split lines */
+      .modal-splits-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      }
+
+      .modal-splits-header span {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .btn-add-split {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--radius-sm);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--color-primary);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn-add-split:hover {
+        background: var(--color-primary-subtle);
+      }
+
+      .split-edit-row {
+        display: grid;
+        grid-template-columns: 1fr 150px 36px;
+        gap: 0.6rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+
+      .modal-footer {
+        padding: 1.15rem 1.75rem;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        background: var(--bg-surface);
+      }
+
+      .btn-cancel {
+        padding: 0.65rem 1.15rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn-cancel:hover {
+        background: var(--bg-muted);
+        color: var(--text-primary);
+      }
+    `,
+    calmStyles,
+  ];
 
   @state()
   private templates: TransactionTemplateWithSplits[] = [];
@@ -648,7 +665,11 @@ export class PengaTemplates extends LitElement {
   public async fetchData() {
     this.isLoading = true;
     try {
-      await Promise.all([this.fetchTemplates(), this.fetchAccounts(), this.fetchTags()]);
+      await Promise.all([
+        this.fetchTemplates(),
+        this.fetchAccounts(),
+        this.fetchTags(),
+      ]);
     } finally {
       this.isLoading = false;
     }
@@ -696,7 +717,7 @@ export class PengaTemplates extends LitElement {
         detail: { template },
         bubbles: true,
         composed: true,
-      })
+      }),
     );
   }
 
@@ -742,24 +763,33 @@ export class PengaTemplates extends LitElement {
   }
 
   private async handleDelete(template: TransactionTemplateWithSplits) {
-    if (!confirm(`Are you sure you want to delete template "${template.name}"?`)) return;
+    if (
+      !confirm(`Are you sure you want to delete template "${template.name}"?`)
+    )
+      return;
 
     try {
-      const res = await fetch(`/api/templates/${template.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/templates/${template.id}`, {
+        method: 'DELETE',
+      });
       if (res.ok) {
         this.templates = this.templates.filter((t) => t.id !== template.id);
       } else {
         alert('Failed to delete template');
       }
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
     }
   }
 
   private addSplitRow() {
     this.templateSplits = [
       ...this.templateSplits,
-      { id: `row-${Date.now()}`, accountId: this.accounts[0]?.id || '', amount: '' },
+      {
+        id: `row-${Date.now()}`,
+        accountId: this.accounts[0]?.id || '',
+        amount: '',
+      },
     ];
   }
 
@@ -802,7 +832,9 @@ export class PengaTemplates extends LitElement {
       };
 
       const isEdit = Boolean(this.editingTemplate);
-      const url = isEdit ? `/api/templates/${this.editingTemplate!.id}` : '/api/templates';
+      const url = isEdit
+        ? `/api/templates/${this.editingTemplate!.id}`
+        : '/api/templates';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -818,8 +850,8 @@ export class PengaTemplates extends LitElement {
 
       await this.fetchTemplates();
       this.isModalOpen = false;
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       this.isSaving = false;
     }
@@ -848,8 +880,11 @@ export class PengaTemplates extends LitElement {
       <!-- Page Header -->
       <div class="page-header">
         <div class="header-title">
-          <h2>Transaction Templates ${icon("copy", "ASSET", 16)}</h2>
-          <p>Reusable blueprints for recurring bills, regular paychecks, and frequent split entries</p>
+          <h2>Transaction Templates ${icon('copy', 'ASSET', 16)}</h2>
+          <p>
+            Reusable blueprints for recurring bills, regular paychecks, and
+            frequent split entries
+          </p>
         </div>
         <div class="header-actions">
           <button class="btn-primary" @click="${this.handleOpenCreate}">
@@ -862,13 +897,13 @@ export class PengaTemplates extends LitElement {
       <!-- Filter & Search Bar -->
       <div class="filter-bar">
         <div class="search-input-wrap">
-          <span class="search-icon">${icon("search", "ASSET", 16)}</span>
+          <span class="search-icon">${icon('search', 'ASSET', 16)}</span>
           <input
             type="text"
             class="search-input"
             placeholder="Search templates by name, payee, or account..."
             .value="${this.searchQuery}"
-            @input="${(e: any) => (this.searchQuery = e.target.value)}"
+            @input="${(e: Event) => (this.searchQuery = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
           />
         </div>
         <div class="templates-count">
@@ -877,239 +912,320 @@ export class PengaTemplates extends LitElement {
       </div>
 
       <!-- Templates List or Empty State -->
-      ${this.isLoading
-        ? html`<div style="text-align: center; padding: 3rem; color: var(--text-muted);">Loading templates...</div>`
-        : filtered.length === 0
-        ? html`
-            <div class="empty-state">
-              <div class="empty-icon">${icon("list-checks", "ASSET", 32)}</div>
-              <h3>${this.searchQuery ? 'No templates match your search' : 'No templates yet'}</h3>
-              <p>
-                ${this.searchQuery
-                  ? 'Try searching for a different keyword or clear the search query.'
-                  : 'Templates allow you to pre-fill accounts, payees, and split amounts for recurring items in one click.'}
-              </p>
-              ${!this.searchQuery
-                ? html`
-                    <button class="btn-primary" @click="${this.handleOpenCreate}">
-                      <span>+</span>
-                      <span>Create Your First Template</span>
-                    </button>
-                  `
-                : nothing}
-            </div>
-          `
-        : html`
-            <div class="templates-grid">
-              ${repeat(
-                filtered,
-                (t) => t.id,
-                (t) => html`
-                  <div class="template-card">
-                    <div style="display: flex; flex-direction: column; gap: 0.85rem;">
-                      <!-- Card Header -->
-                      <div class="card-top">
-                        <div class="card-header-main">
-                          <div class="template-icon-badge">${icon(t.icon, "TEMPLATE")}</div>
-                          <div class="template-titles">
-                            <h3>${t.name}</h3>
-                            ${t.payee ? html`<div class="template-payee">${icon("building-2", "ASSET", 16)} ${t.payee}</div>` : nothing}
-                          </div>
-                        </div>
-                        <div class="template-card-menu">
-                          <button
-                            class="btn-icon"
-                            @click="${() => this.handleOpenEdit(t)}"
-                            title="Edit template" aria-label="Edit template"
-                          >
-                            ${icon("pencil", "ASSET", 16)}
-                          </button>
-                          <button
-                            class="btn-icon danger"
-                            @click="${() => this.handleDelete(t)}"
-                            title="Delete template" aria-label="Delete template"
-                          >
-                            ${icon("trash-2", "ASSET", 16)}
-                          </button>
-                        </div>
-                      </div>
-
-                      ${t.note ? html`<div class="template-note">"${t.note}"</div>` : nothing}
-
-                      <!-- Splits Preview -->
-                      <div class="splits-preview">
-                        ${(t.splits || []).map(
-                          (s) => html`
-                            <div class="split-preview-row">
-                              <span class="split-acc">
-                                                                <span>${icon(s.accountIcon, s.accountType || "EXPENSE")} ${s.accountName || 'Account'}</span>
-                              </span>
-                              <span class="split-amt ${s.amountCents < 0 ? 'negative' : s.amountCents > 0 ? 'positive' : 'variable'}">
-                                ${s.amountCents !== 0 ? this.formatCents(s.amountCents) : 'Variable'}
-                              </span>
-                            </div>
-                          `
-                        )}
-                      </div>
-
-                      <!-- Tags (if any) -->
-                      ${t.tags && t.tags.length > 0
-                        ? html`
-                            <div class="template-tags">
-                              ${t.tags.map(
-                                (tag) => html`
-                                  <span class="tag-badge" style="border-color: ${tag.color || 'var(--tag-default)'};">
-                                    #${tag.name}
-                                  </span>
-                                `
-                              )}
-                            </div>
-                          `
-                        : nothing}
-                    </div>
-
-                    <!-- Footer Action: 1-Click Instantiate -->
-                    <div class="card-footer">
-                      <button class="btn-record" @click="${() => this.handleRecordNow(t)}">
-                        <span>${icon("copy", "ASSET", 16)}</span>
-                        <span>Record Now</span>
-                      </button>
-                    </div>
+      ${
+        this.isLoading
+          ? html`<div
+              style="text-align: center; padding: 3rem; color: var(--text-muted);"
+            >
+              Loading templates...
+            </div>`
+          : filtered.length === 0
+            ? html`
+                <div class="empty-state">
+                  <div class="empty-icon">
+                    ${icon('list-checks', 'ASSET', 32)}
                   </div>
-                `
-              )}
-            </div>
-          `}
+                  <h3>
+                    ${this.searchQuery ? 'No templates match your search' : 'No templates yet'}
+                  </h3>
+                  <p>
+                    ${
+                      this.searchQuery
+                        ? 'Try searching for a different keyword or clear the search query.'
+                        : 'Templates allow you to pre-fill accounts, payees, and split amounts for recurring items in one click.'
+                    }
+                  </p>
+                  ${
+                    !this.searchQuery
+                      ? html`
+                          <button
+                            class="btn-primary"
+                            @click="${this.handleOpenCreate}"
+                          >
+                            <span>+</span>
+                            <span>Create Your First Template</span>
+                          </button>
+                        `
+                      : nothing
+                  }
+                </div>
+              `
+            : html`
+                <div class="templates-grid">
+                  ${repeat(
+                    filtered,
+                    (t) => t.id,
+                    (t) => html`
+                      <div class="template-card">
+                        <div
+                          style="display: flex; flex-direction: column; gap: 0.85rem;"
+                        >
+                          <!-- Card Header -->
+                          <div class="card-top">
+                            <div class="card-header-main">
+                              <div class="template-icon-badge">
+                                ${icon(t.icon, 'TEMPLATE')}
+                              </div>
+                              <div class="template-titles">
+                                <h3>${t.name}</h3>
+                                ${t.payee ? html`<div class="template-payee">${icon('building-2', 'ASSET', 16)} ${t.payee}</div>` : nothing}
+                              </div>
+                            </div>
+                            <div class="template-card-menu">
+                              <button
+                                class="btn-icon"
+                                @click="${() => this.handleOpenEdit(t)}"
+                                title="Edit template"
+                                aria-label="Edit template"
+                              >
+                                ${icon('pencil', 'ASSET', 16)}
+                              </button>
+                              <button
+                                class="btn-icon danger"
+                                @click="${() => this.handleDelete(t)}"
+                                title="Delete template"
+                                aria-label="Delete template"
+                              >
+                                ${icon('trash-2', 'ASSET', 16)}
+                              </button>
+                            </div>
+                          </div>
+
+                          ${t.note ? html`<div class="template-note">"${t.note}"</div>` : nothing}
+
+                          <!-- Splits Preview -->
+                          <div class="splits-preview">
+                            ${(t.splits || []).map(
+                              (s) => html`
+                                <div class="split-preview-row">
+                                  <span class="split-acc">
+                                    <span
+                                      >${icon(s.accountIcon, s.accountType || 'EXPENSE')}
+                                      ${s.accountName || 'Account'}</span
+                                    >
+                                  </span>
+                                  <span
+                                    class="split-amt ${s.amountCents < 0 ? 'negative' : s.amountCents > 0 ? 'positive' : 'variable'}"
+                                  >
+                                    ${s.amountCents !== 0 ? this.formatCents(s.amountCents) : 'Variable'}
+                                  </span>
+                                </div>
+                              `,
+                            )}
+                          </div>
+
+                          <!-- Tags (if any) -->
+                          ${
+                            t.tags && t.tags.length > 0
+                              ? html`
+                                  <div class="template-tags">
+                                    ${t.tags.map(
+                                      (tag) => html`
+                                        <span
+                                          class="tag-badge"
+                                          style="border-color: ${tag.color || 'var(--tag-default)'};"
+                                        >
+                                          #${tag.name}
+                                        </span>
+                                      `,
+                                    )}
+                                  </div>
+                                `
+                              : nothing
+                          }
+                        </div>
+
+                        <!-- Footer Action: 1-Click Instantiate -->
+                        <div class="card-footer">
+                          <button
+                            class="btn-record"
+                            @click="${() => this.handleRecordNow(t)}"
+                          >
+                            <span>${icon('copy', 'ASSET', 16)}</span>
+                            <span>Record Now</span>
+                          </button>
+                        </div>
+                      </div>
+                    `,
+                  )}
+                </div>
+              `
+      }
 
       <!-- Create / Edit Template Modal -->
-      ${this.isModalOpen
-        ? html`
-            <div
-              class="modal-backdrop"
-              @click="${(e: MouseEvent) => {
-                if (e.target === e.currentTarget) this.isModalOpen = false;
-              }}"
-            >
-              <div class="modal-card">
-                <div class="modal-header">
-                  <div>
-                    <h3>${this.editingTemplate ? 'Edit Template' : 'Create Transaction Template'}</h3>
-                    <p>Configure a blueprint for recurring or frequent transactions</p>
-                  </div>
-                  <button class="close-btn" @click="${() => (this.isModalOpen = false)}" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
-                </div>
-
-                <div class="modal-body">
-                  <div class="grid-2">
-                    <div class="form-group">
-                      <label class="form-label">Template Name *</label>
-                      <input
-                        type="text"
-                        class="form-input"
-                        placeholder="e.g. Monthly Rent, Paycheck, Gym..."
-                        .value="${this.templateName}"
-                        @input="${(e: any) => (this.templateName = e.target.value)}"
-                      />
+      ${
+        this.isModalOpen
+          ? html`
+              <div
+                class="modal-backdrop"
+                @click="${(e: MouseEvent) => {
+                  if (e.target === e.currentTarget) this.isModalOpen = false;
+                }}"
+              >
+                <div class="modal-card">
+                  <div class="modal-header">
+                    <div>
+                      <h3>
+                        ${this.editingTemplate ? 'Edit Template' : 'Create Transaction Template'}
+                      </h3>
+                      <p>
+                        Configure a blueprint for recurring or frequent
+                        transactions
+                      </p>
                     </div>
-                    <div class="form-group">
-                      <label class="form-label">Icon</label>
-                      <penga-icon-picker .value=${this.templateIcon} accountType="TEMPLATE" @icon-selected=${(event: CustomEvent) => this.templateIcon = event.detail.value}></penga-icon-picker>
-                    </div>
+                    <button
+                      class="close-btn"
+                      @click="${() => (this.isModalOpen = false)}"
+                      aria-label="Close dialog"
+                      title="Close dialog"
+                    >
+                      ${icon('x', 'ASSET', 16)}
+                    </button>
                   </div>
 
-                  <div class="grid-2">
-                    <div class="form-group">
-                      <label class="form-label">Default Payee</label>
-                      <input
-                        type="text"
-                        class="form-input"
-                        placeholder="e.g. Landlord, Acme Corp, Netflix"
-                        .value="${this.templatePayee}"
-                        @input="${(e: any) => (this.templatePayee = e.target.value)}"
-                      />
+                  <div class="modal-body">
+                    <div class="grid-2">
+                      <div class="form-group">
+                        <label class="form-label">Template Name *</label>
+                        <input
+                          type="text"
+                          class="form-input"
+                          placeholder="e.g. Monthly Rent, Paycheck, Gym..."
+                          .value="${this.templateName}"
+                          @input="${(e: Event) => (this.templateName = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                        />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Icon</label>
+                        <penga-icon-picker
+                          .value=${this.templateIcon}
+                          accountType="TEMPLATE"
+                          @icon-selected=${(event: CustomEvent) => (this.templateIcon = event.detail.value)}
+                        ></penga-icon-picker>
+                      </div>
                     </div>
+
+                    <div class="grid-2">
+                      <div class="form-group">
+                        <label class="form-label">Default Payee</label>
+                        <input
+                          type="text"
+                          class="form-input"
+                          placeholder="e.g. Landlord, Acme Corp, Netflix"
+                          .value="${this.templatePayee}"
+                          @input="${(e: Event) => (this.templatePayee = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                        />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Default Note</label>
+                        <input
+                          type="text"
+                          class="form-input"
+                          placeholder="Optional memo or description"
+                          .value="${this.templateNote}"
+                          @input="${(e: Event) => (this.templateNote = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Template Splits -->
                     <div class="form-group">
-                      <label class="form-label">Default Note</label>
-                      <input
-                        type="text"
-                        class="form-input"
-                        placeholder="Optional memo or description"
-                        .value="${this.templateNote}"
-                        @input="${(e: any) => (this.templateNote = e.target.value)}"
-                      />
+                      <div class="modal-splits-header">
+                        <span>Default Split Lines (Accounts & Amounts)</span>
+                        <button
+                          type="button"
+                          class="btn-add-split"
+                          @click="${this.addSplitRow}"
+                        >
+                          <span>+</span>
+                          <span>Add Split</span>
+                        </button>
+                      </div>
+
+                      ${repeat(
+                        this.templateSplits,
+                        (row) => row.id,
+                        (row) => html`
+                          <div class="split-edit-row">
+                            <account-combobox
+                              .accounts="${this.accounts}"
+                              .value="${row.accountId}"
+                              placeholder="Select account..."
+                              @account-selected="${(e: CustomEvent) => {
+                                this.templateSplits = this.templateSplits.map(
+                                  (r) =>
+                                    r.id === row.id
+                                      ? { ...r, accountId: e.detail.accountId }
+                                      : r,
+                                );
+                              }}"
+                            ></account-combobox>
+
+                            <input
+                              type="text"
+                              class="form-input"
+                              placeholder="0.00 (or blank)"
+                              .value="${row.amount}"
+                              @input="${(e: Event) => {
+                                this.templateSplits = this.templateSplits.map(
+                                  (r) =>
+                                    r.id === row.id
+                                      ? {
+                                          ...r,
+                                          amount: (
+                                            e.target as
+                                              | HTMLInputElement
+                                              | HTMLSelectElement
+                                              | HTMLTextAreaElement
+                                          ).value,
+                                        }
+                                      : r,
+                                );
+                              }}"
+                            />
+
+                            <button
+                              type="button"
+                              class="btn-icon danger"
+                              ?disabled="${this.templateSplits.length <= 2}"
+                              @click="${() => this.removeSplitRow(row.id)}"
+                              title="Remove split"
+                              aria-label="Remove split"
+                            >
+                              ${icon('x', 'ASSET', 16)}
+                            </button>
+                          </div>
+                        `,
+                      )}
+                      <span
+                        style="font-size: 0.75rem; color: var(--text-muted);"
+                      >
+                        Tip: Leave amounts as 0.00 for variable expenses; you
+                        can enter the exact sum when recording.
+                      </span>
                     </div>
                   </div>
 
-                  <!-- Template Splits -->
-                  <div class="form-group">
-                    <div class="modal-splits-header">
-                      <span>Default Split Lines (Accounts & Amounts)</span>
-                      <button type="button" class="btn-add-split" @click="${this.addSplitRow}">
-                        <span>+</span>
-                        <span>Add Split</span>
-                      </button>
-                    </div>
-
-                    ${repeat(
-                      this.templateSplits,
-                      (row) => row.id,
-                      (row) => html`
-                        <div class="split-edit-row">
-                          <account-combobox
-                            .accounts="${this.accounts}"
-                            .value="${row.accountId}"
-                            placeholder="Select account..."
-                            @account-selected="${(e: CustomEvent) => {
-                              this.templateSplits = this.templateSplits.map((r) =>
-                                r.id === row.id ? { ...r, accountId: e.detail.accountId } : r
-                              );
-                            }}"
-                          ></account-combobox>
-
-                          <input
-                            type="text"
-                            class="form-input"
-                            placeholder="0.00 (or blank)"
-                            .value="${row.amount}"
-                            @input="${(e: any) => {
-                              this.templateSplits = this.templateSplits.map((r) =>
-                                r.id === row.id ? { ...r, amount: e.target.value } : r
-                              );
-                            }}"
-                          />
-
-                          <button
-                            type="button"
-                            class="btn-icon danger"
-                            ?disabled="${this.templateSplits.length <= 2}"
-                            @click="${() => this.removeSplitRow(row.id)}"
-                            title="Remove split" aria-label="Remove split"
-                          >
-                            ${icon("x", "ASSET", 16)}
-                          </button>
-                        </div>
-                      `
-                    )}
-                    <span style="font-size: 0.75rem; color: var(--text-muted);">
-                      Tip: Leave amounts as 0.00 for variable expenses; you can enter the exact sum when recording.
-                    </span>
+                  <div class="modal-footer">
+                    <button
+                      class="btn-cancel"
+                      @click="${() => (this.isModalOpen = false)}"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      class="btn-primary"
+                      ?disabled="${this.isSaving}"
+                      @click="${this.handleSaveTemplate}"
+                    >
+                      ${this.isSaving ? 'Saving...' : 'Save Template'}
+                    </button>
                   </div>
-                </div>
-
-                <div class="modal-footer">
-                  <button class="btn-cancel" @click="${() => (this.isModalOpen = false)}">Cancel</button>
-                  <button
-                    class="btn-primary"
-                    ?disabled="${this.isSaving}"
-                    @click="${this.handleSaveTemplate}"
-                  >
-                    ${this.isSaving ? 'Saving...' : 'Save Template'}
-                  </button>
                 </div>
               </div>
-            </div>
-          `
-        : nothing}
+            `
+          : nothing
+      }
     `;
   }
 }

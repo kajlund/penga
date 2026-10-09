@@ -8,5 +8,3 @@ import './components/penga-transactions.js';
 import './components/account-combobox.js';
 import './components/transaction-form.js';
 import './penga-app.js';
-
-

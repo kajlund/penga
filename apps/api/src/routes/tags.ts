@@ -38,7 +38,7 @@ tagsRoute.get('/', async (c) => {
  * Creates a new tag, or returns existing tag if the name already exists.
  */
 tagsRoute.post('/', async (c) => {
-  let body: any;
+  let body: { name?: unknown; color?: string | null };
   try {
     body = await c.req.json();
   } catch {
@@ -93,7 +93,7 @@ tagsRoute.post('/', async (c) => {
  */
 tagsRoute.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  const [deleted] = await db.transaction(async tx => {
+  const [deleted] = await db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
     return tx.delete(tags).where(eq(tags.id, id)).returning();
   });

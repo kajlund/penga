@@ -25,7 +25,9 @@ penga/
 ## Workspace Packages & Apps
 
 ### 1. `apps/api` (`@penga/api`)
+
 The backend REST API server:
+
 - **Framework**: [Hono](https://hono.dev/) with `@hono/node-server`.
 - **Database & ORM**: PostgreSQL connected via [Drizzle ORM](https://orm.drizzle.team/) and `postgres.js`.
 - **Configuration**: Automatically loads `.env` from the repository root (and allows local overrides).
@@ -41,7 +43,9 @@ The backend REST API server:
   - `npm run db:seed`: Idempotent seed script populating default asset accounts and hierarchies.
 
 ### 2. `apps/web` (`@penga/web`)
+
 The client frontend single-page application:
+
 - **Framework**: [Lit 3](https://lit.dev/) reactive web components.
 - **Bundler & Dev Server**: [Vite](https://vitejs.dev/) with API proxying to `http://localhost:3000`.
 - **Theme Engine**:
@@ -56,7 +60,9 @@ The client frontend single-page application:
   - `<theme-toggle>`: Animated Sun/Moon theme switcher.
 
 ### 3. `packages/shared` (`@penga/shared`)
+
 The shared TypeScript library:
+
 - Exports domain enums: `AccountType` (`ASSET`, `LIABILITY`, `INCOME`, `EXPENSE`).
 - Exports interfaces: `Account`, `AccountTreeNode`, `Transaction`, `Split`, `CreateAccountInput`, `UpdateAccountInput`.
 - Consumed by both backend and frontend to guarantee end-to-end type safety.
@@ -118,18 +124,18 @@ Open [http://localhost:5173/](http://localhost:5173/) in your browser.
 
 ## Common Scripts Reference
 
-| Command | Description |
-| :--- | :--- |
-| `npm run dev` | Runs API (`node/tsx watch`) and Web (`vite`) concurrently with colored logs |
-| `npm run dev:api` | Starts only the API backend |
-| `npm run dev:web` | Starts only the Vite frontend |
-| `npm run dev:all` | Runs shared library watcher alongside API and Web |
-| `npm run build` | Compiles TypeScript solution project references across all workspaces |
-| `npm run typecheck` | Type-checks all packages without emitting output |
-| `npm run clean` | Cleans TypeScript build artifacts and `.tsbuildinfo` caches |
-| `npm run db:generate -w @penga/api` | Generates Drizzle migration files |
-| `npm run db:migrate -w @penga/api` | Applies pending migrations to PostgreSQL |
-| `npm run db:seed -w @penga/api` | Runs idempotent database seeding |
+| Command                             | Description                                                                 |
+| :---------------------------------- | :-------------------------------------------------------------------------- |
+| `npm run dev`                       | Runs API (`node/tsx watch`) and Web (`vite`) concurrently with colored logs |
+| `npm run dev:api`                   | Starts only the API backend                                                 |
+| `npm run dev:web`                   | Starts only the Vite frontend                                               |
+| `npm run dev:all`                   | Runs shared library watcher alongside API and Web                           |
+| `npm run build`                     | Compiles TypeScript solution project references across all workspaces       |
+| `npm run typecheck`                 | Type-checks all packages without emitting output                            |
+| `npm run clean`                     | Cleans TypeScript build artifacts and `.tsbuildinfo` caches                 |
+| `npm run db:generate -w @penga/api` | Generates Drizzle migration files                                           |
+| `npm run db:migrate -w @penga/api`  | Applies pending migrations to PostgreSQL                                    |
+| `npm run db:seed -w @penga/api`     | Runs idempotent database seeding                                            |
 
 ---
 
@@ -151,6 +157,20 @@ Record Transaction defaults to Expense, with Income, Transfer, Adjustment and a 
 The current schema has no currency field or exchange-rate model. Entry formatting uses the shared EUR application default; cross-currency conversion is outside this change.
 
 Run `npm test` for domain, component and API contract tests. To also run database integration tests in PowerShell, use `$env:PENGA_DATABASE_TESTS = '1'; npm test`. Integration fixtures and transactions are rolled back. `npm run build -w @penga/web` verifies the production frontend bundle.
+
 - [Clear all transactions](doc/clear-transactions.md): Reset scope, confirmation, concurrency and safe verification.
 
 - [Icons and calm theme](doc/icons-and-theme.md): Icon compatibility, semantic tokens and manual visual checks.
+
+## Linting and formatting
+
+All Dreamquest projects use the same ESLint and Prettier configuration, based on Activus. Run these commands from the repository root:
+
+```sh
+npm run lint
+npm run lint:fix
+npm run format
+npm run format:check
+```
+
+ESLint checks supported JavaScript and TypeScript files and treats warnings as failures. Prettier formats its supported source, configuration, and documentation files with single quotes, trailing commas, and LF line endings. Dependencies, generated builds and test output, local data, editor settings, archived artifacts, and dependency lockfiles are excluded. SQL and Nunjucks templates are outside the installed tools' supported file types.

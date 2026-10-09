@@ -1,5 +1,14 @@
-import { db, queryClient, accounts, transactions, splits, budgets, tags, transactionTags } from './index.js';
-import { eq, and } from 'drizzle-orm';
+import {
+  db,
+  queryClient,
+  accounts,
+  transactions,
+  splits,
+  budgets,
+  tags,
+  transactionTags,
+} from './index.js';
+import { eq } from 'drizzle-orm';
 import type { AccountType } from '@penga/shared';
 
 interface SeedAccountNode {
@@ -125,9 +134,21 @@ const accountTreeSeedData: SeedAccountNode[] = [
     color: '#d97706',
     children: [
       { name: 'Rent', icon: '📄', color: '#d97706' },
-      { name: 'Utilities (Electricity, heating, water, home insurance)', icon: '💡', color: '#f59e0b' },
-      { name: 'Household Items & Hygiene (Detergents, paper goods...)', icon: '🧽', color: '#fbbf24' },
-      { name: 'Inventory & Furnishings (Furniture, appliances, gear)', icon: '🛋️', color: '#b45309' },
+      {
+        name: 'Utilities (Electricity, heating, water, home insurance)',
+        icon: '💡',
+        color: '#f59e0b',
+      },
+      {
+        name: 'Household Items & Hygiene (Detergents, paper goods...)',
+        icon: '🧽',
+        color: '#fbbf24',
+      },
+      {
+        name: 'Inventory & Furnishings (Furniture, appliances, gear)',
+        icon: '🛋️',
+        color: '#b45309',
+      },
     ],
   },
   {
@@ -137,7 +158,11 @@ const accountTreeSeedData: SeedAccountNode[] = [
     color: '#16a34a',
     children: [
       { name: 'Basic Groceries (Essentials)', icon: '🛒', color: '#16a34a' },
-      { name: 'Treats & Snacks (Candy, sodas, chips)', icon: '🍫', color: '#15803d' },
+      {
+        name: 'Treats & Snacks (Candy, sodas, chips)',
+        icon: '🍫',
+        color: '#15803d',
+      },
     ],
   },
   {
@@ -155,7 +180,11 @@ const accountTreeSeedData: SeedAccountNode[] = [
       { name: 'Fuel', icon: '⛽', color: '#2563eb' },
       { name: 'Service & Repairs', icon: '🛠️', color: '#1d4ed8' },
       { name: 'Parking, Tolls & Tickets', icon: '🅿️', color: '#3b82f6' },
-      { name: 'Alternative Transit (Electric scooters, taxis)', icon: '🛴', color: '#60a5fa' },
+      {
+        name: 'Alternative Transit (Electric scooters, taxis)',
+        icon: '🛴',
+        color: '#60a5fa',
+      },
       { name: 'Car Insurance', icon: '📋', color: '#1e40af' },
     ],
   },
@@ -166,7 +195,11 @@ const accountTreeSeedData: SeedAccountNode[] = [
     color: '#0891b2',
     children: [
       { name: 'Gym Memberships & Classes', icon: '🏋️', color: '#0891b2' },
-      { name: 'Workout Gear (Running shoes, jackets, shorts)', icon: '👟', color: '#06b6d4' },
+      {
+        name: 'Workout Gear (Running shoes, jackets, shorts)',
+        icon: '👟',
+        color: '#06b6d4',
+      },
       { name: 'Hobbies & General Recreation', icon: '🎨', color: '#22d3ee' },
     ],
   },
@@ -177,7 +210,11 @@ const accountTreeSeedData: SeedAccountNode[] = [
     color: '#7c3aed',
     children: [
       { name: 'Everyday Clothes & Accessories', icon: '👔', color: '#7c3aed' },
-      { name: 'Personal Hygiene Products (Haircuts/care, Skincare, cosmetics)', icon: '🧴', color: '#8b5cf6' },
+      {
+        name: 'Personal Hygiene Products (Haircuts/care, Skincare, cosmetics)',
+        icon: '🧴',
+        color: '#8b5cf6',
+      },
     ],
   },
   {
@@ -195,9 +232,7 @@ const accountTreeSeedData: SeedAccountNode[] = [
     type: 'EXPENSE',
     icon: '🎁',
     color: '#c026d3',
-    children: [
-      { name: 'Personal Gifts', icon: '👤', color: '#d946ef' },
-    ],
+    children: [{ name: 'Personal Gifts', icon: '👤', color: '#d946ef' }],
   },
   {
     name: 'Entertainment & Media',
@@ -224,8 +259,16 @@ const accountTreeSeedData: SeedAccountNode[] = [
     icon: '🏦',
     color: '#dc2626',
     children: [
-      { name: 'Credit Card Interest & Overdraft Fees', icon: '💳', color: '#dc2626' },
-      { name: 'Misc Banking Fees & Account Costs', icon: '📄', color: '#ef4444' },
+      {
+        name: 'Credit Card Interest & Overdraft Fees',
+        icon: '💳',
+        color: '#dc2626',
+      },
+      {
+        name: 'Misc Banking Fees & Account Costs',
+        icon: '📄',
+        color: '#ef4444',
+      },
     ],
   },
   {
@@ -233,9 +276,7 @@ const accountTreeSeedData: SeedAccountNode[] = [
     type: 'EXPENSE',
     icon: '🏛️',
     color: '#64748b',
-    children: [
-      { name: 'Property Tax', icon: '📋', color: '#64748b' },
-    ],
+    children: [{ name: 'Property Tax', icon: '📋', color: '#64748b' }],
   },
 ];
 
@@ -244,7 +285,7 @@ async function upsertAccount(
   type: AccountType,
   icon: string,
   color: string,
-  parentId: string | null = null
+  parentId: string | null = null,
 ): Promise<string> {
   const [existing] = await db
     .select()
@@ -311,7 +352,7 @@ async function seed() {
       rootNode.type,
       rootNode.icon,
       rootNode.color,
-      null
+      null,
     );
     totalAccounts++;
 
@@ -322,7 +363,7 @@ async function seed() {
           rootNode.type,
           child.icon,
           child.color,
-          parentId
+          parentId,
         );
         totalAccounts++;
       }
@@ -342,7 +383,9 @@ async function seed() {
     console.log(`  [+ Tag] #${t.name} (${t.color})`);
   }
 
-  console.log(`\n✓ Seeding finished successfully. Total ${totalAccounts} accounts and ${starterTags.length} tags processed.`);
+  console.log(
+    `\n✓ Seeding finished successfully. Total ${totalAccounts} accounts and ${starterTags.length} tags processed.`,
+  );
   await queryClient.end();
 }
 

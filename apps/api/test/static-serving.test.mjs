@@ -24,8 +24,8 @@ test('static serving: serves static assets with proper mime type', async () => {
     return;
   }
   const files = fs.readdirSync(assetsDir);
-  const jsFile = files.find(f => f.endsWith('.js'));
-  const cssFile = files.find(f => f.endsWith('.css'));
+  const jsFile = files.find((f) => f.endsWith('.js'));
+  const cssFile = files.find((f) => f.endsWith('.css'));
 
   if (jsFile) {
     const res = await app.request(`/assets/${jsFile}`);

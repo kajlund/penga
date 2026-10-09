@@ -7,7 +7,9 @@ export const RESET_CONFIRMATION = 'DELETE ALL TRANSACTIONS';
 
 /** Same lock order for all ledger writers. PostgreSQL also blocks direct SQL writers. */
 export async function lockLedgerHistory(tx: LedgerTransaction) {
-  await tx.execute(sql`LOCK TABLE transactions, splits, transaction_tags IN SHARE ROW EXCLUSIVE MODE`);
+  await tx.execute(
+    sql`LOCK TABLE transactions, splits, transaction_tags IN SHARE ROW EXCLUSIVE MODE`,
+  );
 }
 
 // Hash every persisted history row and its PostgreSQL row version, not just counts or dates.
@@ -31,27 +33,46 @@ async function summarize(tx: LedgerTransaction) {
 export class StaleLedgerError extends Error {}
 
 export async function ledgerHistorySummary() {
-  return db.transaction(async tx => {
+  return db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
     return summarize(tx);
   });
 }
 
 /** Dedicated reset exception; ordinary delete/void protections remain in place. */
-export async function clearLedgerHistory(confirmation: unknown, revision: unknown) {
-  if (confirmation !== RESET_CONFIRMATION || typeof revision !== 'string' || !/^[a-f0-9]{64}$/.test(revision)) {
-    throw new TypeError('Enter DELETE ALL TRANSACTIONS and load a fresh summary before clearing.');
+export async function clearLedgerHistory(
+  confirmation: unknown,
+  revision: unknown,
+) {
+  if (
+    confirmation !== RESET_CONFIRMATION ||
+    typeof revision !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(revision)
+  ) {
+    throw new TypeError(
+      'Enter DELETE ALL TRANSACTIONS and load a fresh summary before clearing.',
+    );
   }
-  return db.transaction(async tx => {
+  return db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
     const current = await summarize(tx);
     if (current.revision !== revision) {
-      throw new StaleLedgerError('Transaction history changed. Refresh the summary and confirm again.');
+      throw new StaleLedgerError(
+        'Transaction history changed. Refresh the summary and confirm again.',
+      );
     }
     // Explicit dependency order; reusable tags and templates are never deleted.
-    const links = await tx.delete(transactionTags).returning({ id: transactionTags.transactionId });
+    const links = await tx
+      .delete(transactionTags)
+      .returning({ id: transactionTags.transactionId });
     const lines = await tx.delete(splits).returning({ id: splits.id });
-    const records = await tx.delete(transactions).returning({ id: transactions.id });
-    return { transactions: records.length, splits: lines.length, transactionTags: links.length };
+    const records = await tx
+      .delete(transactions)
+      .returning({ id: transactions.id });
+    return {
+      transactions: records.length,
+      splits: lines.length,
+      transactionTags: links.length,
+    };
   });
 }

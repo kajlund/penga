@@ -29,7 +29,10 @@ const generated = new URL('./.compiled/', import.meta.url);
 await fs.mkdir(generated, { recursive: true });
 
 for (const file of ['icons', 'calm-styles', 'penga-transactions']) {
-  const source = await fs.readFile(new URL(`../src/components/${file}.ts`, import.meta.url), 'utf8');
+  const source = await fs.readFile(
+    new URL(`../src/components/${file}.ts`, import.meta.url),
+    'utf8',
+  );
   const result = ts.transpileModule(source, {
     compilerOptions: {
       target: ts.ScriptTarget.ES2022,
@@ -58,8 +61,20 @@ const txUnclear = {
   isCleared: false,
   sortOrder: 0,
   splits: [
-    { id: 's1', transactionId: 'tx-unclear', accountId: 'bank', accountName: 'Checking', amountCents: -550 },
-    { id: 's2', transactionId: 'tx-unclear', accountId: 'dining', accountName: 'Dining', amountCents: 550 },
+    {
+      id: 's1',
+      transactionId: 'tx-unclear',
+      accountId: 'bank',
+      accountName: 'Checking',
+      amountCents: -550,
+    },
+    {
+      id: 's2',
+      transactionId: 'tx-unclear',
+      accountId: 'dining',
+      accountName: 'Dining',
+      amountCents: 550,
+    },
   ],
   tags: [],
 };
@@ -72,8 +87,20 @@ const txCleared = {
   isCleared: true,
   sortOrder: 0,
   splits: [
-    { id: 's3', transactionId: 'tx-cleared', accountId: 'bank', accountName: 'Checking', amountCents: -4250 },
-    { id: 's4', transactionId: 'tx-cleared', accountId: 'groceries', accountName: 'Groceries', amountCents: 4250 },
+    {
+      id: 's3',
+      transactionId: 'tx-cleared',
+      accountId: 'bank',
+      accountName: 'Checking',
+      amountCents: -4250,
+    },
+    {
+      id: 's4',
+      transactionId: 'tx-cleared',
+      accountId: 'groceries',
+      accountName: 'Groceries',
+      amountCents: 4250,
+    },
   ],
   tags: [],
 };
@@ -86,8 +113,22 @@ const txOpeningBalance = {
   isCleared: true,
   sortOrder: 0,
   splits: [
-    { id: 's5', transactionId: 'tx-open', accountId: 'equity', accountName: 'Opening Balances', accountType: 'EQUITY', amountCents: -100000 },
-    { id: 's6', transactionId: 'tx-open', accountId: 'bank', accountName: 'Checking', accountType: 'ASSET', amountCents: 100000 },
+    {
+      id: 's5',
+      transactionId: 'tx-open',
+      accountId: 'equity',
+      accountName: 'Opening Balances',
+      accountType: 'EQUITY',
+      amountCents: -100000,
+    },
+    {
+      id: 's6',
+      transactionId: 'tx-open',
+      accountId: 'bank',
+      accountName: 'Checking',
+      accountType: 'ASSET',
+      amountCents: 100000,
+    },
   ],
   tags: [],
 };
@@ -102,8 +143,20 @@ const txVoided = {
   voidReason: 'Returned items',
   reversalTransactionId: 'tx-rev',
   splits: [
-    { id: 's7', transactionId: 'tx-voided', accountId: 'bank', accountName: 'Checking', amountCents: -8900 },
-    { id: 's8', transactionId: 'tx-voided', accountId: 'home', accountName: 'Home', amountCents: 8900 },
+    {
+      id: 's7',
+      transactionId: 'tx-voided',
+      accountId: 'bank',
+      accountName: 'Checking',
+      amountCents: -8900,
+    },
+    {
+      id: 's8',
+      transactionId: 'tx-voided',
+      accountId: 'home',
+      accountName: 'Home',
+      amountCents: 8900,
+    },
   ],
   tags: [],
 };
@@ -116,8 +169,20 @@ const txReversal = {
   sortOrder: 0,
   reversesTransactionId: 'tx-voided',
   splits: [
-    { id: 's9', transactionId: 'tx-rev', accountId: 'bank', accountName: 'Checking', amountCents: 8900 },
-    { id: 's10', transactionId: 'tx-rev', accountId: 'home', accountName: 'Home', amountCents: -8900 },
+    {
+      id: 's9',
+      transactionId: 'tx-rev',
+      accountId: 'bank',
+      accountName: 'Checking',
+      amountCents: 8900,
+    },
+    {
+      id: 's10',
+      transactionId: 'tx-rev',
+      accountId: 'home',
+      accountName: 'Home',
+      amountCents: -8900,
+    },
   ],
   tags: [],
 };
@@ -153,14 +218,24 @@ afterEach(() => {
 
 test('renders status badges for voided and reversal transactions', async () => {
   const root = component.shadowRoot;
-  const badges = [...root.querySelectorAll('.tx-status-badge')].map((b) => b.textContent.trim());
+  const badges = [...root.querySelectorAll('.tx-status-badge')].map((b) =>
+    b.textContent.replace(/\s+/g, ' ').trim(),
+  );
   assert.ok(badges.some((b) => b.includes('Voided')));
   assert.ok(badges.some((b) => b.includes('Reversal')));
 
   // Counterpart navigation links
   const links = [...root.querySelectorAll('.tx-void-meta-row .btn-link')];
-  assert.ok(links.some((l) => l.textContent.includes('View reversal')));
-  assert.ok(links.some((l) => l.textContent.includes('View original')));
+  assert.ok(
+    links.some((l) =>
+      l.textContent.replace(/\s+/g, ' ').includes('View reversal'),
+    ),
+  );
+  assert.ok(
+    links.some((l) =>
+      l.textContent.replace(/\s+/g, ' ').includes('View original'),
+    ),
+  );
 });
 
 test('unclear transaction row shows Delete action in dropdown', async () => {
@@ -170,10 +245,15 @@ test('unclear transaction row shows Delete action in dropdown', async () => {
 
   const menu = root.querySelector('.actions-menu');
   assert.ok(menu, 'Menu should be open');
-  const deleteBtn = [...menu.querySelectorAll('.actions-menu-item.danger')].find((b) =>
-    b.textContent.includes('Delete Transaction')
+  const deleteBtn = [
+    ...menu.querySelectorAll('.actions-menu-item.danger'),
+  ].find((b) =>
+    b.textContent.replace(/\s+/g, ' ').includes('Delete Transaction'),
   );
-  assert.ok(deleteBtn, 'Delete button should be present for unclear transaction');
+  assert.ok(
+    deleteBtn,
+    'Delete button should be present for unclear transaction',
+  );
 });
 
 test('cleared transaction row shows Reverse/Void action in dropdown', async () => {
@@ -183,27 +263,49 @@ test('cleared transaction row shows Reverse/Void action in dropdown', async () =
 
   const menu = root.querySelector('.actions-menu');
   assert.ok(menu, 'Menu should be open');
-  const voidBtn = [...menu.querySelectorAll('.actions-menu-item.warning')].find((b) =>
-    b.textContent.includes('Reverse / Void')
+  const voidBtn = [...menu.querySelectorAll('.actions-menu-item.warning')].find(
+    (b) => b.textContent.replace(/\s+/g, ' ').includes('Reverse / Void'),
   );
-  assert.ok(voidBtn, 'Reverse button should be present for cleared transaction');
-  const deleteBtn = [...menu.querySelectorAll('.actions-menu-item.danger')].find((b) =>
-    b.textContent.includes('Delete Transaction')
+  assert.ok(
+    voidBtn,
+    'Reverse button should be present for cleared transaction',
   );
-  assert.equal(deleteBtn, undefined, 'Delete button should NOT be present for cleared transaction');
+  const deleteBtn = [
+    ...menu.querySelectorAll('.actions-menu-item.danger'),
+  ].find((b) =>
+    b.textContent.replace(/\s+/g, ' ').includes('Delete Transaction'),
+  );
+  assert.equal(
+    deleteBtn,
+    undefined,
+    'Delete button should NOT be present for cleared transaction',
+  );
 });
 
 test('opening balance offers explicit deletion and balance-change confirmation', async () => {
   component.openMenuTxId = 'tx-open';
   await settle();
-  const button = [...component.shadowRoot.querySelectorAll('.actions-menu-item.danger')].find(b => b.textContent.includes('Delete opening balance'));
+  const button = [
+    ...component.shadowRoot.querySelectorAll('.actions-menu-item.danger'),
+  ].find((b) =>
+    b.textContent.replace(/\s+/g, ' ').includes('Delete opening balance'),
+  );
   assert.ok(button);
   assert.equal(button.disabled, false);
   button.click();
   await settle();
-  assert.match(component.shadowRoot.querySelector('.modal-card').textContent, /changes the account balance/);
+  assert.match(
+    component.shadowRoot
+      .querySelector('.modal-card')
+      .textContent.replace(/\s+/g, ' '),
+    /changes the account balance/,
+  );
   await component.handleDeleteSubmit();
-  assert.ok(requests.some(r => r.method === 'DELETE' && r.url === '/api/transactions/tx-open'));
+  assert.ok(
+    requests.some(
+      (r) => r.method === 'DELETE' && r.url === '/api/transactions/tx-open',
+    ),
+  );
 });
 
 test('delete dialog opens with transaction details and issues DELETE request upon confirm', async () => {
@@ -213,12 +315,14 @@ test('delete dialog opens with transaction details and issues DELETE request upo
 
   const modal = root.querySelector('.modal-backdrop');
   assert.ok(modal, 'Modal backdrop should exist');
-  assert.ok(modal.textContent.includes('Delete transaction?'));
-  assert.ok(modal.textContent.includes('Coffee Shop'));
+  assert.ok(
+    modal.textContent.replace(/\s+/g, ' ').includes('Delete transaction?'),
+  );
+  assert.ok(modal.textContent.replace(/\s+/g, ' ').includes('Coffee Shop'));
 
   // Confirm delete
-  const confirmBtn = [...modal.querySelectorAll('button.btn-danger')].find((b) =>
-    b.textContent.includes('Delete transaction')
+  const confirmBtn = [...modal.querySelectorAll('button.btn-danger')].find(
+    (b) => b.textContent.replace(/\s+/g, ' ').includes('Delete transaction'),
   );
   assert.ok(confirmBtn);
   confirmBtn.click();
@@ -229,8 +333,16 @@ test('delete dialog opens with transaction details and issues DELETE request upo
   assert.equal(delReq.url, '/api/transactions/tx-unclear');
 
   // Verify modal is closed and backdrop removed
-  assert.equal(component.deleteModalTx, null, 'deleteModalTx should be reset to null');
-  assert.equal(root.querySelector('.modal-backdrop'), null, 'Modal backdrop should be removed from DOM');
+  assert.equal(
+    component.deleteModalTx,
+    null,
+    'deleteModalTx should be reset to null',
+  );
+  assert.equal(
+    root.querySelector('.modal-backdrop'),
+    null,
+    'Modal backdrop should be removed from DOM',
+  );
 });
 
 test('void dialog opens and issues POST void request with reason and date upon confirm', async () => {
@@ -240,7 +352,11 @@ test('void dialog opens and issues POST void request with reason and date upon c
 
   const modal = root.querySelector('.modal-backdrop');
   assert.ok(modal, 'Modal backdrop should exist');
-  assert.ok(modal.textContent.includes('Reverse cleared transaction?'));
+  assert.ok(
+    modal.textContent
+      .replace(/\s+/g, ' ')
+      .includes('Reverse cleared transaction?'),
+  );
 
   const reasonInput = modal.querySelector('#void-reason');
   assert.ok(reasonInput);
@@ -253,20 +369,32 @@ test('void dialog opens and issues POST void request with reason and date upon c
   dateInput.dispatchEvent(new Event('input', { bubbles: true }));
   await settle();
 
-  const confirmBtn = [...modal.querySelectorAll('button.btn-warning-action')].find((b) =>
-    b.textContent.includes('Reverse transaction')
+  const confirmBtn = [
+    ...modal.querySelectorAll('button.btn-warning-action'),
+  ].find((b) =>
+    b.textContent.replace(/\s+/g, ' ').includes('Reverse transaction'),
   );
   assert.ok(confirmBtn);
   confirmBtn.click();
   await settle();
 
-  const voidReq = requests.find((r) => r.method === 'POST' && r.url.endsWith('/void'));
+  const voidReq = requests.find(
+    (r) => r.method === 'POST' && r.url.endsWith('/void'),
+  );
   assert.ok(voidReq, 'POST /void request was issued');
   assert.equal(voidReq.url, '/api/transactions/tx-cleared/void');
   assert.equal(voidReq.body.reason, 'Entered twice by mistake');
   assert.equal(voidReq.body.date, '2026-09-25');
 
   // Verify modal is closed and backdrop removed
-  assert.equal(component.voidModalTx, null, 'voidModalTx should be reset to null');
-  assert.equal(root.querySelector('.modal-backdrop'), null, 'Modal backdrop should be removed from DOM');
+  assert.equal(
+    component.voidModalTx,
+    null,
+    'voidModalTx should be reset to null',
+  );
+  assert.equal(
+    root.querySelector('.modal-backdrop'),
+    null,
+    'Modal backdrop should be removed from DOM',
+  );
 });

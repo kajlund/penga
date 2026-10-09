@@ -32,8 +32,12 @@ export const accounts = pgTable('accounts', {
   }),
   icon: text('icon'),
   color: text('color'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const transactions = pgTable(
@@ -47,15 +51,29 @@ export const transactions = pgTable(
     note: text('note'),
     voidedAt: timestamp('voided_at', { withTimezone: true }),
     voidReason: text('void_reason'),
-    reversalTransactionId: uuid('reversal_transaction_id').references((): any => transactions.id, { onDelete: 'set null' }),
-    reversesTransactionId: uuid('reverses_transaction_id').references((): any => transactions.id, { onDelete: 'set null' }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    reversalTransactionId: uuid('reversal_transaction_id').references(
+      (): AnyPgColumn => transactions.id,
+      { onDelete: 'set null' },
+    ),
+    reversesTransactionId: uuid('reverses_transaction_id').references(
+      (): AnyPgColumn => transactions.id,
+      { onDelete: 'set null' },
+    ),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (t) => [
-    uniqueIndex('transactions_reversal_tx_id_unique').on(t.reversalTransactionId),
-    uniqueIndex('transactions_reverses_tx_id_unique').on(t.reversesTransactionId),
-  ]
+    uniqueIndex('transactions_reversal_tx_id_unique').on(
+      t.reversalTransactionId,
+    ),
+    uniqueIndex('transactions_reverses_tx_id_unique').on(
+      t.reversesTransactionId,
+    ),
+  ],
 );
 
 export const splits = pgTable('splits', {
@@ -67,7 +85,9 @@ export const splits = pgTable('splits', {
     .references(() => accounts.id, { onDelete: 'restrict' })
     .notNull(),
   amountCents: integer('amount_cents').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const budgets = pgTable('budgets', {
@@ -79,15 +99,21 @@ export const budgets = pgTable('budgets', {
   periodYear: integer('period_year'),
   periodMonth: integer('period_month'),
   notes: text('notes'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const tags = pgTable('tags', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull().unique(),
   color: text('color'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const transactionTags = pgTable(
@@ -100,7 +126,7 @@ export const transactionTags = pgTable(
       .references(() => tags.id, { onDelete: 'cascade' })
       .notNull(),
   },
-  (t) => [primaryKey({ columns: [t.transactionId, t.tagId] })]
+  (t) => [primaryKey({ columns: [t.transactionId, t.tagId] })],
 );
 
 export const transactionTemplates = pgTable('transaction_templates', {
@@ -110,8 +136,12 @@ export const transactionTemplates = pgTable('transaction_templates', {
   note: text('note'),
   icon: text('icon'),
   color: text('color'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const templateSplits = pgTable('template_splits', {
@@ -124,7 +154,9 @@ export const templateSplits = pgTable('template_splits', {
     .notNull(),
   amountCents: integer('amount_cents').default(0).notNull(),
   sortOrder: integer('sort_order').default(0).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const templateTags = pgTable(
@@ -137,7 +169,7 @@ export const templateTags = pgTable(
       .references(() => tags.id, { onDelete: 'cascade' })
       .notNull(),
   },
-  (t) => [primaryKey({ columns: [t.templateId, t.tagId] })]
+  (t) => [primaryKey({ columns: [t.templateId, t.tagId] })],
 );
 
 // Drizzle Relations
@@ -155,20 +187,23 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
   templateSplits: many(templateSplits),
 }));
 
-export const transactionsRelations = relations(transactions, ({ one, many }) => ({
-  splits: many(splits),
-  transactionTags: many(transactionTags),
-  reversalTransaction: one(transactions, {
-    fields: [transactions.reversalTransactionId],
-    references: [transactions.id],
-    relationName: 'transaction_reversal',
+export const transactionsRelations = relations(
+  transactions,
+  ({ one, many }) => ({
+    splits: many(splits),
+    transactionTags: many(transactionTags),
+    reversalTransaction: one(transactions, {
+      fields: [transactions.reversalTransactionId],
+      references: [transactions.id],
+      relationName: 'transaction_reversal',
+    }),
+    reversesTransaction: one(transactions, {
+      fields: [transactions.reversesTransactionId],
+      references: [transactions.id],
+      relationName: 'transaction_reversal_reverse',
+    }),
   }),
-  reversesTransaction: one(transactions, {
-    fields: [transactions.reversesTransactionId],
-    references: [transactions.id],
-    relationName: 'transaction_reversal_reverse',
-  }),
-}));
+);
 
 export const splitsRelations = relations(splits, ({ one }) => ({
   transaction: one(transactions, {
@@ -186,16 +221,19 @@ export const tagsRelations = relations(tags, ({ many }) => ({
   templateTags: many(templateTags),
 }));
 
-export const transactionTagsRelations = relations(transactionTags, ({ one }) => ({
-  transaction: one(transactions, {
-    fields: [transactionTags.transactionId],
-    references: [transactions.id],
+export const transactionTagsRelations = relations(
+  transactionTags,
+  ({ one }) => ({
+    transaction: one(transactions, {
+      fields: [transactionTags.transactionId],
+      references: [transactions.id],
+    }),
+    tag: one(tags, {
+      fields: [transactionTags.tagId],
+      references: [tags.id],
+    }),
   }),
-  tag: one(tags, {
-    fields: [transactionTags.tagId],
-    references: [tags.id],
-  }),
-}));
+);
 
 export const budgetsRelations = relations(budgets, ({ one }) => ({
   account: one(accounts, {
@@ -204,10 +242,13 @@ export const budgetsRelations = relations(budgets, ({ one }) => ({
   }),
 }));
 
-export const transactionTemplatesRelations = relations(transactionTemplates, ({ many }) => ({
-  splits: many(templateSplits),
-  templateTags: many(templateTags),
-}));
+export const transactionTemplatesRelations = relations(
+  transactionTemplates,
+  ({ many }) => ({
+    splits: many(templateSplits),
+    templateTags: many(templateTags),
+  }),
+);
 
 export const templateSplitsRelations = relations(templateSplits, ({ one }) => ({
   template: one(transactionTemplates, {
@@ -257,4 +298,3 @@ export type NewTemplateSplit = typeof templateSplits.$inferInsert;
 
 export type TemplateTag = typeof templateTags.$inferSelect;
 export type NewTemplateTag = typeof templateTags.$inferInsert;
-

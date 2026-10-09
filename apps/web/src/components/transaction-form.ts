@@ -4,8 +4,29 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { live } from 'lit/directives/live.js';
-import type { Account, TransactionWithSplits, Tag, TransactionTemplateWithSplits, CreateTransactionTemplateInput } from '@penga/shared';
-import { newEntry, newRow, entryFromSplits, entrySplits, entryErrors, buildEntryTransaction, parseMoney, formatMoney, APP_CURRENCY, allocationSummary, useRemaining, isBalanceAccount, type TransactionEntry, type EntryKind } from '@penga/shared';
+import type {
+  Account,
+  TransactionWithSplits,
+  Tag,
+  TransactionTemplateWithSplits,
+  CreateTransactionTemplateInput,
+} from '@penga/shared';
+import {
+  newEntry,
+  newRow,
+  entryFromSplits,
+  entrySplits,
+  entryErrors,
+  buildEntryTransaction,
+  parseMoney,
+  formatMoney,
+  APP_CURRENCY,
+  allocationSummary,
+  useRemaining,
+  isBalanceAccount,
+  type TransactionEntry,
+  type EntryKind,
+} from '@penga/shared';
 import './account-combobox.js';
 
 interface SplitRowState {
@@ -16,956 +37,1014 @@ interface SplitRowState {
 
 @customElement('transaction-form')
 export class TransactionForm extends LitElement {
-  static override styles = [css`
-    .type-selector { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .type-selector button { flex: 1; }
-    button[aria-pressed="true"] { background: var(--color-primary-subtle); border-color: var(--color-primary); color: var(--text-primary); }
-    .advanced-action { align-self: flex-start; }
-    .balance-summary { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .85rem; }
-    .balance-summary strong { display: block; margin-top: .25rem; }
-    .entry-help { font-size: .8rem; color: var(--text-secondary); margin: 0; line-height: 1.5; }
-    .field-error { color: var(--color-negative); }
-    .more-details summary { cursor: pointer; font-weight: 600; padding-bottom: 1rem; }
-    .more-details > div { margin-bottom: 1rem; }
-    .split-row-controls { flex-wrap: wrap; min-width: 0; }
-    .split-row-controls label { width: 125px; }
-    .template-quick-bar { flex-wrap: wrap; gap: .5rem; }
-    button:focus-visible, summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-
-    :host {
-      display: block;
-    }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: var(--overlay);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      animation: backdropFadeIn 0.18s ease-out;
-    }
-
-    @keyframes backdropFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .modal-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
-      width: 100%;
-      max-width: 860px;
-      max-height: 90vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      animation: cardPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes cardPopIn {
-      from {
-        opacity: 0;
-        transform: scale(0.96) translateY(8px);
+  static override styles = [
+    css`
+      .type-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
       }
-      to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
+      .type-selector button {
+        flex: 1;
       }
-    }
-
-    /* Modal Header */
-    .modal-header {
-      padding: 1.25rem 1.75rem;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--bg-surface);
-    }
-
-    .header-info h3 {
-      margin: 0 0 0.2rem 0;
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-    }
-
-    .header-info p {
-      margin: 0;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .close-btn {
-      background: transparent;
-      border: none;
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all var(--transition-fast);
-    }
-
-    .close-btn:hover {
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-    }
-
-    /* Modal Form Body */
-    .modal-body {
-      padding: 1.5rem 1.75rem;
-      overflow-y: auto;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 1.4rem;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-      min-width: 0;
-    }
-
-    .form-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
-
-    .form-input,
-    .form-select {
-      padding: 0.65rem 0.85rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.9rem;
-      outline: none;
-      box-sizing: border-box;
-      transition: all var(--transition-fast);
-    }
-
-    .form-select {
-      min-width: 0;
-      width: 100%;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      overflow: hidden;
-      cursor: pointer;
-    }
-
-    .form-select optgroup {
-      font-weight: 700;
-      color: var(--text-muted);
-      background: var(--bg-surface);
-    }
-
-    .form-select option {
-      font-weight: 500;
-      color: var(--text-primary);
-      background: var(--bg-surface);
-      padding: 0.35rem 0.5rem;
-    }
-
-    .form-input:focus,
-    .form-select:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 2px var(--color-primary-subtle);
-    }
-
-    .checkbox-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      cursor: pointer;
-      margin-top: 0.35rem;
-      user-select: none;
-    }
-
-    /* Splits Ledger Section */
-    .splits-section {
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      min-width: 0;
-      overflow: visible;
-    }
-
-    .splits-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .splits-title {
-      font-size: 0.825rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    /* Balance Status Banner */
-    .balance-banner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.75rem 1rem;
-      border-radius: var(--radius-md);
-      font-size: 0.85rem;
-      font-weight: 600;
-      transition: all var(--transition-fast);
-    }
-
-    .balance-banner.balanced {
-      background: var(--color-primary-subtle);
-      border: 1px solid var(--color-primary-border);
-      color: var(--color-primary-text);
-    }
-
-    .balance-banner.unbalanced {
-      background: var(--color-danger-bg);
-      border: 1px solid var(--color-danger-border);
-      color: var(--color-negative);
-    }
-
-    .balance-indicator {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .balance-badge {
-      font-family: var(--font-mono);
-      font-size: 0.95rem;
-      letter-spacing: -0.02em;
-    }
-
-    /* Ratio Progress Bar */
-    .ratio-bar-container {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .ratio-bar {
-      height: 8px;
-      width: 100%;
-      border-radius: var(--radius-full);
-      background: var(--bg-muted);
-      display: flex;
-      overflow: hidden;
-    }
-
-    .ratio-segment {
-      height: 100%;
-      transition: width var(--transition-normal);
-    }
-
-    .ratio-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      font-size: 0.7rem;
-      color: var(--text-muted);
-    }
-
-    .legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
-
-    .legend-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-    }
-
-    /* Split Rows */
-    .split-rows-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.65rem;
-      min-width: 0;
-    }
-
-    .split-rows-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 0.85rem;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
-
-    .split-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 0.75rem;
-      background: var(--bg-surface);
-      padding: 0.65rem 0.85rem;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-subtle);
-      transition: border-color var(--transition-fast);
-      min-width: 0;
-      position: relative;
-    }
-
-    .split-row:focus-within {
-      z-index: 20;
-    }
-
-    .split-row:hover {
-      border-color: var(--border-strong);
-    }
-
-    .split-row-controls {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-shrink: 1;
-      max-width: 340px;
-    }
-
-    .amount-input-wrap {
-      position: relative;
-      display: flex;
-      align-items: center;
-      width: 140px;
-      flex-shrink: 0;
-    }
-
-    .currency-symbol {
-      position: absolute;
-      left: 0.65rem;
-      color: var(--text-muted);
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      pointer-events: none;
-    }
-
-    .amount-input {
-      padding: 0.55rem 0.65rem 0.55rem 1.4rem;
-      border-radius: var(--radius-sm);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-mono);
-      font-size: 0.9rem;
-      font-weight: 600;
-      width: 100%;
-      box-sizing: border-box;
-      outline: none;
-      text-align: right;
-    }
-
-    .amount-input:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 2px var(--color-primary-subtle);
-    }
-
-    .btn-auto-balance {
-      padding: 0.52rem 0.75rem;
-      border-radius: var(--radius-sm);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      flex-shrink: 0;
-      transition: all var(--transition-fast);
-    }
-
-    .btn-auto-balance:hover {
-      background: var(--color-primary-subtle);
-      color: var(--color-primary-text);
-      border-color: var(--color-primary-border);
-    }
-
-    .btn-remove-row {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      flex-shrink: 0;
-      transition: all var(--transition-fast);
-    }
-
-    .btn-remove-row:hover:not(:disabled) {
-      color: var(--color-negative);
-      background: var(--color-danger-bg);
-    }
-
-    .btn-remove-row:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
-    }
-
-    .btn-add-split {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-      padding: 0.5rem 0.85rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-surface);
-      border: 1px dashed var(--border-strong);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.825rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
-
-    .btn-add-split:hover {
-      background: var(--bg-muted);
-      color: var(--text-primary);
-      border-color: var(--color-primary);
-    }
-
-    @media (max-width: 680px) {
-      .modal-backdrop {
-        padding: 0.75rem;
+      button[aria-pressed='true'] {
+        background: var(--color-primary-subtle);
+        border-color: var(--color-primary);
+        color: var(--text-primary);
       }
-      .modal-card {
-        max-height: 94vh;
+      .advanced-action {
+        align-self: flex-start;
       }
-      .modal-header {
-        padding: 1rem 1.25rem;
-      }
-      .modal-body {
-        padding: 1.25rem;
+      .balance-summary {
+        display: flex;
+        flex-wrap: wrap;
         gap: 1rem;
+        font-size: 0.85rem;
       }
-      .grid-2 {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
+      .balance-summary strong {
+        display: block;
+        margin-top: 0.25rem;
       }
-      .split-rows-header {
-        display: none;
+      .entry-help {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin: 0;
+        line-height: 1.5;
       }
-      .split-row {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
+      .field-error {
+        color: var(--color-negative);
+      }
+      .more-details summary {
+        cursor: pointer;
+        font-weight: 600;
+        padding-bottom: 1rem;
+      }
+      .more-details > div {
+        margin-bottom: 1rem;
       }
       .split-row-controls {
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .split-row-controls label {
+        width: 125px;
+      }
+      .template-quick-bar {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      button:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+      }
+
+      :host {
+        display: block;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: var(--overlay);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        animation: backdropFadeIn 0.18s ease-out;
+      }
+
+      @keyframes backdropFadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .modal-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
         width: 100%;
+        max-width: 860px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        animation: cardPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .amount-input-wrap {
-        flex: 1;
-        width: auto;
+
+      @keyframes cardPopIn {
+        from {
+          opacity: 0;
+          transform: scale(0.96) translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
       }
-      .modal-footer {
-        padding: 1rem 1.25rem;
-        flex-direction: column-reverse;
+
+      /* Modal Header */
+      .modal-header {
+        padding: 1.25rem 1.75rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--bg-surface);
+      }
+
+      .header-info h3 {
+        margin: 0 0 0.2rem 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+      }
+
+      .header-info p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .close-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.3rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-fast);
+      }
+
+      .close-btn:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+
+      /* Modal Form Body */
+      .modal-body {
+        padding: 1.5rem 1.75rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 1.4rem;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 0;
+      }
+
+      .form-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .form-input,
+      .form-select {
+        padding: 0.65rem 0.85rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.9rem;
+        outline: none;
+        box-sizing: border-box;
+        transition: all var(--transition-fast);
+      }
+
+      .form-select {
+        min-width: 0;
+        width: 100%;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        cursor: pointer;
+      }
+
+      .form-select optgroup {
+        font-weight: 700;
+        color: var(--text-muted);
+        background: var(--bg-surface);
+      }
+
+      .form-select option {
+        font-weight: 500;
+        color: var(--text-primary);
+        background: var(--bg-surface);
+        padding: 0.35rem 0.5rem;
+      }
+
+      .form-input:focus,
+      .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-subtle);
+      }
+
+      .checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        margin-top: 0.35rem;
+        user-select: none;
+      }
+
+      /* Splits Ledger Section */
+      .splits-section {
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-width: 0;
+        overflow: visible;
+      }
+
+      .splits-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .splits-title {
+        font-size: 0.825rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      /* Balance Status Banner */
+      .balance-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-md);
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all var(--transition-fast);
+      }
+
+      .balance-banner.balanced {
+        background: var(--color-primary-subtle);
+        border: 1px solid var(--color-primary-border);
+        color: var(--color-primary-text);
+      }
+
+      .balance-banner.unbalanced {
+        background: var(--color-danger-bg);
+        border: 1px solid var(--color-danger-border);
+        color: var(--color-negative);
+      }
+
+      .balance-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .balance-badge {
+        font-family: var(--font-mono);
+        font-size: 0.95rem;
+        letter-spacing: -0.02em;
+      }
+
+      /* Ratio Progress Bar */
+      .ratio-bar-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .ratio-bar {
+        height: 8px;
+        width: 100%;
+        border-radius: var(--radius-full);
+        background: var(--bg-muted);
+        display: flex;
+        overflow: hidden;
+      }
+
+      .ratio-segment {
+        height: 100%;
+        transition: width var(--transition-normal);
+      }
+
+      .ratio-legend {
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.75rem;
-        align-items: stretch;
+        font-size: 0.7rem;
+        color: var(--text-muted);
       }
-      .keyboard-hint {
-        justify-content: center;
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
       }
-      .footer-actions {
+
+      .legend-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+
+      /* Split Rows */
+      .split-rows-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        min-width: 0;
+      }
+
+      .split-rows-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0.85rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+      }
+
+      .split-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--bg-surface);
+        padding: 0.65rem 0.85rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-subtle);
+        transition: border-color var(--transition-fast);
+        min-width: 0;
+        position: relative;
+      }
+
+      .split-row:focus-within {
+        z-index: 20;
+      }
+
+      .split-row:hover {
+        border-color: var(--border-strong);
+      }
+
+      .split-row-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 1;
+        max-width: 340px;
+      }
+
+      .amount-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 140px;
+        flex-shrink: 0;
+      }
+
+      .currency-symbol {
+        position: absolute;
+        left: 0.65rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        pointer-events: none;
+      }
+
+      .amount-input {
+        padding: 0.55rem 0.65rem 0.55rem 1.4rem;
+        border-radius: var(--radius-sm);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        font-weight: 600;
         width: 100%;
-        justify-content: stretch;
+        box-sizing: border-box;
+        outline: none;
+        text-align: right;
       }
-      .btn-cancel,
-      .btn-submit {
-        flex: 1;
-        text-align: center;
+
+      .amount-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-subtle);
+      }
+
+      .btn-auto-balance {
+        padding: 0.52rem 0.75rem;
+        border-radius: var(--radius-sm);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: all var(--transition-fast);
+      }
+
+      .btn-auto-balance:hover {
+        background: var(--color-primary-subtle);
+        color: var(--color-primary-text);
+        border-color: var(--color-primary-border);
+      }
+
+      .btn-remove-row {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
         justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+        transition: all var(--transition-fast);
       }
-    }
 
-    /* Modal Footer */
-    .modal-footer {
-      padding: 1.15rem 1.75rem;
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--bg-surface);
-    }
+      .btn-remove-row:hover:not(:disabled) {
+        color: var(--color-negative);
+        background: var(--color-danger-bg);
+      }
 
-    .keyboard-hint {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
+      .btn-remove-row:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
 
-    .kbd {
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-strong);
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      color: var(--text-secondary);
-    }
+      .btn-add-split {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem 0.85rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        border: 1px dashed var(--border-strong);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.825rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
 
-    .footer-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
+      .btn-add-split:hover {
+        background: var(--bg-muted);
+        color: var(--text-primary);
+        border-color: var(--color-primary);
+      }
 
-    .btn-cancel {
-      padding: 0.65rem 1.15rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
+      @media (max-width: 680px) {
+        .modal-backdrop {
+          padding: 0.75rem;
+        }
+        .modal-card {
+          max-height: 94vh;
+        }
+        .modal-header {
+          padding: 1rem 1.25rem;
+        }
+        .modal-body {
+          padding: 1.25rem;
+          gap: 1rem;
+        }
+        .grid-2 {
+          grid-template-columns: 1fr;
+          gap: 0.75rem;
+        }
+        .split-rows-header {
+          display: none;
+        }
+        .split-row {
+          grid-template-columns: 1fr;
+          gap: 0.5rem;
+        }
+        .split-row-controls {
+          width: 100%;
+        }
+        .amount-input-wrap {
+          flex: 1;
+          width: auto;
+        }
+        .modal-footer {
+          padding: 1rem 1.25rem;
+          flex-direction: column-reverse;
+          gap: 0.75rem;
+          align-items: stretch;
+        }
+        .keyboard-hint {
+          justify-content: center;
+        }
+        .footer-actions {
+          width: 100%;
+          justify-content: stretch;
+        }
+        .btn-cancel,
+        .btn-submit {
+          flex: 1;
+          text-align: center;
+          justify-content: center;
+        }
+      }
 
-    .btn-cancel:hover {
-      background: var(--bg-muted);
-      color: var(--text-primary);
-    }
+      /* Modal Footer */
+      .modal-footer {
+        padding: 1.15rem 1.75rem;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--bg-surface);
+      }
 
-    .btn-submit {
-      padding: 0.65rem 1.4rem;
-      border-radius: var(--radius-md);
-      background: var(--color-primary);
-      color: var(--on-accent);
-      border: 1px solid transparent;
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 8px var(--border-subtle);
-      transition: all var(--transition-fast);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
+      .keyboard-hint {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
 
-    .btn-submit:hover:not(:disabled) {
-      background: var(--color-primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px var(--border-subtle);
-    }
+      .kbd {
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-strong);
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+      }
 
-    .btn-submit:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      box-shadow: none;
-      transform: none;
-    }
+      .footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
 
-    /* Tags Input & Chips */
-    .tag-form-group {
-      position: relative;
-    }
+      .btn-cancel {
+        padding: 0.65rem 1.15rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
 
-    .tag-input-box {
-      min-height: 42px;
-      padding: 0.35rem 0.65rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      cursor: text;
-      transition: all var(--transition-fast);
-      box-sizing: border-box;
-    }
+      .btn-cancel:hover {
+        background: var(--bg-muted);
+        color: var(--text-primary);
+      }
 
-    .tag-input-box:focus-within {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 2px var(--color-primary-subtle);
-      background: var(--bg-surface);
-    }
+      .btn-submit {
+        padding: 0.65rem 1.4rem;
+        border-radius: var(--radius-md);
+        background: var(--color-primary);
+        color: var(--on-accent);
+        border: 1px solid transparent;
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 8px var(--border-subtle);
+        transition: all var(--transition-fast);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
 
-    .selected-tags-list {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.4rem;
-      width: 100%;
-    }
+      .btn-submit:hover:not(:disabled) {
+        background: var(--color-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--border-subtle);
+      }
 
-    .tag-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.2rem 0.55rem;
-      border-radius: var(--radius-full);
-      font-size: 0.75rem;
-      font-weight: 600;
-      border: 1px solid;
-      line-height: 1.2;
-      animation: chipPop 0.15s ease-out;
-      user-select: none;
-    }
+      .btn-submit:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+      }
 
-    @keyframes chipPop {
-      from { transform: scale(0.85); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
+      /* Tags Input & Chips */
+      .tag-form-group {
+        position: relative;
+      }
 
-    .tag-chip-remove {
-      background: transparent;
-      border: none;
-      color: inherit;
-      opacity: 0.6;
-      cursor: pointer;
-      font-size: 0.75rem;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      transition: opacity var(--transition-fast);
-      line-height: 1;
-    }
+      .tag-input-box {
+        min-height: 42px;
+        padding: 0.35rem 0.65rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        cursor: text;
+        transition: all var(--transition-fast);
+        box-sizing: border-box;
+      }
 
-    .tag-chip-remove:hover {
-      opacity: 1;
-    }
+      .tag-input-box:focus-within {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-subtle);
+        background: var(--bg-surface);
+      }
 
-    .tag-inline-input {
-      border: none;
-      outline: none;
-      background: transparent;
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.85rem;
-      padding: 0.2rem 0.3rem;
-      flex: 1;
-      min-width: 140px;
-    }
+      .selected-tags-list {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        width: 100%;
+      }
 
-    .tag-inline-input::placeholder {
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
+      .tag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid;
+        line-height: 1.2;
+        animation: chipPop 0.15s ease-out;
+        user-select: none;
+      }
 
-    .tag-dropdown {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-md);
-      z-index: 1050;
-      max-height: 190px;
-      overflow-y: auto;
-      padding: 0.3rem 0;
-      display: flex;
-      flex-direction: column;
-      animation: menuFadeIn var(--transition-fast) ease-out;
-    }
+      @keyframes chipPop {
+        from {
+          transform: scale(0.85);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
 
-    .tag-dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 0.85rem;
-      background: transparent;
-      border: none;
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.825rem;
-      font-weight: 500;
-      text-align: left;
-      cursor: pointer;
-      transition: background var(--transition-fast);
-      width: 100%;
-    }
+      .tag-chip-remove {
+        background: transparent;
+        border: none;
+        color: inherit;
+        opacity: 0.6;
+        cursor: pointer;
+        font-size: 0.75rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        transition: opacity var(--transition-fast);
+        line-height: 1;
+      }
 
-    .tag-dropdown-item:hover {
-      background: var(--bg-subtle);
-      color: var(--color-primary-text);
-    }
+      .tag-chip-remove:hover {
+        opacity: 1;
+      }
 
-    .tag-dropdown-item.create-new {
-      border-top: 1px solid var(--border-subtle);
-      color: var(--color-primary);
-      font-weight: 600;
-    }
+      .tag-inline-input {
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.85rem;
+        padding: 0.2rem 0.3rem;
+        flex: 1;
+        min-width: 140px;
+      }
 
-    .tag-dropdown-item.create-new:hover {
-      background: var(--color-primary-subtle);
-    }
+      .tag-inline-input::placeholder {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+      }
 
-    .tag-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
+      .tag-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        z-index: 1050;
+        max-height: 190px;
+        overflow-y: auto;
+        padding: 0.3rem 0;
+        display: flex;
+        flex-direction: column;
+        animation: menuFadeIn var(--transition-fast) ease-out;
+      }
 
-    /* Templates Quick-Bar */
-    .template-quick-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.5rem 0.75rem;
-      background: var(--bg-base);
-      border: 1px dashed var(--border-strong);
-      border-radius: var(--radius-md);
-      margin-bottom: 0.25rem;
-    }
+      .tag-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.85rem;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.825rem;
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+        transition: background var(--transition-fast);
+        width: 100%;
+      }
 
-    .template-dropdown-wrapper {
-      position: relative;
-    }
+      .tag-dropdown-item:hover {
+        background: var(--bg-subtle);
+        color: var(--color-primary-text);
+      }
 
-    .btn-template-picker {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.8rem;
-      border-radius: var(--radius-md);
-      background: var(--color-primary-subtle);
-      border: 1px solid var(--color-primary-border);
-      color: var(--color-primary-text);
-      font-family: var(--font-sans);
-      font-size: 0.825rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
+      .tag-dropdown-item.create-new {
+        border-top: 1px solid var(--border-subtle);
+        color: var(--color-primary);
+        font-weight: 600;
+      }
 
-    .btn-template-picker:hover,
-    .btn-template-picker.active {
-      background: var(--color-primary);
-      color: var(--on-accent);
-    }
+      .tag-dropdown-item.create-new:hover {
+        background: var(--color-primary-subtle);
+      }
 
-    .template-badge {
-      background: var(--bg-surface);
-      color: var(--color-primary-text);
-      font-size: 0.7rem;
-      padding: 0.1rem 0.45rem;
-      border-radius: var(--radius-full);
-      font-weight: 700;
-    }
+      .tag-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
 
-    .btn-template-picker.active .template-badge,
-    .btn-template-picker:hover .template-badge {
-      background: var(--color-primary-subtle);
-      color: var(--color-primary-text);
-    }
+      /* Templates Quick-Bar */
+      .template-quick-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.75rem;
+        background: var(--bg-base);
+        border: 1px dashed var(--border-strong);
+        border-radius: var(--radius-md);
+        margin-bottom: 0.25rem;
+      }
 
-    .template-dropdown-menu {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      width: 320px;
-      max-height: 280px;
-      overflow-y: auto;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-md);
-      z-index: 1100;
-      padding: 0.4rem 0;
-      display: flex;
-      flex-direction: column;
-    }
+      .template-dropdown-wrapper {
+        position: relative;
+      }
 
-    .template-dropdown-header {
-      padding: 0.45rem 0.85rem;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--border-subtle);
-    }
+      .btn-template-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: var(--radius-md);
+        background: var(--color-primary-subtle);
+        border: 1px solid var(--color-primary-border);
+        color: var(--color-primary-text);
+        font-family: var(--font-sans);
+        font-size: 0.825rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
 
-    .template-dropdown-empty {
-      padding: 1rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      text-align: center;
-      line-height: 1.4;
-    }
+      .btn-template-picker:hover,
+      .btn-template-picker.active {
+        background: var(--color-primary);
+        color: var(--on-accent);
+      }
 
-    .template-item-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      padding: 0.6rem 0.85rem;
-      background: transparent;
-      border: none;
-      width: 100%;
-      text-align: left;
-      cursor: pointer;
-      transition: background var(--transition-fast);
-      color: var(--text-primary);
-    }
+      .template-badge {
+        background: var(--bg-surface);
+        color: var(--color-primary-text);
+        font-size: 0.7rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: var(--radius-full);
+        font-weight: 700;
+      }
 
-    .template-item-btn:hover {
-      background: var(--bg-subtle);
-    }
+      .btn-template-picker.active .template-badge,
+      .btn-template-picker:hover .template-badge {
+        background: var(--color-primary-subtle);
+        color: var(--color-primary-text);
+      }
 
-    .template-item-icon {
-      font-size: 1.1rem;
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-sm);
-      background: var(--color-primary-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
+      .template-dropdown-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 320px;
+        max-height: 280px;
+        overflow-y: auto;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        z-index: 1100;
+        padding: 0.4rem 0;
+        display: flex;
+        flex-direction: column;
+      }
 
-    .template-item-info {
-      flex: 1;
-      min-width: 0;
-    }
+      .template-dropdown-header {
+        padding: 0.45rem 0.85rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-subtle);
+      }
 
-    .template-item-name {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+      .template-dropdown-empty {
+        padding: 1rem;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-align: center;
+        line-height: 1.4;
+      }
 
-    .template-item-meta {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
+      .template-item-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.6rem 0.85rem;
+        background: transparent;
+        border: none;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        transition: background var(--transition-fast);
+        color: var(--text-primary);
+      }
 
-    /* Footer Left Actions */
-    .footer-left-actions {
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      flex-wrap: wrap;
-    }
+      .template-item-btn:hover {
+        background: var(--bg-subtle);
+      }
 
-    .btn-save-as-template {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.35rem 0.65rem;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.775rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
+      .template-item-icon {
+        font-size: 1.1rem;
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-sm);
+        background: var(--color-primary-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
 
-    .btn-save-as-template:hover {
-      background: var(--bg-subtle);
-      border-color: var(--border-strong);
-      color: var(--text-primary);
-    }
+      .template-item-info {
+        flex: 1;
+        min-width: 0;
+      }
 
-    /* Mini Modal for Save Template */
-    .sub-modal {
-      z-index: 1200;
-    }
+      .template-item-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
-    .mini-modal-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-lg);
-      width: 100%;
-      max-width: 420px;
-      overflow: hidden;
-      animation: cardPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-    }
+      .template-item-meta {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
 
-    .mini-modal-header {
-      padding: 1rem 1.25rem;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+      /* Footer Left Actions */
+      .footer-left-actions {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+      }
 
-    .mini-modal-header h4 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
+      .btn-save-as-template {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.775rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
 
-    .mini-modal-body {
-      padding: 1.25rem;
-    }
+      .btn-save-as-template:hover {
+        background: var(--bg-subtle);
+        border-color: var(--border-strong);
+        color: var(--text-primary);
+      }
 
-    .mini-modal-footer {
-      padding: 0.85rem 1.25rem;
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 0.65rem;
-      background: var(--bg-surface);
-    }
-  `, calmStyles];
+      /* Mini Modal for Save Template */
+      .sub-modal {
+        z-index: 1200;
+      }
+
+      .mini-modal-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-width: 420px;
+        overflow: hidden;
+        animation: cardPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .mini-modal-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .mini-modal-header h4 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .mini-modal-body {
+        padding: 1.25rem;
+      }
+
+      .mini-modal-footer {
+        padding: 0.85rem 1.25rem;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.65rem;
+        background: var(--bg-surface);
+      }
+    `,
+    calmStyles,
+  ];
 
   @property({ type: Boolean })
   isOpen = false;
@@ -1007,21 +1086,48 @@ export class TransactionForm extends LitElement {
   private returnFocus: HTMLElement | null = null;
   private get splitRows(): SplitRowState[] {
     if (this.entry.kind === 'advanced') return this.entry.rows;
-    return entrySplits(this.entry, this.entryContext).map((s, i) => ({ id: String(i), accountId: s.accountId, amount: (s.amountCents / 100).toFixed(2) }));
+    return entrySplits(this.entry, this.entryContext).map((s, i) => ({
+      id: String(i),
+      accountId: s.accountId,
+      amount: (s.amountCents / 100).toFixed(2),
+    }));
   }
   private set splitRows(rows: SplitRowState[]) {
-    this.entry = entryFromSplits(rows.map(r => ({ accountId: r.accountId, amountCents: parseMoney(r.amount) || 0 })), this.availableAccounts);
+    this.entry = entryFromSplits(
+      rows.map((r) => ({
+        accountId: r.accountId,
+        amountCents: parseMoney(r.amount) || 0,
+      })),
+      this.availableAccounts,
+    );
   }
   private get entryContext() {
-    return { accounts: this.availableAccounts, currentBalanceCents: 'accountId' in this.entry ? this.balances[this.entry.accountId] : undefined,
-      equityAccountId: this.availableAccounts.find(a => a.type === 'EQUITY' && a.name === 'Opening Balances')?.id };
+    return {
+      accounts: this.availableAccounts,
+      currentBalanceCents:
+        'accountId' in this.entry
+          ? this.balances[this.entry.accountId]
+          : undefined,
+      equityAccountId: this.availableAccounts.find(
+        (a) => a.type === 'EQUITY' && a.name === 'Opening Balances',
+      )?.id,
+    };
   }
   private async fetchBalances() {
     this.balances = {};
     try {
       const response = await fetch('/api/reports/balance-summary');
-      if (response.ok) { const json = await response.json(); this.balances = Object.fromEntries(json.data.accountBalances.map((a: any) => [a.id, a.balanceCents])); }
-    } catch { /* Set-balance validation stays disabled until balances are available. */ }
+      if (response.ok) {
+        const json = await response.json();
+        this.balances = Object.fromEntries(
+          json.data.accountBalances.map(
+            (a: { id: string; balanceCents: number }) => [a.id, a.balanceCents],
+          ),
+        );
+      }
+    } catch {
+      /* Set-balance validation stays disabled until balances are available. */
+    }
   }
   @state()
   private isSubmitting = false;
@@ -1060,9 +1166,15 @@ export class TransactionForm extends LitElement {
     if (!this.isOpen) return;
 
     if (e.defaultPrevented) return;
-    if (e.key === 'Tab') { this.trapFocus(e); return; }
+    if (e.key === 'Tab') {
+      this.trapFocus(e);
+      return;
+    }
     if (e.key === 'Escape') {
-      if (this.isSaveTemplateModalOpen) { this.isSaveTemplateModalOpen = false; return; }
+      if (this.isSaveTemplateModalOpen) {
+        this.isSaveTemplateModalOpen = false;
+        return;
+      }
       this.closeModal();
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
@@ -1076,18 +1188,36 @@ export class TransactionForm extends LitElement {
   };
 
   private trapFocus(event: KeyboardEvent) {
-    const root = this.isSaveTemplateModalOpen ? this.shadowRoot?.querySelector('.mini-modal-card') : this.shadowRoot?.querySelector('.modal-card');
+    const root = this.isSaveTemplateModalOpen
+      ? this.shadowRoot?.querySelector('.mini-modal-card')
+      : this.shadowRoot?.querySelector('.modal-card');
     if (!root) return;
-    const collect = (parent: Element | ShadowRoot): HTMLElement[] => Array.from(parent.children).flatMap(child => {
-      if (child instanceof HTMLDetailsElement && !child.open) return collectSummary(child);
-      if (child instanceof HTMLElement && child.matches('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, textarea:not(:disabled)')) return [child];
-      return collect(child.shadowRoot || child);
-    });
-    const collectSummary = (details: Element): HTMLElement[] => Array.from(details.children).filter(child => child.tagName === 'SUMMARY') as HTMLElement[];
+    const collect = (parent: Element | ShadowRoot): HTMLElement[] =>
+      Array.from(parent.children).flatMap((child) => {
+        if (child instanceof HTMLDetailsElement && !child.open)
+          return collectSummary(child);
+        if (
+          child instanceof HTMLElement &&
+          child.matches(
+            'button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, textarea:not(:disabled)',
+          )
+        )
+          return [child];
+        return collect(child.shadowRoot || child);
+      });
+    const collectSummary = (details: Element): HTMLElement[] =>
+      Array.from(details.children).filter(
+        (child) => child.tagName === 'SUMMARY',
+      ) as HTMLElement[];
     const controls = collect(root);
     const focused = event.composedPath()[0];
-    if (event.shiftKey && focused === controls[0]) { event.preventDefault(); controls.at(-1)?.focus(); }
-    else if (!event.shiftKey && focused === controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
+    if (event.shiftKey && focused === controls[0]) {
+      event.preventDefault();
+      controls.at(-1)?.focus();
+    } else if (!event.shiftKey && focused === controls.at(-1)) {
+      event.preventDefault();
+      controls[0]?.focus();
+    }
   }
 
   async fetchAccounts() {
@@ -1096,7 +1226,6 @@ export class TransactionForm extends LitElement {
       if (res.ok) {
         const json = await res.json();
         this.availableAccounts = json.data || [];
-
       }
     } catch (err) {
       console.warn('Could not load accounts list for transaction form', err);
@@ -1163,13 +1292,19 @@ export class TransactionForm extends LitElement {
       const raw = this.normalizeTagName(this.tagSearchInput);
       if (!raw) return;
 
-      const matched = this.availableTags.find((t) => t.name.toLowerCase() === raw.toLowerCase());
+      const matched = this.availableTags.find(
+        (t) => t.name.toLowerCase() === raw.toLowerCase(),
+      );
       if (matched) {
         this.selectTag(matched.id);
       } else {
         this.createAndSelectTag();
       }
-    } else if (e.key === 'Backspace' && !this.tagSearchInput && this.selectedTagIds.size > 0) {
+    } else if (
+      e.key === 'Backspace' &&
+      !this.tagSearchInput &&
+      this.selectedTagIds.size > 0
+    ) {
       const arr = Array.from(this.selectedTagIds);
       this.removeTag(arr[arr.length - 1]);
     } else if (e.key === 'Escape') {
@@ -1185,32 +1320,50 @@ export class TransactionForm extends LitElement {
   };
 
   private focusTagInput = () => {
-    const input = this.shadowRoot?.getElementById('tag-input-field') as HTMLInputElement | null;
+    const input = this.shadowRoot?.getElementById(
+      'tag-input-field',
+    ) as HTMLInputElement | null;
     input?.focus();
     this.isTagDropdownOpen = true;
   };
 
   private handleWindowClick = (e: MouseEvent) => {
     const path = e.composedPath();
-    const isTagClick = path.some((el) => el instanceof HTMLElement && el.classList?.contains('tag-form-group'));
+    const isTagClick = path.some(
+      (el) =>
+        el instanceof HTMLElement && el.classList?.contains('tag-form-group'),
+    );
     if (!isTagClick) {
       this.isTagDropdownOpen = false;
     }
 
-    const isTplClick = path.some((el) => el instanceof HTMLElement && (el.classList?.contains('template-dropdown-wrapper') || el.classList?.contains('btn-template-picker')));
+    const isTplClick = path.some(
+      (el) =>
+        el instanceof HTMLElement &&
+        (el.classList?.contains('template-dropdown-wrapper') ||
+          el.classList?.contains('btn-template-picker')),
+    );
     if (!isTplClick) {
       this.isTemplateDropdownOpen = false;
     }
   };
 
-  override updated(changedProps: Map<string, any>) {
+  override updated(changedProps: Map<string, unknown>) {
     if (changedProps.has('isOpen') && this.isOpen) {
       this.returnFocus = document.activeElement as HTMLElement | null;
-      void this.updateComplete.then(() => this.shadowRoot?.querySelector<HTMLInputElement>('input[type=date]')?.focus());
+      void this.updateComplete.then(() =>
+        this.shadowRoot
+          ?.querySelector<HTMLInputElement>('input[type=date]')
+          ?.focus(),
+      );
     }
     if (changedProps.has('transactionToEdit') && this.transactionToEdit) {
       this.populateForEdit(this.transactionToEdit);
-    } else if (changedProps.has('isOpen') && this.isOpen && !changedProps.get('isOpen')) {
+    } else if (
+      changedProps.has('isOpen') &&
+      this.isOpen &&
+      !changedProps.get('isOpen')
+    ) {
       this.fetchAccounts();
       this.fetchTags();
       this.fetchTemplates();
@@ -1234,11 +1387,14 @@ export class TransactionForm extends LitElement {
     this.tagSearchInput = '';
     this.isTagDropdownOpen = false;
 
-    this.entry = { kind: 'advanced', rows: (tx.splits || []).map((s, idx) => ({
-      id: s.id || `split-${idx}-${Date.now()}`,
-      accountId: s.accountId,
-      amount: this.formatCentsToDecimal(s.amountCents),
-    })) };
+    this.entry = {
+      kind: 'advanced',
+      rows: (tx.splits || []).map((s, idx) => ({
+        id: s.id || `split-${idx}-${Date.now()}`,
+        accountId: s.accountId,
+        amount: this.formatCentsToDecimal(s.amountCents),
+      })),
+    };
   }
 
   private resetForm(preselectedAccountId?: string) {
@@ -1254,7 +1410,8 @@ export class TransactionForm extends LitElement {
     this.isTagDropdownOpen = false;
 
     this.entry = newEntry();
-    if ('accountId' in this.entry) this.entry.accountId = preselectedAccountId || '';
+    if ('accountId' in this.entry)
+      this.entry.accountId = preselectedAccountId || '';
     this.touched = new Set();
     this.fetchBalances();
   }
@@ -1277,7 +1434,12 @@ export class TransactionForm extends LitElement {
   };
 
   public applyTemplate(tpl: TransactionTemplateWithSplits) {
-    if (this.isOpen && this.hasEntryData() && !confirm('Replace the current entry with this template?')) return;
+    if (
+      this.isOpen &&
+      this.hasEntryData() &&
+      !confirm('Replace the current entry with this template?')
+    )
+      return;
     this.touched = new Set();
     this.payee = tpl.payee || '';
     this.note = tpl.note || '';
@@ -1285,10 +1447,11 @@ export class TransactionForm extends LitElement {
       this.splitRows = tpl.splits.map((s, idx) => ({
         id: `tpl-split-${idx}-${Date.now()}`,
         accountId: s.accountId,
-        amount: s.amountCents !== 0 ? this.formatCentsToDecimal(s.amountCents) : '',
+        amount:
+          s.amountCents !== 0 ? this.formatCentsToDecimal(s.amountCents) : '',
       }));
     }
-    this.selectedTagIds = new Set((tpl.tags || []).map(t => t.id));
+    this.selectedTagIds = new Set((tpl.tags || []).map((t) => t.id));
     this.isTemplateDropdownOpen = false;
   }
 
@@ -1336,11 +1499,23 @@ export class TransactionForm extends LitElement {
       return;
     }
 
-    const validAdvancedTemplate = this.entry.kind === 'advanced' && this.entry.rows.length >= 2
-      && this.entry.rows.every(row => this.availableAccounts.some(account => account.id === row.accountId)
-        && (!row.amount.trim() || Number.isFinite(parseMoney(row.amount))));
-    if ((!this.canSubmit() && !validAdvancedTemplate) || this.entry.kind === 'adjustment') {
-      alert('Complete the entry before saving a template. Save adjustments as ledger templates in advanced mode.');
+    const validAdvancedTemplate =
+      this.entry.kind === 'advanced' &&
+      this.entry.rows.length >= 2 &&
+      this.entry.rows.every(
+        (row) =>
+          this.availableAccounts.some(
+            (account) => account.id === row.accountId,
+          ) &&
+          (!row.amount.trim() || Number.isFinite(parseMoney(row.amount))),
+      );
+    if (
+      (!this.canSubmit() && !validAdvancedTemplate) ||
+      this.entry.kind === 'adjustment'
+    ) {
+      alert(
+        'Complete the entry before saving a template. Save adjustments as ledger templates in advanced mode.',
+      );
       return;
     }
 
@@ -1372,8 +1547,8 @@ export class TransactionForm extends LitElement {
 
       await this.fetchTemplates();
       this.isSaveTemplateModalOpen = false;
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       this.isSavingTemplate = false;
     }
@@ -1406,96 +1581,401 @@ export class TransactionForm extends LitElement {
     this.isSaveTemplateModalOpen = false;
     this.isTemplateDropdownOpen = false;
     this.returnFocus?.focus();
-    this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
+    this.dispatchEvent(
+      new CustomEvent('close', { bubbles: true, composed: true }),
+    );
   }
 
-  private parseCents(value: string): number { return parseMoney(value) || 0; }
-  private formatCentsToDecimal(cents: number): string { return (cents / 100).toFixed(2); }
-  private getValidationState() {
-    const errors = entryErrors(this.entry, this.entryContext, this.transactionDate, this.payee);
-    if (this.isOpeningEdit() && this.entry.kind === 'advanced') {
-      for (const row of this.entry.rows) if (parseMoney(row.amount) === 0) delete errors['amount-' + row.id];
-    }
-    return { isValid: Object.keys(errors).length === 0, message: Object.values(errors)[0] || 'Balanced' };
+  private parseCents(value: string): number {
+    return parseMoney(value) || 0;
   }
-  private canSubmit(): boolean { return !this.isSubmitting && this.getValidationState().isValid; }
-  private touch(key: string) { this.touched = new Set([...this.touched, key]); }
+  private formatCentsToDecimal(cents: number): string {
+    return (cents / 100).toFixed(2);
+  }
+  private getValidationState() {
+    const errors = entryErrors(
+      this.entry,
+      this.entryContext,
+      this.transactionDate,
+      this.payee,
+    );
+    if (this.isOpeningEdit() && this.entry.kind === 'advanced') {
+      for (const row of this.entry.rows)
+        if (parseMoney(row.amount) === 0) delete errors['amount-' + row.id];
+    }
+    return {
+      isValid: Object.keys(errors).length === 0,
+      message: Object.values(errors)[0] || 'Balanced',
+    };
+  }
+  private canSubmit(): boolean {
+    return !this.isSubmitting && this.getValidationState().isValid;
+  }
+  private touch(key: string) {
+    this.touched = new Set([...this.touched, key]);
+  }
   private fieldError(key: string) {
-    const error = entryErrors(this.entry, this.entryContext, this.transactionDate, this.payee)[key];
-    return this.touched.has(key) && error ? html`<small class="field-error" role="status">${error}</small>` : nothing;
+    const error = entryErrors(
+      this.entry,
+      this.entryContext,
+      this.transactionDate,
+      this.payee,
+    )[key];
+    return this.touched.has(key) && error
+      ? html`<small class="field-error" role="status">${error}</small>`
+      : nothing;
   }
   private hasEntryData() {
-    return ('total' in this.entry && !!this.entry.total) || ('rows' in this.entry && this.entry.rows.some(r => !!r.amount || !!r.accountId));
+    return (
+      ('total' in this.entry && !!this.entry.total) ||
+      ('rows' in this.entry &&
+        this.entry.rows.some((r) => !!r.amount || !!r.accountId))
+    );
   }
   private switchMode(kind: EntryKind) {
     if (this.entry.kind === kind) return;
     if (this.transactionToEdit && kind === 'adjustment') return;
-    if (kind === 'advanced' && this.getValidationState().isValid && (this.entry.kind !== 'adjustment' || this.entryContext.equityAccountId)) {
-      this.entry = { kind, rows: entrySplits(this.entry, this.entryContext).map(s => ({ id: crypto.randomUUID(), accountId: s.accountId, amount: this.formatCentsToDecimal(s.amountCents) })) };
+    if (
+      kind === 'advanced' &&
+      this.getValidationState().isValid &&
+      (this.entry.kind !== 'adjustment' || this.entryContext.equityAccountId)
+    ) {
+      this.entry = {
+        kind,
+        rows: entrySplits(this.entry, this.entryContext).map((s) => ({
+          id: crypto.randomUUID(),
+          accountId: s.accountId,
+          amount: this.formatCentsToDecimal(s.amountCents),
+        })),
+      };
     } else {
-      const converted = this.entry.kind === 'advanced' ? entryFromSplits(entrySplits(this.entry, this.entryContext), this.availableAccounts) : null;
+      const converted =
+        this.entry.kind === 'advanced'
+          ? entryFromSplits(
+              entrySplits(this.entry, this.entryContext),
+              this.availableAccounts,
+            )
+          : null;
       if (converted?.kind === kind) this.entry = converted;
       else {
-        if (this.hasEntryData() && !confirm('Changing transaction type will clear the accounts and amounts. Continue?')) return;
+        if (
+          this.hasEntryData() &&
+          !confirm(
+            'Changing transaction type will clear the accounts and amounts. Continue?',
+          )
+        )
+          return;
         this.entry = newEntry(kind);
       }
     }
     this.touched = new Set();
   }
-  private updateEntry(values: object) { this.entry = { ...this.entry, ...values } as TransactionEntry; }
-  private addSplitRow() { if ('rows' in this.entry) this.updateEntry({ rows: [...this.entry.rows, newRow()] }); }
-  private removeSplitRow(id: string) { this.touch('rows'); if ('rows' in this.entry) this.updateEntry({ rows: this.entry.rows.filter(r => r.id !== id) }); }
-  private handleAmountInput(id: string, amount: string) { if ('rows' in this.entry) this.updateEntry({ rows: this.entry.rows.map(r => r.id === id ? { ...r, amount } : r) }); }
-  private handleAccountSelect(id: string, accountId: string) { if ('rows' in this.entry) this.updateEntry({ rows: this.entry.rows.map(r => r.id === id ? { ...r, accountId } : r) }); }
-  private accountField(label: string, key: string, value: string, accounts: Account[], change: (id: string) => void) {
-    return html`<div class="form-group"><span class="form-label">${label}</span><account-combobox .label=${label} .accounts=${accounts} .value=${value}
-      @focusout=${() => this.touch(key)} @account-selected=${(e: CustomEvent) => change(e.detail.accountId)}></account-combobox>${this.fieldError(key)}</div>`;
+  private updateEntry(values: object) {
+    this.entry = { ...this.entry, ...values } as TransactionEntry;
   }
-  private isOpeningEdit() { return this.transactionToEdit?.payee === 'Opening Balance' || Boolean(this.transactionToEdit?.note?.startsWith('Starting balance for ')); }
+  private addSplitRow() {
+    if ('rows' in this.entry)
+      this.updateEntry({ rows: [...this.entry.rows, newRow()] });
+  }
+  private removeSplitRow(id: string) {
+    this.touch('rows');
+    if ('rows' in this.entry)
+      this.updateEntry({ rows: this.entry.rows.filter((r) => r.id !== id) });
+  }
+  private handleAmountInput(id: string, amount: string) {
+    if ('rows' in this.entry)
+      this.updateEntry({
+        rows: this.entry.rows.map((r) => (r.id === id ? { ...r, amount } : r)),
+      });
+  }
+  private handleAccountSelect(id: string, accountId: string) {
+    if ('rows' in this.entry)
+      this.updateEntry({
+        rows: this.entry.rows.map((r) =>
+          r.id === id ? { ...r, accountId } : r,
+        ),
+      });
+  }
+  private accountField(
+    label: string,
+    key: string,
+    value: string,
+    accounts: Account[],
+    change: (id: string) => void,
+  ) {
+    return html`<div class="form-group">
+      <span class="form-label">${label}</span
+      ><account-combobox
+        .label=${label}
+        .accounts=${accounts}
+        .value=${value}
+        @focusout=${() => this.touch(key)}
+        @account-selected=${(e: CustomEvent) => change(e.detail.accountId)}
+      ></account-combobox
+      >${this.fieldError(key)}
+    </div>`;
+  }
+  private isOpeningEdit() {
+    return (
+      this.transactionToEdit?.payee === 'Opening Balance' ||
+      Boolean(this.transactionToEdit?.note?.startsWith('Starting balance for '))
+    );
+  }
   @state() private submitError = '';
   private renderTypeSelector() {
     const entry = this.entry;
-    if (this.isOpeningEdit()) return html`<p class="entry-help">Edit the opening amount, date and description below. The balance applies at the beginning of that date. Keep the account and equity counterpart; signed amounts must balance to zero.</p>`;
-    return html`      <div class="type-selector" role="group" aria-label="Transaction type">
-        ${(['expense', 'income', 'transfer', 'adjustment'] as const).map(kind => html`<button type="button" class="btn-cancel" aria-pressed=${entry.kind === kind} ?disabled=${!!this.transactionToEdit && kind === 'adjustment'} @click=${() => this.switchMode(kind)}>${kind[0].toUpperCase() + kind.slice(1)}</button>`)}
+    if (this.isOpeningEdit())
+      return html`<p class="entry-help">
+        Edit the opening amount, date and description below. The balance applies
+        at the beginning of that date. Keep the account and equity counterpart;
+        signed amounts must balance to zero.
+      </p>`;
+    return html`
+      <div class="type-selector" role="group" aria-label="Transaction type">
+        ${(['expense', 'income', 'transfer', 'adjustment'] as const).map((kind) => html`<button type="button" class="btn-cancel" aria-pressed=${entry.kind === kind} ?disabled=${!!this.transactionToEdit && kind === 'adjustment'} @click=${() => this.switchMode(kind)}>${kind[0].toUpperCase() + kind.slice(1)}</button>`)}
       </div>
-      <button class="btn-save-as-template advanced-action" aria-pressed=${entry.kind === 'advanced'} @click=${() => this.switchMode('advanced')}>Advanced ledger entry</button>
-`;
+      <button
+        class="btn-save-as-template advanced-action"
+        aria-pressed=${entry.kind === 'advanced'}
+        @click=${() => this.switchMode('advanced')}
+      >
+        Advanced ledger entry
+      </button>
+    `;
   }
   private renderEntry() {
     const entry = this.entry;
     if (this.isOpeningEdit() && entry.kind === 'advanced') {
-      const account = this.transactionToEdit!.splits.find(s => ['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(s.accountType || this.availableAccounts.find(a => a.id === s.accountId)?.type || ''));
-      const row = entry.rows.find(r => r.accountId === account?.accountId);
-      if (row) return html`<div class="grid-2">
-        <label class="form-group"><span class="form-label">Opening-balance date</span><input type="date" class="form-input" .value=${this.transactionDate} @input=${(e: any) => this.transactionDate = e.target.value}></label>
-        <label class="form-group"><span class="form-label">Opening balance (${APP_CURRENCY})</span><input class="form-input" inputmode="decimal" .value=${row.amount} @input=${(e: any) => { const amount = e.target.value; const cents = parseMoney(amount); this.entry = { kind: 'advanced', rows: entry.rows.map(r => ({ ...r, amount: r.id === row.id ? amount : Number.isFinite(cents) ? this.formatCentsToDecimal(-cents) : '' })) }; }}></label>
-      </div><label class="form-group"><span class="form-label">Description (optional)</span><input id="opening-description" class="form-input" .value=${this.note} @input=${(e: any) => this.note = e.target.value} placeholder="Describe this opening balance"></label><p class="entry-help">Balance at the beginning of the selected date, before ordinary transactions. Negative amounts represent debt. The equity counterpart updates automatically.</p>`;
+      const account = this.transactionToEdit!.splits.find((s) =>
+        ['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(
+          s.accountType ||
+            this.availableAccounts.find((a) => a.id === s.accountId)?.type ||
+            '',
+        ),
+      );
+      const row = entry.rows.find((r) => r.accountId === account?.accountId);
+      if (row)
+        return html`<div class="grid-2">
+            <label class="form-group"
+              ><span class="form-label">Opening-balance date</span
+              ><input
+                type="date"
+                class="form-input"
+                .value=${this.transactionDate}
+                @input=${(e: Event) => (this.transactionDate = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}
+            /></label>
+            <label class="form-group"
+              ><span class="form-label">Opening balance (${APP_CURRENCY})</span
+              ><input
+                class="form-input"
+                inputmode="decimal"
+                .value=${row.amount}
+                @input=${(e: Event) => {
+                  const amount = (
+                    e.target as
+                      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+                  ).value;
+                  const cents = parseMoney(amount);
+                  this.entry = {
+                    kind: 'advanced',
+                    rows: entry.rows.map((r) => ({
+                      ...r,
+                      amount:
+                        r.id === row.id
+                          ? amount
+                          : Number.isFinite(cents)
+                            ? this.formatCentsToDecimal(-cents)
+                            : '',
+                    })),
+                  };
+                }}
+            /></label>
+          </div>
+          <label class="form-group"
+            ><span class="form-label">Description (optional)</span
+            ><input
+              id="opening-description"
+              class="form-input"
+              .value=${this.note}
+              @input=${(e: Event) => (this.note = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}
+              placeholder="Describe this opening balance"
+          /></label>
+          <p class="entry-help">
+            Balance at the beginning of the selected date, before ordinary
+            transactions. Negative amounts represent debt. The equity
+            counterpart updates automatically.
+          </p>`;
     }
     const balanceAccounts = this.availableAccounts.filter(isBalanceAccount);
     const summary = allocationSummary(entry);
     return html`
       <div class="grid-2">
-        <label class="form-group"><span class="form-label">Date</span><input class="form-input" type="date" .value=${this.transactionDate} @input=${(e: any) => this.transactionDate = e.target.value} @blur=${() => this.touch('date')}>${this.fieldError('date')}</label>
-        ${entry.kind === 'expense' || entry.kind === 'income' || entry.kind === 'advanced' ? html`<label class="form-group"><span class="form-label">${entry.kind === 'income' ? 'Payer/source' : entry.kind === 'advanced' ? 'Payee (optional)' : 'Payee'}</span><input class="form-input" ?disabled=${this.isOpeningEdit()} .value=${this.payee} @input=${(e: any) => this.payee = e.target.value} @blur=${() => this.touch('payee')}>${this.fieldError('payee')}</label>` : nothing}
+        <label class="form-group"
+          ><span class="form-label">Date</span
+          ><input
+            class="form-input"
+            type="date"
+            .value=${this.transactionDate}
+            @input=${(e: Event) => (this.transactionDate = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}
+            @blur=${() => this.touch('date')}
+          />${this.fieldError('date')}</label
+        >
+        ${entry.kind === 'expense' || entry.kind === 'income' || entry.kind === 'advanced' ? html`<label class="form-group"><span class="form-label">${entry.kind === 'income' ? 'Payer/source' : entry.kind === 'advanced' ? 'Payee (optional)' : 'Payee'}</span><input class="form-input" ?disabled=${this.isOpeningEdit()} .value=${this.payee} @input=${(e: Event) => (this.payee = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)} @blur=${() => this.touch('payee')} />${this.fieldError('payee')}</label>` : nothing}
       </div>
-      ${'accountId' in entry ? html`<div class="grid-2">
-        ${this.accountField(entry.kind === 'expense' ? 'Paid from' : entry.kind === 'income' ? 'Received into' : entry.kind === 'transfer' ? 'From account' : 'Account', 'account', entry.accountId, balanceAccounts, accountId => this.updateEntry({ accountId }))}
-        ${entry.kind === 'transfer' ? this.accountField('To account', 'destination', entry.toAccountId, balanceAccounts.filter(a => a.id !== entry.accountId), toAccountId => this.updateEntry({ toAccountId })) : nothing}
-      </div>` : nothing}
-      ${entry.kind === 'adjustment' ? html`<label class="form-group"><span class="form-label">Adjustment method</span><select class="form-select" .value=${entry.method} @change=${(e: any) => { if (!entry.total || confirm('Changing method clears the amount. Continue?')) this.updateEntry({ method: e.target.value, total: '' }); else e.target.value = entry.method; }}><option value="balance">Set account balance</option><option value="amount">Enter adjustment amount</option></select></label><p class="entry-help">Corrections use Opening Balances equity. Current direct balance: ${this.entryContext.currentBalanceCents === undefined ? 'Loadingâ€¦' : formatMoney(this.entryContext.currentBalanceCents)}. Includes all recorded dates, excluding child accounts. Negative balances represent debt; positive adjustments reduce debt.</p>` : nothing}
-      ${'total' in entry ? html`<label class="form-group"><span class="form-label">${entry.kind === 'adjustment' && entry.method === 'balance' ? 'Resulting balance' : entry.kind === 'expense' || entry.kind === 'income' ? 'Total amount' : 'Amount'} (${APP_CURRENCY})</span><input class="form-input" inputmode="decimal" .value=${entry.total} @input=${(e: any) => this.updateEntry({ total: e.target.value })} @blur=${() => this.touch('total')}>${this.fieldError('total')}</label>` : nothing}
-      ${'rows' in entry ? html`<section class="splits-section"><div class="splits-header"><span class="splits-title">${entry.kind === 'advanced' ? 'Ledger lines' : entry.kind === 'income' ? 'Income allocations' : 'Allocations'}</span><button class="btn-add-split" @click=${this.addSplitRow}>+ Add ${entry.kind === 'advanced' ? 'line' : 'allocation'}</button></div>
-        ${entry.kind === 'advanced' ? html`<p class="entry-help">Signed amounts must sum to zero. Positive amounts increase assets and expenses, and decrease liabilities, income and equity. Negative amounts do the reverse.</p>` : nothing}
-        ${repeat(entry.rows, r => r.id, (row, index) => html`<div class="split-row">
-          ${this.accountField(`Account/category ${index + 1}`, `account-${row.id}`, row.accountId, this.availableAccounts.filter(a => !('accountId' in entry) || a.id !== entry.accountId).sort((a,b) => Number(b.type === (entry.kind === 'income' ? 'INCOME' : 'EXPENSE')) - Number(a.type === (entry.kind === 'income' ? 'INCOME' : 'EXPENSE'))), id => this.handleAccountSelect(row.id, id))}
-          <div class="split-row-controls"><label class="form-group"><span class="form-label">Amount (${APP_CURRENCY})</span><input class="amount-input" inputmode="decimal" .value=${live(row.amount)} @input=${(e: any) => this.handleAmountInput(row.id, e.target.value)} @blur=${() => this.touch(`amount-${row.id}`)}>${this.fieldError(`amount-${row.id}`)}</label>
-          ${summary.remaining !== 0 ? html`<button class="btn-auto-balance" @click=${() => this.entry = useRemaining(this.entry, row.id)}>Use remaining ${formatMoney(summary.remaining)}</button>` : nothing}
-          <button class="btn-remove-row" aria-label=${`Remove ${entry.kind === 'advanced' ? 'line' : 'allocation'} ${index + 1}`} @click=${() => this.removeSplitRow(row.id)} aria-label="Remove" title="Remove">${icon("x", "ASSET", 16)}</button></div>
-        </div>`)}
-        ${this.fieldError('rows')}
-        <div class="balance-summary" role="status" aria-live="polite" aria-atomic="true">${entry.kind !== 'advanced' ? html`<span>Total <strong>${formatMoney(summary.total)}</strong></span><span>Allocated <strong>${formatMoney(summary.allocated)}</strong></span>` : nothing}<span>Remaining <strong>${formatMoney(summary.remaining)}</strong></span>${summary.remaining === 0 && entry.rows.length && entry.rows.every(r => parseMoney(r.amount)) ? html`<span>Balanced</span>` : nothing}</div>
-      </section>` : nothing}
+      ${
+        'accountId' in entry
+          ? html`<div class="grid-2">
+              ${this.accountField(entry.kind === 'expense' ? 'Paid from' : entry.kind === 'income' ? 'Received into' : entry.kind === 'transfer' ? 'From account' : 'Account', 'account', entry.accountId, balanceAccounts, (accountId) => this.updateEntry({ accountId }))}
+              ${
+                entry.kind === 'transfer'
+                  ? this.accountField(
+                      'To account',
+                      'destination',
+                      entry.toAccountId,
+                      balanceAccounts.filter((a) => a.id !== entry.accountId),
+                      (toAccountId) => this.updateEntry({ toAccountId }),
+                    )
+                  : nothing
+              }
+            </div>`
+          : nothing
+      }
+      ${
+        entry.kind === 'adjustment'
+          ? html`<label class="form-group"
+                ><span class="form-label">Adjustment method</span
+                ><select
+                  class="form-select"
+                  .value=${entry.method}
+                  @change=${(e: Event) => {
+                    if (
+                      !entry.total ||
+                      confirm('Changing method clears the amount. Continue?')
+                    )
+                      this.updateEntry({
+                        method: (
+                          e.target as
+                            | HTMLInputElement
+                            | HTMLSelectElement
+                            | HTMLTextAreaElement
+                        ).value,
+                        total: '',
+                      });
+                    else
+                      (
+                        e.target as
+                          | HTMLInputElement
+                          | HTMLSelectElement
+                          | HTMLTextAreaElement
+                      ).value = entry.method;
+                  }}
+                >
+                  <option value="balance">Set account balance</option>
+                  <option value="amount">Enter adjustment amount</option>
+                </select></label
+              >
+              <p class="entry-help">
+                Corrections use Opening Balances equity. Current direct balance:
+                ${this.entryContext.currentBalanceCents === undefined ? 'Loadingâ€¦' : formatMoney(this.entryContext.currentBalanceCents)}.
+                Includes all recorded dates, excluding child accounts. Negative
+                balances represent debt; positive adjustments reduce debt.
+              </p>`
+          : nothing
+      }
+      ${'total' in entry ? html`<label class="form-group"><span class="form-label">${entry.kind === 'adjustment' && entry.method === 'balance' ? 'Resulting balance' : entry.kind === 'expense' || entry.kind === 'income' ? 'Total amount' : 'Amount'} (${APP_CURRENCY})</span><input class="form-input" inputmode="decimal" .value=${entry.total} @input=${(e: Event) => this.updateEntry({ total: (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value })} @blur=${() => this.touch('total')} />${this.fieldError('total')}</label>` : nothing}
+      ${
+        'rows' in entry
+          ? html`<section class="splits-section">
+              <div class="splits-header">
+                <span class="splits-title"
+                  >${entry.kind === 'advanced' ? 'Ledger lines' : entry.kind === 'income' ? 'Income allocations' : 'Allocations'}</span
+                ><button class="btn-add-split" @click=${this.addSplitRow}>
+                  + Add ${entry.kind === 'advanced' ? 'line' : 'allocation'}
+                </button>
+              </div>
+              ${entry.kind === 'advanced' ? html`<p class="entry-help">Signed amounts must sum to zero. Positive amounts increase assets and expenses, and decrease liabilities, income and equity. Negative amounts do the reverse.</p>` : nothing}
+              ${repeat(
+                entry.rows,
+                (r) => r.id,
+                (row, index) =>
+                  html`<div class="split-row">
+                    ${this.accountField(
+                      `Account/category ${index + 1}`,
+                      `account-${row.id}`,
+                      row.accountId,
+                      this.availableAccounts
+                        .filter(
+                          (a) =>
+                            !('accountId' in entry) || a.id !== entry.accountId,
+                        )
+                        .sort(
+                          (a, b) =>
+                            Number(
+                              b.type ===
+                                (entry.kind === 'income'
+                                  ? 'INCOME'
+                                  : 'EXPENSE'),
+                            ) -
+                            Number(
+                              a.type ===
+                                (entry.kind === 'income'
+                                  ? 'INCOME'
+                                  : 'EXPENSE'),
+                            ),
+                        ),
+                      (id) => this.handleAccountSelect(row.id, id),
+                    )}
+                    <div class="split-row-controls">
+                      <label class="form-group"
+                        ><span class="form-label">Amount (${APP_CURRENCY})</span
+                        ><input
+                          class="amount-input"
+                          inputmode="decimal"
+                          .value=${live(row.amount)}
+                          @input=${(e: Event) => this.handleAmountInput(row.id, (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}
+                          @blur=${() => this.touch(`amount-${row.id}`)}
+                        />${this.fieldError(`amount-${row.id}`)}</label
+                      >
+                      ${summary.remaining !== 0 ? html`<button class="btn-auto-balance" @click=${() => (this.entry = useRemaining(this.entry, row.id))}>Use remaining ${formatMoney(summary.remaining)}</button>` : nothing}
+                      <button
+                        class="btn-remove-row"
+                        aria-label=${`Remove ${entry.kind === 'advanced' ? 'line' : 'allocation'} ${index + 1}`}
+                        @click=${() => this.removeSplitRow(row.id)}
+                        aria-label="Remove"
+                        title="Remove"
+                      >
+                        ${icon('x', 'ASSET', 16)}
+                      </button>
+                    </div>
+                  </div>`,
+              )}
+              ${this.fieldError('rows')}
+              <div
+                class="balance-summary"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                ${
+                  entry.kind !== 'advanced'
+                    ? html`<span
+                          >Total
+                          <strong>${formatMoney(summary.total)}</strong></span
+                        ><span
+                          >Allocated
+                          <strong
+                            >${formatMoney(summary.allocated)}</strong
+                          ></span
+                        >`
+                    : nothing
+                }<span
+                  >Remaining
+                  <strong>${formatMoney(summary.remaining)}</strong></span
+                >${summary.remaining === 0 && entry.rows.length && entry.rows.every((r) => parseMoney(r.amount)) ? html`<span>Balanced</span>` : nothing}
+              </div>
+            </section>`
+          : nothing
+      }
     `;
   }
 
@@ -1505,20 +1985,40 @@ export class TransactionForm extends LitElement {
 
     try {
       const isEditing = Boolean(this.transactionToEdit);
-      const url = this.entry.kind === 'adjustment' ? '/api/transactions/adjustments' : isEditing
-        ? `/api/transactions/${this.transactionToEdit!.id}`
-        : '/api/transactions';
-      const method = isEditing && this.entry.kind !== 'adjustment' ? 'PATCH' : 'POST';
+      const url =
+        this.entry.kind === 'adjustment'
+          ? '/api/transactions/adjustments'
+          : isEditing
+            ? `/api/transactions/${this.transactionToEdit!.id}`
+            : '/api/transactions';
+      const method =
+        isEditing && this.entry.kind !== 'adjustment' ? 'PATCH' : 'POST';
 
       const details = {
-        transactionDate: this.transactionDate, payee: this.isOpeningEdit() ? this.transactionToEdit!.payee : this.payee.trim() || null,
-        note: this.note.trim() || null, isCleared: this.isCleared, tagIds: Array.from(this.selectedTagIds),
+        transactionDate: this.transactionDate,
+        payee: this.isOpeningEdit()
+          ? this.transactionToEdit!.payee
+          : this.payee.trim() || null,
+        note: this.note.trim() || null,
+        isCleared: this.isCleared,
+        tagIds: Array.from(this.selectedTagIds),
       };
-      const payload = this.isOpeningEdit() && this.entry.kind === 'advanced'
-        ? { ...details, splits: this.entry.rows.map(row => ({ accountId: row.accountId, amountCents: parseMoney(row.amount) })) }
-        : this.entry.kind === 'adjustment'
-        ? { ...details, adjustment: this.entry, expectedBalanceCents: this.entryContext.currentBalanceCents }
-        : buildEntryTransaction(this.entry, this.entryContext, details);
+      const payload =
+        this.isOpeningEdit() && this.entry.kind === 'advanced'
+          ? {
+              ...details,
+              splits: this.entry.rows.map((row) => ({
+                accountId: row.accountId,
+                amountCents: parseMoney(row.amount),
+              })),
+            }
+          : this.entry.kind === 'adjustment'
+            ? {
+                ...details,
+                adjustment: this.entry,
+                expectedBalanceCents: this.entryContext.currentBalanceCents,
+              }
+            : buildEntryTransaction(this.entry, this.entryContext, details);
 
       const res = await fetch(url, {
         method,
@@ -1528,22 +2028,29 @@ export class TransactionForm extends LitElement {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `Failed to ${isEditing ? 'update' : 'record'} transaction`);
+        throw new Error(
+          errJson.error ||
+            `Failed to ${isEditing ? 'update' : 'record'} transaction`,
+        );
       }
 
       const json = await res.json();
-      const eventName = isEditing ? 'transaction-updated' : 'transaction-created';
+      const eventName = isEditing
+        ? 'transaction-updated'
+        : 'transaction-created';
       this.dispatchEvent(
         new CustomEvent(eventName, {
           detail: { transaction: json.data },
           bubbles: true,
           composed: true,
-        })
+        }),
       );
 
       this.closeModal();
-    } catch (err: any) {
-      this.submitError = err.message || 'Unable to save transaction.';
+    } catch (err) {
+      this.submitError =
+        (err instanceof Error ? err.message : String(err)) ||
+        'Unable to save transaction.';
     } finally {
       this.isSubmitting = false;
     }
@@ -1554,7 +2061,6 @@ export class TransactionForm extends LitElement {
 
     const validation = this.getValidationState();
 
-
     return html`
       <div
         class="modal-backdrop"
@@ -1562,182 +2068,252 @@ export class TransactionForm extends LitElement {
           if (e.target === e.currentTarget) this.closeModal();
         }}"
       >
-        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Record transaction">
+        <div
+          class="modal-card"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Record transaction"
+        >
           <!-- Header -->
           <div class="modal-header">
             <div class="header-info">
-              <h3>${this.transactionToEdit ? 'Edit Transaction' : 'Record Transaction'}</h3>
+              <h3>
+                ${this.transactionToEdit ? 'Edit Transaction' : 'Record Transaction'}
+              </h3>
               <p>
-                ${this.transactionToEdit
-                  ? 'Modify payee, transaction date, notes, and balanced split lines'
-                  : 'Record everyday spending, income and account changes'}
+                ${
+                  this.transactionToEdit
+                    ? 'Modify payee, transaction date, notes, and balanced split lines'
+                    : 'Record everyday spending, income and account changes'
+                }
               </p>
             </div>
-            <button class="close-btn" @click="${this.closeModal}" aria-label="Close modal" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
+            <button
+              class="close-btn"
+              @click="${this.closeModal}"
+              aria-label="Close modal"
+              aria-label="Close dialog"
+              title="Close dialog"
+            >
+              ${icon('x', 'ASSET', 16)}
+            </button>
           </div>
 
           <!-- Body -->
           <div class="modal-body">
             ${this.renderTypeSelector()}
             <!-- Templates Quick-Bar (when recording new transaction) -->
-            ${!this.transactionToEdit
-              ? html`
-                  <div class="template-quick-bar">
-                    <div class="template-dropdown-wrapper">
-                      <button
-                        type="button"
-                        class="btn-template-picker ${this.isTemplateDropdownOpen ? 'active' : ''}"
-                        @click="${this.toggleTemplateDropdown}"
-                      >
-                        <span>${icon("copy", "ASSET", 16)}</span>
-                        <span>Use Template</span>
-                        <span class="template-badge">${this.availableTemplates.length}</span>
-                        <span>${this.isTemplateDropdownOpen ? '▲' : '▼'}</span>
-                      </button>
-
-                      ${this.isTemplateDropdownOpen
-                        ? html`
-                            <div class="template-dropdown-menu">
-                              <div class="template-dropdown-header">Saved Templates</div>
-                              ${this.availableTemplates.length === 0
-                                ? html`
-                                    <div class="template-dropdown-empty">
-                                      No templates yet. Set up split lines and click "Save as Template" below.
-                                    </div>
-                                  `
-                                : this.availableTemplates.map(
-                                    (tpl) => html`
-                                      <button
-                                        type="button"
-                                        class="template-item-btn"
-                                        @click="${() => this.applyTemplate(tpl)}"
-                                      >
-                                        <span class="template-item-icon">${icon(tpl.icon, "TEMPLATE")}</span>
-                                        <div class="template-item-info">
-                                          <div class="template-item-name">${tpl.name}</div>
-                                          <div class="template-item-meta">
-                                            ${tpl.payee ? html`<span>${icon("building-2", "ASSET", 16)} ${tpl.payee}</span>` : nothing}
-                                            <span>(${tpl.splits.length} splits)</span>
-                                          </div>
-                                        </div>
-                                      </button>
-                                    `
-                                  )}
-                            </div>
-                          `
-                        : nothing}
-                    </div>
-                    <span style="font-size: 0.775rem; color: var(--text-muted);">
-                      Speed up recurring entries with 1 click
-                    </span>
-                  </div>
-                `
-              : nothing}
-
-            ${this.submitError ? html`<p role="alert" class="entry-help">${this.submitError}</p>` : nothing}
-            ${this.renderEntry()}
-            <details class="more-details"><summary>More details</summary>
-            <div class="grid-2">
-              <div class="form-group">
-                <label class="form-label" for="entry-note">${this.entry.kind === 'adjustment' ? 'Reason/memo' : 'Memo / Note (optional)'}</label>
-                <input
-                  type="text"
-                  class="form-input"
-                  id="entry-note" placeholder="Add a note"
-                  .value="${this.note}"
-                  @input="${(e: any) => (this.note = e.target.value)}"
-                />
-              </div>
-
-              <div class="form-group" style="justify-content: center;">
-                <label class="form-label" for="entry-status">Transaction status</label>
-                <select id="entry-status" class="form-select" .value=${this.isCleared ? 'cleared' : 'pending'} @change=${(e: any) => this.isCleared = e.target.value === 'cleared'}><option value="pending">Pending</option><option value="cleared">Cleared</option></select>
-              </div>
-            </div>
-
-            <!-- Tags Section -->
-            <div class="form-group tag-form-group">
-              <label class="form-label" for="tag-input-field">Tags</label>
-              <div class="tag-input-box" @click="${this.focusTagInput}">
-                <div class="selected-tags-list">
-                  ${Array.from(this.selectedTagIds).map((id) => {
-                    const tag = this.availableTags.find((t) => t.id === id);
-                    if (!tag) return nothing;
-                    const color = tag.color || 'var(--tag-default)';
-                    return html`
-                      <span
-                        class="tag-chip"
-                        style="background: color-mix(in srgb, ${color} 11%, var(--bg-surface)); color: ${color}; border-color: color-mix(in srgb, ${color} 28%, var(--border-subtle));"
-                      >
-                        <span>#${tag.name}</span>
+            ${
+              !this.transactionToEdit
+                ? html`
+                    <div class="template-quick-bar">
+                      <div class="template-dropdown-wrapper">
                         <button
                           type="button"
-                          class="tag-chip-remove"
-                          @click="${(e: Event) => this.removeTag(id, e)}"
-                          title="Remove tag"
-                          aria-label="Remove tag ${tag.name}"
+                          class="btn-template-picker ${this.isTemplateDropdownOpen ? 'active' : ''}"
+                          @click="${this.toggleTemplateDropdown}"
                         >
-                          ${icon("x", "ASSET", 16)}
+                          <span>${icon('copy', 'ASSET', 16)}</span>
+                          <span>Use Template</span>
+                          <span class="template-badge"
+                            >${this.availableTemplates.length}</span
+                          >
+                          <span
+                            >${this.isTemplateDropdownOpen ? '▲' : '▼'}</span
+                          >
                         </button>
+
+                        ${
+                          this.isTemplateDropdownOpen
+                            ? html`
+                                <div class="template-dropdown-menu">
+                                  <div class="template-dropdown-header">
+                                    Saved Templates
+                                  </div>
+                                  ${
+                                    this.availableTemplates.length === 0
+                                      ? html`
+                                          <div class="template-dropdown-empty">
+                                            No templates yet. Set up split lines
+                                            and click "Save as Template" below.
+                                          </div>
+                                        `
+                                      : this.availableTemplates.map(
+                                          (tpl) => html`
+                                            <button
+                                              type="button"
+                                              class="template-item-btn"
+                                              @click="${() => this.applyTemplate(tpl)}"
+                                            >
+                                              <span class="template-item-icon"
+                                                >${icon(tpl.icon, 'TEMPLATE')}</span
+                                              >
+                                              <div class="template-item-info">
+                                                <div class="template-item-name">
+                                                  ${tpl.name}
+                                                </div>
+                                                <div class="template-item-meta">
+                                                  ${tpl.payee ? html`<span>${icon('building-2', 'ASSET', 16)} ${tpl.payee}</span>` : nothing}
+                                                  <span
+                                                    >(${tpl.splits.length}
+                                                    splits)</span
+                                                  >
+                                                </div>
+                                              </div>
+                                            </button>
+                                          `,
+                                        )
+                                  }
+                                </div>
+                              `
+                            : nothing
+                        }
+                      </div>
+                      <span
+                        style="font-size: 0.775rem; color: var(--text-muted);"
+                      >
+                        Speed up recurring entries with 1 click
                       </span>
-                    `;
-                  })}
+                    </div>
+                  `
+                : nothing
+            }
+            ${this.submitError ? html`<p role="alert" class="entry-help">${this.submitError}</p>` : nothing}
+            ${this.renderEntry()}
+            <details class="more-details">
+              <summary>More details</summary>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label class="form-label" for="entry-note"
+                    >${this.entry.kind === 'adjustment' ? 'Reason/memo' : 'Memo / Note (optional)'}</label
+                  >
                   <input
                     type="text"
-                    id="tag-input-field"
-                    class="tag-inline-input"
-                    placeholder="${this.selectedTagIds.size === 0 ? 'Type tag name e.g. vacation, tax-deductible...' : 'Add another tag...'}"
-                    .value="${this.tagSearchInput}"
-                    @input="${this.handleTagSearchInput}"
-                    @keydown="${this.handleTagKeyDown}"
-                    @focus="${() => (this.isTagDropdownOpen = true)}"
+                    class="form-input"
+                    id="entry-note"
+                    placeholder="Add a note"
+                    .value="${this.note}"
+                    @input="${(e: Event) => (this.note = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
                   />
+                </div>
+
+                <div class="form-group" style="justify-content: center;">
+                  <label class="form-label" for="entry-status"
+                    >Transaction status</label
+                  >
+                  <select
+                    id="entry-status"
+                    class="form-select"
+                    .value=${this.isCleared ? 'cleared' : 'pending'}
+                    @change=${(e: Event) => (this.isCleared = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value === 'cleared')}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="cleared">Cleared</option>
+                  </select>
                 </div>
               </div>
 
-              ${(() => {
-                const rawSearch = this.normalizeTagName(this.tagSearchInput);
-                const unselectedTags = this.availableTags.filter((t) => !this.selectedTagIds.has(t.id));
-                const suggestedTags = rawSearch
-                  ? unselectedTags.filter((t) => t.name.toLowerCase().includes(rawSearch))
-                  : unselectedTags;
-                const exactMatchExists = this.availableTags.some((t) => t.name.toLowerCase() === rawSearch);
-                const canCreateNewTag = rawSearch.length > 0 && !exactMatchExists;
-
-                if (!this.isTagDropdownOpen || (suggestedTags.length === 0 && !canCreateNewTag)) {
-                  return nothing;
-                }
-
-                return html`
-                  <div class="tag-dropdown">
-                    ${suggestedTags.map(
-                      (tag) => html`
-                        <button
-                          type="button"
-                          class="tag-dropdown-item"
-                          @click="${() => this.selectTag(tag.id)}"
+              <!-- Tags Section -->
+              <div class="form-group tag-form-group">
+                <label class="form-label" for="tag-input-field">Tags</label>
+                <div class="tag-input-box" @click="${this.focusTagInput}">
+                  <div class="selected-tags-list">
+                    ${Array.from(this.selectedTagIds).map((id) => {
+                      const tag = this.availableTags.find((t) => t.id === id);
+                      if (!tag) return nothing;
+                      const color = tag.color || 'var(--tag-default)';
+                      return html`
+                        <span
+                          class="tag-chip"
+                          style="background: color-mix(in srgb, ${color} 11%, var(--bg-surface)); color: ${color}; border-color: color-mix(in srgb, ${color} 28%, var(--border-subtle));"
                         >
-                          <span class="tag-dot" style="background: ${tag.color || 'var(--tag-default)'};"></span>
                           <span>#${tag.name}</span>
-                        </button>
-                      `
-                    )}
-                    ${canCreateNewTag
-                      ? html`
                           <button
                             type="button"
-                            class="tag-dropdown-item create-new"
-                            @click="${this.createAndSelectTag}"
+                            class="tag-chip-remove"
+                            @click="${(e: Event) => this.removeTag(id, e)}"
+                            title="Remove tag"
+                            aria-label="Remove tag ${tag.name}"
                           >
-                            <span>${icon("plus", "ASSET", 16)} Create new tag "<strong>#${rawSearch}</strong>" (Press Enter)</span>
+                            ${icon('x', 'ASSET', 16)}
                           </button>
-                        `
-                      : nothing}
+                        </span>
+                      `;
+                    })}
+                    <input
+                      type="text"
+                      id="tag-input-field"
+                      class="tag-inline-input"
+                      placeholder="${this.selectedTagIds.size === 0 ? 'Type tag name e.g. vacation, tax-deductible...' : 'Add another tag...'}"
+                      .value="${this.tagSearchInput}"
+                      @input="${this.handleTagSearchInput}"
+                      @keydown="${this.handleTagKeyDown}"
+                      @focus="${() => (this.isTagDropdownOpen = true)}"
+                    />
                   </div>
-                `;
-              })()}
-            </div>
+                </div>
 
+                ${(() => {
+                  const rawSearch = this.normalizeTagName(this.tagSearchInput);
+                  const unselectedTags = this.availableTags.filter(
+                    (t) => !this.selectedTagIds.has(t.id),
+                  );
+                  const suggestedTags = rawSearch
+                    ? unselectedTags.filter((t) =>
+                        t.name.toLowerCase().includes(rawSearch),
+                      )
+                    : unselectedTags;
+                  const exactMatchExists = this.availableTags.some(
+                    (t) => t.name.toLowerCase() === rawSearch,
+                  );
+                  const canCreateNewTag =
+                    rawSearch.length > 0 && !exactMatchExists;
+
+                  if (
+                    !this.isTagDropdownOpen ||
+                    (suggestedTags.length === 0 && !canCreateNewTag)
+                  ) {
+                    return nothing;
+                  }
+
+                  return html`
+                    <div class="tag-dropdown">
+                      ${suggestedTags.map(
+                        (tag) => html`
+                          <button
+                            type="button"
+                            class="tag-dropdown-item"
+                            @click="${() => this.selectTag(tag.id)}"
+                          >
+                            <span
+                              class="tag-dot"
+                              style="background: ${tag.color || 'var(--tag-default)'};"
+                            ></span>
+                            <span>#${tag.name}</span>
+                          </button>
+                        `,
+                      )}
+                      ${
+                        canCreateNewTag
+                          ? html`
+                              <button
+                                type="button"
+                                class="tag-dropdown-item create-new"
+                                @click="${this.createAndSelectTag}"
+                              >
+                                <span
+                                  >${icon('plus', 'ASSET', 16)} Create new tag
+                                  "<strong>#${rawSearch}</strong>" (Press
+                                  Enter)</span
+                                >
+                              </button>
+                            `
+                          : nothing
+                      }
+                    </div>
+                  `;
+                })()}
+              </div>
             </details>
           </div>
 
@@ -1755,13 +2331,17 @@ export class TransactionForm extends LitElement {
                 @click="${this.handleOpenSaveTemplateModal}"
                 title="Save current split setup as a reusable template"
               >
-                <span>${icon("star", "ASSET", 16)}</span>
+                <span>${icon('star', 'ASSET', 16)}</span>
                 <span>Save as Template</span>
               </button>
             </div>
 
             <div class="footer-actions">
-              <button type="button" class="btn-cancel" @click="${this.closeModal}">
+              <button
+                type="button"
+                class="btn-cancel"
+                @click="${this.closeModal}"
+              >
                 Cancel
               </button>
               <button
@@ -1771,9 +2351,17 @@ export class TransactionForm extends LitElement {
                 ?disabled="${!this.canSubmit()}"
                 title="${validation.isValid ? (this.transactionToEdit ? 'Save changes (Ctrl+Enter)' : 'Record transaction (Ctrl+Enter)') : validation.message}"
               >
-                ${this.isSubmitting
-                  ? (this.transactionToEdit ? 'Saving...' : 'Recording...')
-                  : (this.transactionToEdit ? 'Save Changes' : this.entry.kind === 'advanced' ? 'Record transaction' : `Record ${this.entry.kind}`)}
+                ${
+                  this.isSubmitting
+                    ? this.transactionToEdit
+                      ? 'Saving...'
+                      : 'Recording...'
+                    : this.transactionToEdit
+                      ? 'Save Changes'
+                      : this.entry.kind === 'advanced'
+                        ? 'Record transaction'
+                        : `Record ${this.entry.kind}`
+                }
               </button>
             </div>
           </div>
@@ -1781,57 +2369,76 @@ export class TransactionForm extends LitElement {
       </div>
 
       <!-- Save as Template Mini Modal -->
-      ${this.isSaveTemplateModalOpen
-        ? html`
-            <div
-              class="modal-backdrop sub-modal"
-              @click="${(e: MouseEvent) => {
-                if (e.target === e.currentTarget) this.isSaveTemplateModalOpen = false;
-              }}"
-            >
-              <div class="mini-modal-card">
-                <div class="mini-modal-header">
-                  <h4>${icon("star", "ASSET", 16)} Save as Template</h4>
-                  <button class="close-btn" @click="${() => (this.isSaveTemplateModalOpen = false)}" aria-label="Close dialog" title="Close dialog">${icon("x", "ASSET", 16)}</button>
-                </div>
-                <div class="mini-modal-body">
-                  <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
-                    Save this transaction's split structure, accounts, amounts, payee, and tags as a template.
-                  </p>
-                  <div class="form-group" style="margin-top: 1rem;">
-                    <label class="form-label" for="template-name">Template Name *</label>
-                    <input
-                      type="text"
-                      class="form-input"
-                      id="template-name" placeholder="e.g. Monthly Rent, Paycheck, Netflix..."
-                      .value="${this.saveTemplateName}"
-                      @input="${(e: any) => (this.saveTemplateName = e.target.value)}"
-                      @keydown="${(e: KeyboardEvent) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          this.confirmSaveAsTemplate();
-                        }
-                      }}"
-                      autofocus
-                    />
+      ${
+        this.isSaveTemplateModalOpen
+          ? html`
+              <div
+                class="modal-backdrop sub-modal"
+                @click="${(e: MouseEvent) => {
+                  if (e.target === e.currentTarget)
+                    this.isSaveTemplateModalOpen = false;
+                }}"
+              >
+                <div class="mini-modal-card">
+                  <div class="mini-modal-header">
+                    <h4>${icon('star', 'ASSET', 16)} Save as Template</h4>
+                    <button
+                      class="close-btn"
+                      @click="${() => (this.isSaveTemplateModalOpen = false)}"
+                      aria-label="Close dialog"
+                      title="Close dialog"
+                    >
+                      ${icon('x', 'ASSET', 16)}
+                    </button>
+                  </div>
+                  <div class="mini-modal-body">
+                    <p
+                      style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);"
+                    >
+                      Save this transaction's split structure, accounts,
+                      amounts, payee, and tags as a template.
+                    </p>
+                    <div class="form-group" style="margin-top: 1rem;">
+                      <label class="form-label" for="template-name"
+                        >Template Name *</label
+                      >
+                      <input
+                        type="text"
+                        class="form-input"
+                        id="template-name"
+                        placeholder="e.g. Monthly Rent, Paycheck, Netflix..."
+                        .value="${this.saveTemplateName}"
+                        @input="${(e: Event) => (this.saveTemplateName = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                        @keydown="${(e: KeyboardEvent) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            this.confirmSaveAsTemplate();
+                          }
+                        }}"
+                        autofocus
+                      />
+                    </div>
+                  </div>
+                  <div class="mini-modal-footer">
+                    <button
+                      class="btn-cancel"
+                      @click="${() => (this.isSaveTemplateModalOpen = false)}"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      class="btn-submit"
+                      ?disabled="${this.isSavingTemplate}"
+                      @click="${this.confirmSaveAsTemplate}"
+                    >
+                      ${this.isSavingTemplate ? 'Saving...' : 'Save Template'}
+                    </button>
                   </div>
                 </div>
-                <div class="mini-modal-footer">
-                  <button class="btn-cancel" @click="${() => (this.isSaveTemplateModalOpen = false)}">
-                    Cancel
-                  </button>
-                  <button
-                    class="btn-submit"
-                    ?disabled="${this.isSavingTemplate}"
-                    @click="${this.confirmSaveAsTemplate}"
-                  >
-                    ${this.isSavingTemplate ? 'Saving...' : 'Save Template'}
-                  </button>
-                </div>
               </div>
-            </div>
-          `
-        : nothing}
+            `
+          : nothing
+      }
     `;
   }
 }

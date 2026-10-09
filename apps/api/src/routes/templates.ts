@@ -1,7 +1,18 @@
 import { Hono } from 'hono';
 import { eq, asc, inArray } from 'drizzle-orm';
-import { db, transactionTemplates, templateSplits, templateTags, accounts, tags } from '../db/index.js';
-import type { CreateTransactionTemplateInput, UpdateTransactionTemplateInput, TemplateSplitInput } from '@penga/shared';
+import {
+  db,
+  transactionTemplates,
+  templateSplits,
+  templateTags,
+  accounts,
+  tags,
+} from '../db/index.js';
+import type {
+  CreateTransactionTemplateInput,
+  UpdateTransactionTemplateInput,
+  TemplateSplitInput,
+} from '@penga/shared';
 
 export const templatesRoute = new Hono();
 
@@ -14,9 +25,10 @@ async function fetchFullTemplates(templateIds?: string[]) {
     .from(transactionTemplates)
     .orderBy(asc(transactionTemplates.name));
 
-  const allTemplates = templateIds && templateIds.length > 0
-    ? await query.where(inArray(transactionTemplates.id, templateIds))
-    : await query;
+  const allTemplates =
+    templateIds && templateIds.length > 0
+      ? await query.where(inArray(transactionTemplates.id, templateIds))
+      : await query;
 
   if (allTemplates.length === 0) return [];
 
@@ -61,7 +73,10 @@ async function fetchFullTemplates(templateIds?: string[]) {
     splitsByTemplateId.get(s.templateId)!.push(s);
   }
 
-  const tagsByTemplateId = new Map<string, Array<{ id: string; name: string; color: string | null }>>();
+  const tagsByTemplateId = new Map<
+    string,
+    Array<{ id: string; name: string; color: string | null }>
+  >();
   for (const t of allTags) {
     if (!tagsByTemplateId.has(t.templateId)) {
       tagsByTemplateId.set(t.templateId, []);
@@ -88,8 +103,14 @@ templatesRoute.get('/', async (c) => {
   try {
     const templates = await fetchFullTemplates();
     return c.json({ data: templates });
-  } catch (err: any) {
-    return c.json({ error: 'Failed to fetch templates', details: err.message }, 500);
+  } catch (err) {
+    return c.json(
+      {
+        error: 'Failed to fetch templates',
+        details: err instanceof Error ? err.message : String(err),
+      },
+      500,
+    );
   }
 });
 
@@ -105,8 +126,14 @@ templatesRoute.get('/:id', async (c) => {
       return c.json({ error: 'Template not found' }, 404);
     }
     return c.json({ data: templates[0] });
-  } catch (err: any) {
-    return c.json({ error: 'Failed to fetch template', details: err.message }, 500);
+  } catch (err) {
+    return c.json(
+      {
+        error: 'Failed to fetch template',
+        details: err instanceof Error ? err.message : String(err),
+      },
+      500,
+    );
   }
 });
 
@@ -115,31 +142,58 @@ templatesRoute.get('/:id', async (c) => {
  * Creates a new template with splits and optional tags.
  */
 templatesRoute.post('/', async (c) => {
-  let body: any;
+  let body: unknown;
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  const { name, payee, note, icon, color, splits: inputSplits, tagIds } = body as CreateTransactionTemplateInput;
+  const {
+    name,
+    payee,
+    note,
+    icon,
+    color,
+    splits: inputSplits,
+    tagIds,
+  } = body as CreateTransactionTemplateInput;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
-    return c.json({ error: 'Field "name" is required and must be a non-empty string' }, 400);
+    return c.json(
+      { error: 'Field "name" is required and must be a non-empty string' },
+      400,
+    );
   }
 
   if (!Array.isArray(inputSplits) || inputSplits.length < 2) {
-    return c.json({ error: 'A template must have at least 2 split lines' }, 400);
+    return c.json(
+      { error: 'A template must have at least 2 split lines' },
+      400,
+    );
   }
 
   const referencedAccountIds = new Set<string>();
   for (let i = 0; i < inputSplits.length; i++) {
     const s = inputSplits[i];
-    if (!s || typeof s !== 'object' || !s.accountId || typeof s.accountId !== 'string') {
-      return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
+    if (
+      !s ||
+      typeof s !== 'object' ||
+      !s.accountId ||
+      typeof s.accountId !== 'string'
+    ) {
+      return c.json(
+        { error: `Split at index ${i} is missing a valid "accountId"` },
+        400,
+      );
     }
     if (s.amountCents !== undefined && !Number.isInteger(s.amountCents)) {
-      return c.json({ error: `Split at index ${i} "amountCents" must be an integer if provided` }, 400);
+      return c.json(
+        {
+          error: `Split at index ${i} "amountCents" must be an integer if provided`,
+        },
+        400,
+      );
     }
     referencedAccountIds.add(s.accountId);
   }
@@ -152,8 +206,15 @@ templatesRoute.post('/', async (c) => {
 
   if (existingAccounts.length !== referencedAccountIds.size) {
     const foundIds = new Set(existingAccounts.map((a) => a.id));
-    const missingIds = Array.from(referencedAccountIds).filter((id) => !foundIds.has(id));
-    return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
+    const missingIds = Array.from(referencedAccountIds).filter(
+      (id) => !foundIds.has(id),
+    );
+    return c.json(
+      {
+        error: `The following accountId(s) do not exist: ${missingIds.join(', ')}`,
+      },
+      400,
+    );
   }
 
   // Execute insertion in transaction
@@ -205,7 +266,7 @@ templatesRoute.post('/', async (c) => {
  */
 templatesRoute.patch('/:id', async (c) => {
   const id = c.req.param('id');
-  let body: any;
+  let body: unknown;
   try {
     body = await c.req.json();
   } catch {
@@ -222,21 +283,45 @@ templatesRoute.patch('/:id', async (c) => {
     return c.json({ error: 'Template not found' }, 404);
   }
 
-  const { name, payee, note, icon, color, splits: inputSplits, tagIds } = body as UpdateTransactionTemplateInput;
+  const {
+    name,
+    payee,
+    note,
+    icon,
+    color,
+    splits: inputSplits,
+    tagIds,
+  } = body as UpdateTransactionTemplateInput;
 
   // Validate splits if provided
   if (inputSplits !== undefined) {
     if (!Array.isArray(inputSplits) || inputSplits.length < 2) {
-      return c.json({ error: 'Template must contain at least 2 split lines' }, 400);
+      return c.json(
+        { error: 'Template must contain at least 2 split lines' },
+        400,
+      );
     }
     const referencedAccountIds = new Set<string>();
     for (let i = 0; i < inputSplits.length; i++) {
       const s = inputSplits[i];
-      if (!s || typeof s !== 'object' || !s.accountId || typeof s.accountId !== 'string') {
-        return c.json({ error: `Split at index ${i} is missing a valid "accountId"` }, 400);
+      if (
+        !s ||
+        typeof s !== 'object' ||
+        !s.accountId ||
+        typeof s.accountId !== 'string'
+      ) {
+        return c.json(
+          { error: `Split at index ${i} is missing a valid "accountId"` },
+          400,
+        );
       }
       if (s.amountCents !== undefined && !Number.isInteger(s.amountCents)) {
-        return c.json({ error: `Split at index ${i} "amountCents" must be an integer if provided` }, 400);
+        return c.json(
+          {
+            error: `Split at index ${i} "amountCents" must be an integer if provided`,
+          },
+          400,
+        );
       }
       referencedAccountIds.add(s.accountId);
     }
@@ -248,13 +333,20 @@ templatesRoute.patch('/:id', async (c) => {
 
     if (foundAccounts.length !== referencedAccountIds.size) {
       const foundIds = new Set(foundAccounts.map((a) => a.id));
-      const missingIds = Array.from(referencedAccountIds).filter((id) => !foundIds.has(id));
-      return c.json({ error: `The following accountId(s) do not exist: ${missingIds.join(', ')}` }, 400);
+      const missingIds = Array.from(referencedAccountIds).filter(
+        (id) => !foundIds.has(id),
+      );
+      return c.json(
+        {
+          error: `The following accountId(s) do not exist: ${missingIds.join(', ')}`,
+        },
+        400,
+      );
     }
   }
 
   await db.transaction(async (tx) => {
-    const updateValues: Record<string, any> = {
+    const updateValues: Partial<typeof transactionTemplates.$inferInsert> = {
       updatedAt: new Date(),
     };
 
@@ -265,16 +357,20 @@ templatesRoute.patch('/:id', async (c) => {
       updateValues.name = name.trim();
     }
     if (payee !== undefined) {
-      updateValues.payee = typeof payee === 'string' && payee.trim() ? payee.trim() : null;
+      updateValues.payee =
+        typeof payee === 'string' && payee.trim() ? payee.trim() : null;
     }
     if (note !== undefined) {
-      updateValues.note = typeof note === 'string' && note.trim() ? note.trim() : null;
+      updateValues.note =
+        typeof note === 'string' && note.trim() ? note.trim() : null;
     }
     if (icon !== undefined) {
-      updateValues.icon = typeof icon === 'string' && icon.trim() ? icon.trim() : null;
+      updateValues.icon =
+        typeof icon === 'string' && icon.trim() ? icon.trim() : null;
     }
     if (color !== undefined) {
-      updateValues.color = typeof color === 'string' && color.trim() ? color.trim() : null;
+      updateValues.color =
+        typeof color === 'string' && color.trim() ? color.trim() : null;
     }
 
     await tx
@@ -285,12 +381,14 @@ templatesRoute.patch('/:id', async (c) => {
     if (inputSplits !== undefined) {
       await tx.delete(templateSplits).where(eq(templateSplits.templateId, id));
 
-      const splitsToInsert = inputSplits.map((s: TemplateSplitInput, idx: number) => ({
-        templateId: id,
-        accountId: s.accountId,
-        amountCents: s.amountCents || 0,
-        sortOrder: typeof s.sortOrder === 'number' ? s.sortOrder : idx,
-      }));
+      const splitsToInsert = inputSplits.map(
+        (s: TemplateSplitInput, idx: number) => ({
+          templateId: id,
+          accountId: s.accountId,
+          amountCents: s.amountCents || 0,
+          sortOrder: typeof s.sortOrder === 'number' ? s.sortOrder : idx,
+        }),
+      );
 
       await tx.insert(templateSplits).values(splitsToInsert);
     }

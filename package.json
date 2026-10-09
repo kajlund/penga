@@ -17,10 +17,19 @@
     "typecheck": "tsc -b",
     "start": "npm run start --workspace @penga/api",
     "test": "npm run build && npm run --workspaces --if-present test",
-    "lint": "npm run --workspaces --if-present lint"
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "concurrently": "^10.0.5",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.6",
+    "typescript-eslint": "8.69.0",
+    "globals": "14.0.0"
   }
 }

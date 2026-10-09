@@ -17,117 +17,127 @@ import type { PengaAccounts } from './components/penga-accounts.js';
 import type { PengaDashboard } from './components/penga-dashboard.js';
 import type { PengaBudgets } from './components/penga-budgets.js';
 import type { PengaTemplates } from './components/penga-templates.js';
-import type { TransactionWithSplits, TransactionTemplateWithSplits } from '@penga/shared';
+import type {
+  TransactionWithSplits,
+  TransactionTemplateWithSplits,
+} from '@penga/shared';
 
 @customElement('penga-app')
 export class PengaApp extends LitElement {
-  static override styles = [css`
-    :host {
-      display: flex;
-      min-height: 100vh;
-      background-color: var(--bg-base);
-      color: var(--text-primary);
-      transition: background-color var(--transition-normal), color var(--transition-normal);
-      font-family: var(--font-sans);
-    }
+  static override styles = [
+    css`
+      :host {
+        display: flex;
+        min-height: 100vh;
+        background-color: var(--bg-base);
+        color: var(--text-primary);
+        transition:
+          background-color var(--transition-normal),
+          color var(--transition-normal);
+        font-family: var(--font-sans);
+      }
 
-    .app-layout {
-      display: flex;
-      width: 100%;
-      min-height: 100vh;
-    }
+      .app-layout {
+        display: flex;
+        width: 100%;
+        min-height: 100vh;
+      }
 
-    .main-viewport {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      background-color: var(--bg-base);
-    }
+      .main-viewport {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        background-color: var(--bg-base);
+      }
 
-    .top-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.85rem 2.5rem;
-      background: var(--bg-glass);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--border-subtle);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      transition: background var(--transition-normal), border-color var(--transition-normal);
-    }
+      .top-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem 2.5rem;
+        background: var(--bg-glass);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border-subtle);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        transition:
+          background var(--transition-normal),
+          border-color var(--transition-normal);
+      }
 
-    .header-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
+      .header-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
 
-    .header-breadcrumb strong {
-      color: var(--text-primary);
-      font-weight: 600;
-    }
+      .header-breadcrumb strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
 
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
 
-    .content-area {
-      flex: 1;
-      min-width: 0;
-    }
+      .content-area {
+        flex: 1;
+        min-width: 0;
+      }
 
-    .placeholder-view {
-      padding: 3rem 2.5rem;
-      max-width: 800px;
-      margin: 0 auto;
-    }
+      .placeholder-view {
+        padding: 3rem 2.5rem;
+        max-width: 800px;
+        margin: 0 auto;
+      }
 
-    .placeholder-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 3rem;
-      text-align: center;
-      box-shadow: var(--shadow-card);
-    }
+      .placeholder-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        padding: 3rem;
+        text-align: center;
+        box-shadow: var(--shadow-card);
+      }
 
-    .placeholder-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
+      .placeholder-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
 
-    .placeholder-card h3 {
-      margin: 0 0 0.5rem 0;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
+      .placeholder-card h3 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
 
-    .placeholder-card p {
-      margin: 0 0 1.5rem 0;
-      color: var(--text-secondary);
-      line-height: 1.6;
-    }
+      .placeholder-card p {
+        margin: 0 0 1.5rem 0;
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
 
-    .phase-badge {
-      display: inline-block;
-      padding: 0.35rem 0.85rem;
-      border-radius: var(--radius-full);
-      background: var(--color-primary-subtle);
-      border: 1px solid var(--color-primary-border);
-      color: var(--color-primary-text);
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-  `, calmStyles];
+      .phase-badge {
+        display: inline-block;
+        padding: 0.35rem 0.85rem;
+        border-radius: var(--radius-full);
+        background: var(--color-primary-subtle);
+        border: 1px solid var(--color-primary-border);
+        color: var(--color-primary-text);
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+    `,
+    calmStyles,
+  ];
 
   @state()
   private currentView: NavView = 'dashboard';
@@ -144,31 +154,41 @@ export class PengaApp extends LitElement {
 
   private refreshViews = () => {
     // Refresh dashboard view if mounted
-    const dashView = this.shadowRoot?.querySelector('penga-dashboard') as PengaDashboard | null;
+    const dashView = this.shadowRoot?.querySelector(
+      'penga-dashboard',
+    ) as PengaDashboard | null;
     if (dashView) {
       dashView.fetchSummary();
     }
 
     // Refresh transactions view if mounted
-    const txView = this.shadowRoot?.querySelector('penga-transactions') as PengaTransactions | null;
+    const txView = this.shadowRoot?.querySelector(
+      'penga-transactions',
+    ) as PengaTransactions | null;
     if (txView) {
       txView.fetchData();
     }
 
     // Refresh accounts view if mounted
-    const accView = this.shadowRoot?.querySelector('penga-accounts') as PengaAccounts | null;
+    const accView = this.shadowRoot?.querySelector(
+      'penga-accounts',
+    ) as PengaAccounts | null;
     if (accView) {
       accView.fetchAccounts();
     }
 
     // Refresh budgets view if mounted
-    const budgetView = this.shadowRoot?.querySelector('penga-budgets') as PengaBudgets | null;
+    const budgetView = this.shadowRoot?.querySelector(
+      'penga-budgets',
+    ) as PengaBudgets | null;
     if (budgetView) {
       budgetView.fetchBudgetReport();
     }
 
     // Refresh templates view if mounted
-    const tplView = this.shadowRoot?.querySelector('penga-templates') as PengaTemplates | null;
+    const tplView = this.shadowRoot?.querySelector(
+      'penga-templates',
+    ) as PengaTemplates | null;
     if (tplView) {
       tplView.fetchData();
     }
@@ -191,20 +211,32 @@ export class PengaApp extends LitElement {
     this.isTransactionModalOpen = true;
   };
 
-  private handleEditTransaction = (e: CustomEvent<{ transaction: TransactionWithSplits }>) => {
+  private handleEditTransaction = (
+    e: CustomEvent<{ transaction: TransactionWithSplits }>,
+  ) => {
     this.editingTransaction = e.detail.transaction;
     this.isTransactionModalOpen = true;
   };
 
-  private handleRecordFromTemplate = (e: CustomEvent<{ template: TransactionTemplateWithSplits }>) => {
-    const form = this.shadowRoot?.querySelector('transaction-form') as any;
+  private handleRecordFromTemplate = (
+    e: CustomEvent<{ template: TransactionTemplateWithSplits }>,
+  ) => {
+    const form =
+      this.shadowRoot?.querySelector<
+        import('./components/transaction-form.js').TransactionForm
+      >('transaction-form');
     if (form) {
       form.openWithTemplate(e.detail.template);
     }
   };
 
-  private handleDuplicateTransaction = (e: CustomEvent<{ transaction: TransactionWithSplits }>) => {
-    const form = this.shadowRoot?.querySelector('transaction-form') as any;
+  private handleDuplicateTransaction = (
+    e: CustomEvent<{ transaction: TransactionWithSplits }>,
+  ) => {
+    const form =
+      this.shadowRoot?.querySelector<
+        import('./components/transaction-form.js').TransactionForm
+      >('transaction-form');
     if (form) {
       form.openWithDuplicate(e.detail.transaction);
     }
@@ -225,7 +257,9 @@ export class PengaApp extends LitElement {
             <div class="header-breadcrumb">
               <span>Penga</span>
               <span>/</span>
-              <strong style="text-transform: capitalize;">${this.currentView}</strong>
+              <strong style="text-transform: capitalize;"
+                >${this.currentView}</strong
+              >
             </div>
 
             <div class="header-actions">
@@ -234,55 +268,66 @@ export class PengaApp extends LitElement {
           </header>
 
           <main class="content-area">
-            ${this.currentView === 'settings'
-              ? html`<penga-settings @ledger-cleared="${this.handleTransactionUpdated}"></penga-settings>`
-              : this.currentView === 'dashboard'
-              ? html`
-                  <penga-dashboard
-                    @open-transaction-modal="${this.handleOpenCreateModal}"
-                    @edit-transaction="${this.handleEditTransaction}"
-                    @navigate="${this.handleNavigation}"
-                  ></penga-dashboard>
-                `
-              : this.currentView === 'accounts'
-              ? html`<penga-accounts></penga-accounts>`
-              : this.currentView === 'transactions'
-              ? html`
-                  <penga-transactions
-                    @open-transaction-modal="${this.handleOpenCreateModal}"
-                    @edit-transaction="${this.handleEditTransaction}"
-                    @duplicate-transaction="${this.handleDuplicateTransaction}"
-                  ></penga-transactions>
-                `
-              : this.currentView === 'templates'
-              ? html`
-                  <penga-templates
-                    @record-from-template="${this.handleRecordFromTemplate}"
-                  ></penga-templates>
-                `
-              : this.currentView === 'reconciliation'
-              ? html`
-                  <penga-transactions
-                    .reconciliationMode="${true}"
-                    @open-transaction-modal="${this.handleOpenCreateModal}"
-                    @edit-transaction="${this.handleEditTransaction}"
-                    @duplicate-transaction="${this.handleDuplicateTransaction}"
-                  ></penga-transactions>
-                `
-              : this.currentView === 'budgets'
-              ? html`<penga-budgets></penga-budgets>`
-              : html`
-                  <div class="placeholder-view">
-                    <div class="placeholder-card">
-                      <div class="placeholder-icon">${icon("target", "ASSET", 32)}</div>
-                      <h3 style="text-transform: capitalize;">${this.currentView} View</h3>
-                      <p>
-                        This module will be introduced in subsequent roadmap phases.
-                      </p>
-                      <span class="phase-badge">Scheduled Next</span>
-                    </div>
-                  </div>
-                `}
+            ${
+              this.currentView === 'settings'
+                ? html`<penga-settings
+                    @ledger-cleared="${this.handleTransactionUpdated}"
+                  ></penga-settings>`
+                : this.currentView === 'dashboard'
+                  ? html`
+                      <penga-dashboard
+                        @open-transaction-modal="${this.handleOpenCreateModal}"
+                        @edit-transaction="${this.handleEditTransaction}"
+                        @navigate="${this.handleNavigation}"
+                      ></penga-dashboard>
+                    `
+                  : this.currentView === 'accounts'
+                    ? html`<penga-accounts></penga-accounts>`
+                    : this.currentView === 'transactions'
+                      ? html`
+                          <penga-transactions
+                            @open-transaction-modal="${this.handleOpenCreateModal}"
+                            @edit-transaction="${this.handleEditTransaction}"
+                            @duplicate-transaction="${this.handleDuplicateTransaction}"
+                          ></penga-transactions>
+                        `
+                      : this.currentView === 'templates'
+                        ? html`
+                            <penga-templates
+                              @record-from-template="${this.handleRecordFromTemplate}"
+                            ></penga-templates>
+                          `
+                        : this.currentView === 'reconciliation'
+                          ? html`
+                              <penga-transactions
+                                .reconciliationMode="${true}"
+                                @open-transaction-modal="${this.handleOpenCreateModal}"
+                                @edit-transaction="${this.handleEditTransaction}"
+                                @duplicate-transaction="${this.handleDuplicateTransaction}"
+                              ></penga-transactions>
+                            `
+                          : this.currentView === 'budgets'
+                            ? html`<penga-budgets></penga-budgets>`
+                            : html`
+                                <div class="placeholder-view">
+                                  <div class="placeholder-card">
+                                    <div class="placeholder-icon">
+                                      ${icon('target', 'ASSET', 32)}
+                                    </div>
+                                    <h3 style="text-transform: capitalize;">
+                                      ${this.currentView} View
+                                    </h3>
+                                    <p>
+                                      This module will be introduced in
+                                      subsequent roadmap phases.
+                                    </p>
+                                    <span class="phase-badge"
+                                      >Scheduled Next</span
+                                    >
+                                  </div>
+                                </div>
+                              `
+            }
           </main>
         </div>
       </div>

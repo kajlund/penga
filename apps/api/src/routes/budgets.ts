@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, sql, gte, lte, desc, asc, isNull } from 'drizzle-orm';
+import { eq, and, asc, isNull } from 'drizzle-orm';
 import { db, budgets, accounts, splits, transactions } from '../db/index.js';
 import type {
   MonthlyBudgetReport,
@@ -37,8 +37,11 @@ budgetsRoute.get('/', async (c) => {
   }
 
   const daysInMonth = getDaysInMonth(year, month);
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
-  const daysElapsed = isCurrentMonth ? Math.min(now.getDate(), daysInMonth) : daysInMonth;
+  const isCurrentMonth =
+    year === now.getFullYear() && month === now.getMonth() + 1;
+  const daysElapsed = isCurrentMonth
+    ? Math.min(now.getDate(), daysInMonth)
+    : daysInMonth;
 
   // 1. Fetch all expense accounts
   const expenseAccounts = await db
@@ -113,7 +116,8 @@ budgetsRoute.get('/', async (c) => {
     const b = budgetMap.get(acc.id);
     const targetAmountCents = b?.targetAmountCents || 0;
 
-    const history = accountMonthlyHistory.get(acc.id) || new Map<string, number>();
+    const history =
+      accountMonthlyHistory.get(acc.id) || new Map<string, number>();
     const actualSpentCents = history.get(activeMonthKey) || 0;
 
     // Projected Month-End Run-Rate
@@ -131,7 +135,8 @@ budgetsRoute.get('/', async (c) => {
         count3++;
       }
     }
-    const rolling3MonthAvgCents = count3 > 0 ? Math.round(sum3 / count3) : actualSpentCents;
+    const rolling3MonthAvgCents =
+      count3 > 0 ? Math.round(sum3 / count3) : actualSpentCents;
 
     // 12-Month Rolling Average
     let sum12 = 0;
@@ -142,13 +147,15 @@ budgetsRoute.get('/', async (c) => {
         count12++;
       }
     }
-    const rolling12MonthAvgCents = count12 > 0 ? Math.round(sum12 / count12) : rolling3MonthAvgCents;
+    const rolling12MonthAvgCents =
+      count12 > 0 ? Math.round(sum12 / count12) : rolling3MonthAvgCents;
 
     // Suggested Adaptive Target:
     // Blend 3-month momentum (60%) with 12-month baseline (40%), rounded to clean dollars
     let suggested = 0;
     if (rolling3MonthAvgCents > 0 || rolling12MonthAvgCents > 0) {
-      const blended = (rolling3MonthAvgCents * 0.6) + (rolling12MonthAvgCents * 0.4);
+      const blended =
+        rolling3MonthAvgCents * 0.6 + rolling12MonthAvgCents * 0.4;
       suggested = Math.max(Math.ceil(blended / 1000) * 1000, 1000); // rounded to nearest $10
     } else if (projectedMonthEndCents > 0) {
       suggested = Math.ceil(projectedMonthEndCents / 1000) * 1000;
@@ -159,8 +166,8 @@ budgetsRoute.get('/', async (c) => {
       targetAmountCents > 0
         ? Math.round((actualSpentCents / targetAmountCents) * 100)
         : actualSpentCents > 0
-        ? 100
-        : 0;
+          ? 100
+          : 0;
 
     totalBudgetedCents += targetAmountCents;
     totalSpentCents += actualSpentCents;
@@ -207,25 +214,33 @@ budgetsRoute.get('/', async (c) => {
  * Sets or updates a budget target for an account.
  */
 budgetsRoute.post('/', async (c) => {
-  let body: any;
+  let body: unknown;
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: 'Invalid JSON request body' }, 400);
   }
 
-  const { accountId, targetAmountCents, periodYear, periodMonth, notes } = body as SetBudgetInput;
+  const { accountId, targetAmountCents, periodYear, periodMonth, notes } =
+    body as SetBudgetInput;
 
   if (!accountId || typeof accountId !== 'string') {
     return c.json({ error: 'Field "accountId" is required' }, 400);
   }
 
   if (!Number.isInteger(targetAmountCents) || targetAmountCents < 0) {
-    return c.json({ error: 'Field "targetAmountCents" must be a non-negative integer' }, 400);
+    return c.json(
+      { error: 'Field "targetAmountCents" must be a non-negative integer' },
+      400,
+    );
   }
 
   // Check that account exists
-  const [acc] = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1);
+  const [acc] = await db
+    .select()
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
   if (!acc) {
     return c.json({ error: 'Account not found' }, 404);
   }
@@ -233,12 +248,19 @@ budgetsRoute.post('/', async (c) => {
   // Check if a budget already exists for this account & period
   const conditions = [eq(budgets.accountId, accountId)];
   if (periodYear && periodMonth) {
-    conditions.push(eq(budgets.periodYear, periodYear), eq(budgets.periodMonth, periodMonth));
+    conditions.push(
+      eq(budgets.periodYear, periodYear),
+      eq(budgets.periodMonth, periodMonth),
+    );
   } else {
     conditions.push(isNull(budgets.periodYear), isNull(budgets.periodMonth));
   }
 
-  const [existing] = await db.select().from(budgets).where(and(...conditions)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(budgets)
+    .where(and(...conditions))
+    .limit(1);
 
   let result;
   if (existing) {
@@ -275,7 +297,11 @@ budgetsRoute.post('/', async (c) => {
  */
 budgetsRoute.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  const [existing] = await db.select().from(budgets).where(eq(budgets.id, id)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(budgets)
+    .where(eq(budgets.id, id))
+    .limit(1);
   if (!existing) {
     return c.json({ error: 'Budget not found' }, 404);
   }

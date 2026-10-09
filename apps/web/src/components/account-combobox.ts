@@ -12,240 +12,243 @@ interface AccountCategoryGroup {
 
 @customElement('account-combobox')
 export class AccountCombobox extends LitElement {
-  static override styles = [css`
-    :host {
-      display: block;
-      position: relative;
-      min-width: 0;
-      width: 100%;
-      font-family: var(--font-sans);
-    }
-
-    .combobox-container {
-      position: relative;
-      width: 100%;
-    }
-
-    .input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      width: 100%;
-    }
-
-    .search-input {
-      width: 100%;
-      padding: 0.65rem 2.2rem 0.65rem 0.85rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 500;
-      outline: none;
-      box-sizing: border-box;
-      transition: all var(--transition-fast);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      overflow: hidden;
-    }
-
-    .search-input:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 2px var(--color-primary-subtle);
-      background: var(--bg-surface);
-    }
-
-    .search-input::placeholder {
-      color: var(--text-muted);
-      font-weight: 400;
-    }
-
-    .trailing-action {
-      position: absolute;
-      right: 0.65rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-      pointer-events: none;
-      transition: transform var(--transition-fast);
-    }
-
-    .trailing-action.open {
-      transform: rotate(180deg);
-    }
-
-    /* Dropdown menu */
-    .dropdown-menu {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      min-width: 280px;
-      max-width: 100%;
-      max-height: 270px;
-      overflow-y: auto;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-lg);
-      z-index: 1200;
-      padding: 0.25rem 0;
-      animation: menuFadeIn 0.15s ease-out;
-    }
-
-    @keyframes menuFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-4px);
+  static override styles = [
+    css`
+      :host {
+        display: block;
+        position: relative;
+        min-width: 0;
+        width: 100%;
+        font-family: var(--font-sans);
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
+
+      .combobox-container {
+        position: relative;
+        width: 100%;
       }
-    }
 
-    .category-header {
-      padding: 0.4rem 0.75rem 0.25rem;
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      background: var(--bg-subtle);
-      border-top: 1px solid var(--border-subtle);
-      border-bottom: 1px solid var(--border-subtle);
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
+      .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+      }
 
-    .category-header:first-child {
-      border-top: none;
-    }
+      .search-input {
+        width: 100%;
+        padding: 0.65rem 2.2rem 0.65rem 0.85rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 500;
+        outline: none;
+        box-sizing: border-box;
+        transition: all var(--transition-fast);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+      }
 
-    .account-item {
-      padding: 0.55rem 0.75rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      gap: 0.5rem;
-      transition: background var(--transition-fast);
-      user-select: none;
-    }
+      .search-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-subtle);
+        background: var(--bg-surface);
+      }
 
-    .account-item:hover,
-    .account-item.highlighted {
-      background: var(--color-primary-subtle);
-    }
+      .search-input::placeholder {
+        color: var(--text-muted);
+        font-weight: 400;
+      }
 
-    .account-item.selected {
-      background: var(--color-primary-subtle);
-      font-weight: 600;
-    }
+      .trailing-action {
+        position: absolute;
+        right: 0.65rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        pointer-events: none;
+        transition: transform var(--transition-fast);
+      }
 
-    .account-label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      min-width: 0;
-      overflow: hidden;
-    }
+      .trailing-action.open {
+        transform: rotate(180deg);
+      }
 
-    .account-details {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      overflow: hidden;
-    }
+      /* Dropdown menu */
+      .dropdown-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        min-width: 280px;
+        max-width: 100%;
+        max-height: 270px;
+        overflow-y: auto;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        z-index: 1200;
+        padding: 0.25rem 0;
+        animation: menuFadeIn 0.15s ease-out;
+      }
 
-    .account-icon {
-      font-size: 1rem;
-      flex-shrink: 0;
-      line-height: 1;
-    }
+      @keyframes menuFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
-    .account-name {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 0.85rem;
-      color: var(--text-primary);
-    }
+      .category-header {
+        padding: 0.4rem 0.75rem 0.25rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        background: var(--bg-subtle);
+        border-top: 1px solid var(--border-subtle);
+        border-bottom: 1px solid var(--border-subtle);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
 
-    .account-combobox-desc {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      line-height: 1.2;
-    }
+      .category-header:first-child {
+        border-top: none;
+      }
 
-    .highlight-match {
-      color: var(--color-primary-text);
-      font-weight: 700;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
+      .account-item {
+        padding: 0.55rem 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        gap: 0.5rem;
+        transition: background var(--transition-fast);
+        user-select: none;
+      }
 
-    .type-badge {
-      font-size: 0.65rem;
-      font-weight: 600;
-      padding: 0.15rem 0.45rem;
-      border-radius: var(--radius-full);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      flex-shrink: 0;
-    }
+      .account-item:hover,
+      .account-item.highlighted {
+        background: var(--color-primary-subtle);
+      }
 
-    .type-badge.ASSET {
-      background: var(--color-asset-bg);
-      color: var(--color-asset);
-      border: 1px solid var(--color-asset-border);
-    }
+      .account-item.selected {
+        background: var(--color-primary-subtle);
+        font-weight: 600;
+      }
 
-    .type-badge.LIABILITY {
-      background: var(--color-liability-bg);
-      color: var(--color-liability);
-      border: 1px solid var(--color-liability-border);
-    }
+      .account-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+        overflow: hidden;
+      }
 
-    .type-badge.INCOME {
-      background: var(--color-income-bg);
-      color: var(--color-income);
-      border: 1px solid var(--color-income-border);
-    }
+      .account-details {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+      }
 
-    .type-badge.EXPENSE {
-      background: var(--color-expense-bg);
-      color: var(--color-expense);
-      border: 1px solid var(--color-expense-border);
-    }
+      .account-icon {
+        font-size: 1rem;
+        flex-shrink: 0;
+        line-height: 1;
+      }
 
-    .type-badge.SETTLEMENT {
-      background: var(--color-settlement-bg);
-      color: var(--color-settlement);
-      border: 1px solid var(--color-settlement-border);
-    }
+      .account-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.85rem;
+        color: var(--text-primary);
+      }
 
-    .empty-state {
-      padding: 1rem 0.75rem;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 0.825rem;
-    }
+      .account-combobox-desc {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+      }
 
-    .empty-state span {
-      display: block;
-      font-size: 1.25rem;
-      margin-bottom: 0.25rem;
-    }
-  `, calmStyles];
+      .highlight-match {
+        color: var(--color-primary-text);
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      .type-badge {
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
+        border-radius: var(--radius-full);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        flex-shrink: 0;
+      }
+
+      .type-badge.ASSET {
+        background: var(--color-asset-bg);
+        color: var(--color-asset);
+        border: 1px solid var(--color-asset-border);
+      }
+
+      .type-badge.LIABILITY {
+        background: var(--color-liability-bg);
+        color: var(--color-liability);
+        border: 1px solid var(--color-liability-border);
+      }
+
+      .type-badge.INCOME {
+        background: var(--color-income-bg);
+        color: var(--color-income);
+        border: 1px solid var(--color-income-border);
+      }
+
+      .type-badge.EXPENSE {
+        background: var(--color-expense-bg);
+        color: var(--color-expense);
+        border: 1px solid var(--color-expense-border);
+      }
+
+      .type-badge.SETTLEMENT {
+        background: var(--color-settlement-bg);
+        color: var(--color-settlement);
+        border: 1px solid var(--color-settlement-border);
+      }
+
+      .empty-state {
+        padding: 1rem 0.75rem;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.825rem;
+      }
+
+      .empty-state span {
+        display: block;
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+      }
+    `,
+    calmStyles,
+  ];
 
   @property({ type: Array })
   accounts: Account[] = [];
@@ -304,7 +307,7 @@ export class AccountCombobox extends LitElement {
       (a) =>
         a.name.toLowerCase().includes(q) ||
         (a.description && a.description.toLowerCase().includes(q)) ||
-        a.type.toLowerCase().includes(q)
+        a.type.toLowerCase().includes(q),
     );
   }
 
@@ -351,7 +354,10 @@ export class AccountCombobox extends LitElement {
   private handleKeyDown(e: KeyboardEvent) {
     if (this.disabled) return;
 
-    if (!this.isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
+    if (
+      !this.isOpen &&
+      (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')
+    ) {
       e.preventDefault();
       this.isOpen = true;
       this.searchQuery = '';
@@ -370,7 +376,8 @@ export class AccountCombobox extends LitElement {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (filtered.length > 0) {
-        this.highlightedIndex = (this.highlightedIndex - 1 + filtered.length) % filtered.length;
+        this.highlightedIndex =
+          (this.highlightedIndex - 1 + filtered.length) % filtered.length;
         this.scrollHighlightedIntoView();
       }
     } else if (e.key === 'Enter') {
@@ -386,7 +393,11 @@ export class AccountCombobox extends LitElement {
       this.closeDropdown(false);
     } else if (e.key === 'Tab') {
       // Tab automatically commits highlighted if open, or closes dropdown
-      if (this.isOpen && filtered.length > 0 && this.searchQuery.trim().length > 0) {
+      if (
+        this.isOpen &&
+        filtered.length > 0 &&
+        this.searchQuery.trim().length > 0
+      ) {
         const selected = filtered[this.highlightedIndex] || filtered[0];
         if (selected) {
           this.selectAccount(selected);
@@ -399,7 +410,9 @@ export class AccountCombobox extends LitElement {
 
   private scrollHighlightedIntoView() {
     requestAnimationFrame(() => {
-      const el = this.renderRoot.querySelector('.account-item.highlighted') as HTMLElement;
+      const el = this.renderRoot.querySelector(
+        '.account-item.highlighted',
+      ) as HTMLElement;
       if (el && this.dropdownElement) {
         el.scrollIntoView({ block: 'nearest' });
       }
@@ -416,12 +429,10 @@ export class AccountCombobox extends LitElement {
         detail: { accountId: account.id, account },
         bubbles: true,
         composed: true,
-      })
+      }),
     );
 
-    this.dispatchEvent(
-      new Event('change', { bubbles: true, composed: true })
-    );
+    this.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
   }
 
   private closeDropdown(resetQuery = true) {
@@ -456,8 +467,8 @@ export class AccountCombobox extends LitElement {
     const displayValue = this.isOpen
       ? this.searchQuery
       : selectedAcc
-      ? selectedAcc.name
-      : '';
+        ? selectedAcc.name
+        : '';
 
     const groups = this.getGroupedFilteredAccounts();
     const filteredFlat = this.getFilteredAccounts();
@@ -482,58 +493,77 @@ export class AccountCombobox extends LitElement {
             aria-activedescendant=${this.isOpen && this.highlightedIndex >= 0 ? `account-option-${this.highlightedIndex}` : nothing}
           />
           <div class="trailing-action ${this.isOpen ? 'open' : ''}">
-            <span>${icon("chevron-down", "ASSET", 16)}</span>
+            <span>${icon('chevron-down', 'ASSET', 16)}</span>
           </div>
         </div>
 
-        ${this.isOpen
-          ? html`
-              <div class="dropdown-menu" role="listbox" id="account-options">
-                ${filteredFlat.length === 0
-                  ? html`
-                      <div class="empty-state">
-                        <span>${icon("search", "ASSET", 16)}</span>
-                        No accounts match "${this.searchQuery}"
-                      </div>
-                    `
-                  : groups.map((group) => html`
-                      <div class="category-header">${group.label}</div>
-                      ${group.accounts.map((acc) => {
-                        const isSelected = acc.id === this.value;
-                        const flatIndex = filteredFlat.indexOf(acc);
-                        const isHighlighted = flatIndex === this.highlightedIndex;
-
-                        return html`
-                          <div
-                            class="account-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}"
-                            role="option" id=${`account-option-${flatIndex}`}
-                            aria-selected="${isSelected}"
-                            @click="${() => this.selectAccount(acc)}"
-                            @mouseenter="${() => (this.highlightedIndex = flatIndex)}"
-                          >
-                            <div class="account-label" title="${acc.description ? `${acc.name} — ${acc.description}` : acc.name}">
-                              <span class="account-icon">${icon(acc.icon, acc.type)}</span>
-                              <div class="account-details">
-                                <span class="account-name">
-                                  ${this.renderHighlightedName(acc.name)}
-                                </span>
-                                ${acc.description
-                                  ? html`
-                                      <span class="account-combobox-desc">
-                                        ${this.renderHighlightedName(acc.description)}
-                                      </span>
-                                    `
-                                  : nothing}
-                              </div>
-                            </div>
-                            <span class="type-badge ${acc.type}">${acc.type}</span>
+        ${
+          this.isOpen
+            ? html`
+                <div class="dropdown-menu" role="listbox" id="account-options">
+                  ${
+                    filteredFlat.length === 0
+                      ? html`
+                          <div class="empty-state">
+                            <span>${icon('search', 'ASSET', 16)}</span>
+                            No accounts match "${this.searchQuery}"
                           </div>
-                        `;
-                      })}
-                    `)}
-              </div>
-            `
-          : nothing}
+                        `
+                      : groups.map(
+                          (group) => html`
+                            <div class="category-header">${group.label}</div>
+                            ${group.accounts.map((acc) => {
+                              const isSelected = acc.id === this.value;
+                              const flatIndex = filteredFlat.indexOf(acc);
+                              const isHighlighted =
+                                flatIndex === this.highlightedIndex;
+
+                              return html`
+                                <div
+                                  class="account-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}"
+                                  role="option"
+                                  id=${`account-option-${flatIndex}`}
+                                  aria-selected="${isSelected}"
+                                  @click="${() => this.selectAccount(acc)}"
+                                  @mouseenter="${() => (this.highlightedIndex = flatIndex)}"
+                                >
+                                  <div
+                                    class="account-label"
+                                    title="${acc.description ? `${acc.name} — ${acc.description}` : acc.name}"
+                                  >
+                                    <span class="account-icon"
+                                      >${icon(acc.icon, acc.type)}</span
+                                    >
+                                    <div class="account-details">
+                                      <span class="account-name">
+                                        ${this.renderHighlightedName(acc.name)}
+                                      </span>
+                                      ${
+                                        acc.description
+                                          ? html`
+                                              <span
+                                                class="account-combobox-desc"
+                                              >
+                                                ${this.renderHighlightedName(acc.description)}
+                                              </span>
+                                            `
+                                          : nothing
+                                      }
+                                    </div>
+                                  </div>
+                                  <span class="type-badge ${acc.type}"
+                                    >${acc.type}</span
+                                  >
+                                </div>
+                              `;
+                            })}
+                          `,
+                        )
+                  }
+                </div>
+              `
+            : nothing
+        }
       </div>
     `;
   }

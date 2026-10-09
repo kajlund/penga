@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 
 // Load .env from repository root if it exists, and allow local apps/api/.env overrides
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -32,8 +32,8 @@ export const app = new Hono();
 export const webDistDir = path.resolve(repoRootDir, 'apps/web/dist');
 app.route('/api/data-management', dataManagementRoute);
 
-const healthHandler = async (c: any) => {
-  let dbStatus = 'disconnected';
+const healthHandler = async (c: Context) => {
+  let dbStatus: string;
   try {
     await queryClient`SELECT 1`;
     dbStatus = 'connected';
@@ -86,7 +86,11 @@ if (fs.existsSync(webDistDir)) {
 
   // Fallback to index.html for client-side navigation (SPA), preserving 404 for API/health
   app.get('*', (c) => {
-    if (c.req.path.startsWith('/api/') || c.req.path === '/health' || c.req.path.startsWith('/health/')) {
+    if (
+      c.req.path.startsWith('/api/') ||
+      c.req.path === '/health' ||
+      c.req.path.startsWith('/health/')
+    ) {
       return c.json({ error: 'Not Found' }, 404);
     }
     return c.html(fs.readFileSync(indexHtmlPath, 'utf8'));
@@ -100,7 +104,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.NODE_TEST_CONTEXT) {
   if (fs.existsSync(webDistDir)) {
     console.log(`Serving web frontend from ${webDistDir}`);
   } else {
-    console.warn(`Frontend build directory not found at ${webDistDir}. Run "npm run build -w @penga/web" to build.`);
+    console.warn(
+      `Frontend build directory not found at ${webDistDir}. Run "npm run build -w @penga/web" to build.`,
+    );
   }
   serve({
     fetch: app.fetch,

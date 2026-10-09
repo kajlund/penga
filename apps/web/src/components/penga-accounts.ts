@@ -7,718 +7,723 @@ import { AccountType, parseMoney, type AccountTreeNode } from '@penga/shared';
 
 @customElement('penga-accounts')
 export class PengaAccounts extends LitElement {
-  static override styles = [css`
-    :host {
-      display: block;
-      padding: 2rem 2.5rem 4rem;
-      max-width: 1200px;
-      margin: 0 auto;
-      font-family: var(--font-sans);
-    }
-
-    .page-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .header-title h2 {
-      margin: 0 0 0.25rem 0;
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      color: var(--text-primary);
-    }
-
-    .header-title p {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-    }
-
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1.25rem;
-      border-radius: var(--radius-md);
-      background: var(--color-primary);
-      color: var(--on-accent);
-      border: 1px solid transparent;
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 8px var(--border-subtle);
-      transition: all var(--transition-fast);
-    }
-
-    .btn-primary:hover {
-      background: var(--color-primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px var(--border-subtle);
-    }
-
-    /* Filter Bar & Search */
-    .filter-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
-    }
-
-    .filter-pills {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      overflow-x: auto;
-      padding-bottom: 0.25rem;
-      flex-wrap: wrap;
-    }
-
-    .filter-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.45rem 0.9rem;
-      border-radius: var(--radius-full);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      user-select: none;
-    }
-
-    .filter-pill:hover {
-      background: var(--bg-subtle);
-      color: var(--text-primary);
-      border-color: var(--border-strong);
-    }
-
-    .filter-pill.active {
-      background: var(--color-primary-subtle);
-      border-color: var(--color-primary-border);
-      color: var(--color-primary-text);
-      font-weight: 600;
-    }
-
-    .badge-count {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 0.35rem;
-      border-radius: var(--radius-full);
-      background: var(--bg-muted);
-      color: var(--text-muted);
-      font-size: 0.7rem;
-      font-weight: 600;
-    }
-
-    .filter-pill.active .badge-count {
-      background: var(--color-primary);
-      color: var(--on-accent);
-    }
-
-    /* Search Box */
-    .search-box {
-      position: relative;
-      display: flex;
-      align-items: center;
-      min-width: 250px;
-      max-width: 360px;
-      flex: 1;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 0.85rem;
-      color: var(--text-muted);
-      pointer-events: none;
-      transition: color var(--transition-fast);
-    }
-
-    .search-box:focus-within .search-icon {
-      color: var(--color-primary);
-    }
-
-    .search-input {
-      width: 100%;
-      padding: 0.45rem 2.2rem 0.45rem 2.4rem;
-      border-radius: var(--radius-full);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.825rem;
-      outline: none;
-      transition: all var(--transition-fast);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .search-input::placeholder {
-      color: var(--text-muted);
-    }
-
-    .search-input:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px var(--color-primary-subtle);
-      background: var(--bg-surface);
-    }
-
-    .search-clear-btn {
-      position: absolute;
-      right: 0.65rem;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: none;
-      background: var(--bg-muted);
-      color: var(--text-muted);
-      font-size: 0.7rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      line-height: 1;
-    }
-
-    .search-clear-btn:hover {
-      background: var(--border-strong);
-      color: var(--text-primary);
-    }
-
-    .search-highlight {
-      background: var(--color-primary-subtle);
-      color: var(--color-primary-text);
-      font-weight: 700;
-      border-radius: 2px;
-      padding: 0 2px;
-    }
-
-    /* Tree Container Card */
-    .tree-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-card);
-      overflow: visible;
-    }
-
-    .tree-header {
-      display: grid;
-      grid-template-columns: 1fr 100px 36px;
-      gap: 0.75rem;
-      padding: 0.65rem 1.25rem;
-      background: var(--bg-subtle);
-      border-bottom: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      align-items: center;
-    }
-
-    .tree-header-type {
-      text-align: center;
-    }
-
-    .tree-header-actions {
-      text-align: right;
-    }
-
-    .tree-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-    }
-
-    /* Tree Node */
-    .tree-node {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .node-row {
-      display: grid;
-      grid-template-columns: 1fr 100px 36px;
-      gap: 0.75rem;
-      align-items: center;
-      padding: 0.45rem 1.25rem;
-      border-bottom: 1px solid var(--border-subtle);
-      transition: background-color var(--transition-fast);
-      position: relative;
-    }
-
-    .node-row:hover {
-      background: var(--bg-subtle);
-    }
-
-    .node-main {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      min-width: 0;
-    }
-
-    .toggle-btn {
-      width: 20px;
-      height: 20px;
-      border-radius: var(--radius-sm);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-size: 0.7rem;
-      transition: transform var(--transition-fast), color var(--transition-fast);
-      padding: 0;
-      flex-shrink: 0;
-    }
-
-    .toggle-btn:hover {
-      color: var(--text-primary);
-      background: var(--bg-muted);
-    }
-
-    .toggle-btn.collapsed svg {
-      transform: rotate(-90deg);
-    }
-
-    .toggle-placeholder {
-      width: 20px;
-      height: 20px;
-      display: inline-block;
-      flex-shrink: 0;
-    }
-
-    .account-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      flex-shrink: 0;
-    }
-
-    .account-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.1rem;
-      min-width: 0;
-    }
-
-    .account-title-row {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      min-width: 0;
-    }
-
-    .account-name {
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      line-height: 1.25;
-    }
-
-    .subaccount-pill {
-      font-size: 0.68rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      background: var(--bg-muted);
-      padding: 0.1rem 0.45rem;
-      border-radius: var(--radius-full);
-      white-space: nowrap;
-      flex-shrink: 0;
-      line-height: 1.2;
-    }
-
-    .account-description {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      line-height: 1.25;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .node-type {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .type-badge {
-      font-size: 0.65rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 0.15rem 0.5rem;
-      border-radius: var(--radius-sm);
-      text-transform: uppercase;
-      text-align: center;
-      line-height: 1.3;
-    }
-
-    .type-badge.asset {
-      background: var(--color-asset-bg);
-      color: var(--color-asset);
-      border: 1px solid var(--color-asset-border);
-    }
-
-    .type-badge.liability {
-      background: var(--color-liability-bg);
-      color: var(--color-liability);
-      border: 1px solid var(--color-liability-border);
-    }
-
-    .type-badge.income {
-      background: var(--color-income-bg);
-      color: var(--color-income);
-      border: 1px solid var(--color-income-border);
-    }
-
-    .type-badge.expense {
-      background: var(--color-expense-bg);
-      color: var(--color-expense);
-      border: 1px solid var(--color-expense-border);
-    }
-
-    .type-badge.settlement {
-      background: var(--color-settlement-bg);
-      color: var(--color-settlement);
-      border: 1px solid var(--color-settlement-border);
-    }
-
-    .type-badge.equity {
-      background: var(--color-primary-subtle);
-      color: var(--color-primary-text);
-      border: 1px solid var(--color-primary-border);
-    }
-
-    .node-actions {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      position: relative;
-    }
-
-    .actions-dropdown-container {
-      position: relative;
-      display: inline-flex;
-      justify-content: flex-end;
-    }
-
-    .btn-actions-trigger {
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      line-height: 1;
-      transition: all var(--transition-fast);
-      user-select: none;
-    }
-
-    .btn-actions-trigger:hover,
-    .btn-actions-trigger.active {
-      background: var(--bg-subtle);
-      border-color: var(--border-subtle);
-      color: var(--text-primary);
-    }
-
-    .actions-menu {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 4px);
-      z-index: 100;
-      min-width: 175px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-md);
-      padding: 0.35rem 0;
-      display: flex;
-      flex-direction: column;
-      animation: menuFadeIn var(--transition-fast) ease-out;
-    }
-
-    .actions-menu.open-upwards {
-      top: auto;
-      bottom: calc(100% + 4px);
-      animation: menuFadeInUp var(--transition-fast) ease-out;
-    }
-
-    @keyframes menuFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-4px);
+  static override styles = [
+    css`
+      :host {
+        display: block;
+        padding: 2rem 2.5rem 4rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        font-family: var(--font-sans);
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
+
+      .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
       }
-    }
 
-    @keyframes menuFadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(4px);
+      .header-title h2 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        color: var(--text-primary);
       }
-      to {
-        opacity: 1;
-        transform: translateY(0);
+
+      .header-title p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
       }
-    }
 
-    .actions-menu-item {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      padding: 0.55rem 0.9rem;
-      font-family: var(--font-sans);
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--text-primary);
-      background: transparent;
-      border: none;
-      text-align: left;
-      cursor: pointer;
-      width: 100%;
-      transition: background var(--transition-fast);
-    }
-
-    .actions-menu-item:hover:not(:disabled) {
-      background: var(--bg-subtle);
-      color: var(--color-primary-text);
-    }
-
-    .actions-menu-item.danger:hover {
-      background: var(--color-danger-bg);
-      color: var(--color-negative);
-    }
-
-    .actions-menu-divider {
-      height: 1px;
-      background: var(--border-subtle);
-      margin: 0.35rem 0;
-    }
-
-    .children-container {
-      position: relative;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    /* Modal Styles */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: var(--overlay);
-      backdrop-filter: blur(6px);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-    }
-
-    .modal-box {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
-      width: 100%;
-      max-width: 520px;
-      overflow: hidden;
-      animation: modalFadeIn 0.2s ease-out;
-    }
-
-    @keyframes modalFadeIn {
-      from {
-        opacity: 0;
-        transform: scale(0.96) translateY(8px);
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1.25rem;
+        border-radius: var(--radius-md);
+        background: var(--color-primary);
+        color: var(--on-accent);
+        border: 1px solid transparent;
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 8px var(--border-subtle);
+        transition: all var(--transition-fast);
       }
-      to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
+
+      .btn-primary:hover {
+        background: var(--color-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--border-subtle);
       }
-    }
 
-    .modal-header {
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+      /* Filter Bar & Search */
+      .filter-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+      }
 
-    .modal-header h3 {
-      margin: 0;
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
+      .filter-pills {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+        flex-wrap: wrap;
+      }
 
-    .modal-close {
-      background: transparent;
-      border: none;
-      font-size: 1.25rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 0.25rem;
-      border-radius: var(--radius-sm);
-    }
+      .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: var(--radius-full);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        user-select: none;
+      }
 
-    .modal-close:hover {
-      color: var(--text-primary);
-      background: var(--bg-subtle);
-    }
+      .filter-pill:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+        border-color: var(--border-strong);
+      }
 
-    .modal-body {
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.15rem;
-    }
+      .filter-pill.active {
+        background: var(--color-primary-subtle);
+        border-color: var(--color-primary-border);
+        color: var(--color-primary-text);
+        font-weight: 600;
+      }
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
+      .badge-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 0.35rem;
+        border-radius: var(--radius-full);
+        background: var(--bg-muted);
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
 
-    .form-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
+      .filter-pill.active .badge-count {
+        background: var(--color-primary);
+        color: var(--on-accent);
+      }
 
-    .form-input,
-    .form-select,
-    .form-textarea {
-      padding: 0.65rem 0.85rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-      font-size: 0.9rem;
-      outline: none;
-      transition: all var(--transition-fast);
-    }
+      /* Search Box */
+      .search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        min-width: 250px;
+        max-width: 360px;
+        flex: 1;
+      }
 
-    .form-textarea {
-      resize: vertical;
-      min-height: 60px;
-      line-height: 1.4;
-    }
+      .search-icon {
+        position: absolute;
+        left: 0.85rem;
+        color: var(--text-muted);
+        pointer-events: none;
+        transition: color var(--transition-fast);
+      }
 
-    .form-input:focus,
-    .form-select:focus,
-    .form-textarea:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 2px var(--color-primary-subtle);
-    }
+      .search-box:focus-within .search-icon {
+        color: var(--color-primary);
+      }
 
-    .quick-emojis {
-      display: flex;
-      gap: 0.4rem;
-      flex-wrap: wrap;
-      margin-top: 0.35rem;
-    }
+      .search-input {
+        width: 100%;
+        padding: 0.45rem 2.2rem 0.45rem 2.4rem;
+        border-radius: var(--radius-full);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.825rem;
+        outline: none;
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+      }
 
-    .emoji-pill {
-      font-size: 1.1rem;
-      padding: 0.3rem 0.5rem;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
+      .search-input::placeholder {
+        color: var(--text-muted);
+      }
 
-    .emoji-pill:hover {
-      background: var(--bg-muted);
-      transform: scale(1.1);
-    }
+      .search-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-primary-subtle);
+        background: var(--bg-surface);
+      }
 
-    .modal-footer {
-      padding: 1rem 1.5rem;
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      background: var(--bg-subtle);
-    }
+      .search-clear-btn {
+        position: absolute;
+        right: 0.65rem;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: none;
+        background: var(--bg-muted);
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        line-height: 1;
+      }
 
-    .btn-secondary {
-      padding: 0.65rem 1.15rem;
-      border-radius: var(--radius-md);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
+      .search-clear-btn:hover {
+        background: var(--border-strong);
+        color: var(--text-primary);
+      }
 
-    .btn-secondary:hover {
-      background: var(--bg-muted);
-      color: var(--text-primary);
-    }
+      .search-highlight {
+        background: var(--color-primary-subtle);
+        color: var(--color-primary-text);
+        font-weight: 700;
+        border-radius: 2px;
+        padding: 0 2px;
+      }
 
-    .empty-state {
-      padding: 4rem 2rem;
-      text-align: center;
-      color: var(--text-muted);
-    }
+      /* Tree Container Card */
+      .tree-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        overflow: visible;
+      }
 
-    .empty-state h4 {
-      margin: 0.5rem 0 0.25rem;
-      color: var(--text-primary);
-      font-size: 1.1rem;
-    }
+      .tree-header {
+        display: grid;
+        grid-template-columns: 1fr 100px 36px;
+        gap: 0.75rem;
+        padding: 0.65rem 1.25rem;
+        background: var(--bg-subtle);
+        border-bottom: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        align-items: center;
+      }
 
-    .loading-state {
-      padding: 4rem 2rem;
-      text-align: center;
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-    }
-  `, calmStyles];
+      .tree-header-type {
+        text-align: center;
+      }
+
+      .tree-header-actions {
+        text-align: right;
+      }
+
+      .tree-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Tree Node */
+      .tree-node {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .node-row {
+        display: grid;
+        grid-template-columns: 1fr 100px 36px;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.45rem 1.25rem;
+        border-bottom: 1px solid var(--border-subtle);
+        transition: background-color var(--transition-fast);
+        position: relative;
+      }
+
+      .node-row:hover {
+        background: var(--bg-subtle);
+      }
+
+      .node-main {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
+      }
+
+      .toggle-btn {
+        width: 20px;
+        height: 20px;
+        border-radius: var(--radius-sm);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        transition:
+          transform var(--transition-fast),
+          color var(--transition-fast);
+        padding: 0;
+        flex-shrink: 0;
+      }
+
+      .toggle-btn:hover {
+        color: var(--text-primary);
+        background: var(--bg-muted);
+      }
+
+      .toggle-btn.collapsed svg {
+        transform: rotate(-90deg);
+      }
+
+      .toggle-placeholder {
+        width: 20px;
+        height: 20px;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      .account-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        flex-shrink: 0;
+      }
+
+      .account-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 0;
+      }
+
+      .account-title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-width: 0;
+      }
+
+      .account-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.25;
+      }
+
+      .subaccount-pill {
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        background: var(--bg-muted);
+        padding: 0.1rem 0.45rem;
+        border-radius: var(--radius-full);
+        white-space: nowrap;
+        flex-shrink: 0;
+        line-height: 1.2;
+      }
+
+      .account-description {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .node-type {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .type-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 0.15rem 0.5rem;
+        border-radius: var(--radius-sm);
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1.3;
+      }
+
+      .type-badge.asset {
+        background: var(--color-asset-bg);
+        color: var(--color-asset);
+        border: 1px solid var(--color-asset-border);
+      }
+
+      .type-badge.liability {
+        background: var(--color-liability-bg);
+        color: var(--color-liability);
+        border: 1px solid var(--color-liability-border);
+      }
+
+      .type-badge.income {
+        background: var(--color-income-bg);
+        color: var(--color-income);
+        border: 1px solid var(--color-income-border);
+      }
+
+      .type-badge.expense {
+        background: var(--color-expense-bg);
+        color: var(--color-expense);
+        border: 1px solid var(--color-expense-border);
+      }
+
+      .type-badge.settlement {
+        background: var(--color-settlement-bg);
+        color: var(--color-settlement);
+        border: 1px solid var(--color-settlement-border);
+      }
+
+      .type-badge.equity {
+        background: var(--color-primary-subtle);
+        color: var(--color-primary-text);
+        border: 1px solid var(--color-primary-border);
+      }
+
+      .node-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        position: relative;
+      }
+
+      .actions-dropdown-container {
+        position: relative;
+        display: inline-flex;
+        justify-content: flex-end;
+      }
+
+      .btn-actions-trigger {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        line-height: 1;
+        transition: all var(--transition-fast);
+        user-select: none;
+      }
+
+      .btn-actions-trigger:hover,
+      .btn-actions-trigger.active {
+        background: var(--bg-subtle);
+        border-color: var(--border-subtle);
+        color: var(--text-primary);
+      }
+
+      .actions-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 100;
+        min-width: 175px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        padding: 0.35rem 0;
+        display: flex;
+        flex-direction: column;
+        animation: menuFadeIn var(--transition-fast) ease-out;
+      }
+
+      .actions-menu.open-upwards {
+        top: auto;
+        bottom: calc(100% + 4px);
+        animation: menuFadeInUp var(--transition-fast) ease-out;
+      }
+
+      @keyframes menuFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes menuFadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .actions-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.55rem 0.9rem;
+        font-family: var(--font-sans);
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        background: transparent;
+        border: none;
+        text-align: left;
+        cursor: pointer;
+        width: 100%;
+        transition: background var(--transition-fast);
+      }
+
+      .actions-menu-item:hover:not(:disabled) {
+        background: var(--bg-subtle);
+        color: var(--color-primary-text);
+      }
+
+      .actions-menu-item.danger:hover {
+        background: var(--color-danger-bg);
+        color: var(--color-negative);
+      }
+
+      .actions-menu-divider {
+        height: 1px;
+        background: var(--border-subtle);
+        margin: 0.35rem 0;
+      }
+
+      .children-container {
+        position: relative;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      /* Modal Styles */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: var(--overlay);
+        backdrop-filter: blur(6px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+
+      .modal-box {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-width: 520px;
+        overflow: hidden;
+        animation: modalFadeIn 0.2s ease-out;
+      }
+
+      @keyframes modalFadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.96) translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .modal-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .modal-close {
+        background: transparent;
+        border: none;
+        font-size: 1.25rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: var(--radius-sm);
+      }
+
+      .modal-close:hover {
+        color: var(--text-primary);
+        background: var(--bg-subtle);
+      }
+
+      .modal-body {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.15rem;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .form-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .form-input,
+      .form-select,
+      .form-textarea {
+        padding: 0.65rem 0.85rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.9rem;
+        outline: none;
+        transition: all var(--transition-fast);
+      }
+
+      .form-textarea {
+        resize: vertical;
+        min-height: 60px;
+        line-height: 1.4;
+      }
+
+      .form-input:focus,
+      .form-select:focus,
+      .form-textarea:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-subtle);
+      }
+
+      .quick-emojis {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-top: 0.35rem;
+      }
+
+      .emoji-pill {
+        font-size: 1.1rem;
+        padding: 0.3rem 0.5rem;
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+
+      .emoji-pill:hover {
+        background: var(--bg-muted);
+        transform: scale(1.1);
+      }
+
+      .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        background: var(--bg-subtle);
+      }
+
+      .btn-secondary {
+        padding: 0.65rem 1.15rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn-secondary:hover {
+        background: var(--bg-muted);
+        color: var(--text-primary);
+      }
+
+      .empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+        color: var(--text-muted);
+      }
+
+      .empty-state h4 {
+        margin: 0.5rem 0 0.25rem;
+        color: var(--text-primary);
+        font-size: 1.1rem;
+      }
+
+      .loading-state {
+        padding: 4rem 2rem;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+      }
+    `,
+    calmStyles,
+  ];
 
   @state()
   private treeNodes: AccountTreeNode[] = [];
@@ -772,23 +777,34 @@ export class PengaAccounts extends LitElement {
   private createInitialBalance = '';
 
   @state()
-  private createSettlementPosition: 'they-owe' | 'i-owe' | 'settled' = 'they-owe';
+  private createSettlementPosition: 'they-owe' | 'i-owe' | 'settled' =
+    'they-owe';
 
   @state()
   private createSettlementDate = '';
 
   @state() private actionError = '';
-  private today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  private today() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
 
   @state()
-  private flatAccounts: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
-
+  private flatAccounts: {
+    id: string;
+    name: string;
+    description?: string | null;
+    type: AccountType;
+  }[] = [];
 
   private handleWindowClick = (e: MouseEvent) => {
     if (!this.openMenuAccountId) return;
     const path = e.composedPath();
     const isMenuClick = path.some(
-      (el) => el instanceof HTMLElement && (el.classList.contains('actions-dropdown-container') || el.classList.contains('actions-menu'))
+      (el) =>
+        el instanceof HTMLElement &&
+        (el.classList.contains('actions-dropdown-container') ||
+          el.classList.contains('actions-menu')),
     );
     if (!isMenuClick) {
       this.openMenuAccountId = null;
@@ -828,8 +844,10 @@ export class PengaAccounts extends LitElement {
       const json = await res.json();
       this.treeNodes = this.sortTreeNodes(json.data || []);
       this.extractFlatList(this.treeNodes);
-    } catch (err: any) {
-      this.errorMessage = err.message || 'Error fetching accounts';
+    } catch (err) {
+      this.errorMessage =
+        (err instanceof Error ? err.message : String(err)) ||
+        'Error fetching accounts';
     } finally {
       this.isLoading = false;
     }
@@ -837,7 +855,9 @@ export class PengaAccounts extends LitElement {
 
   private sortTreeNodes(nodes: AccountTreeNode[]): AccountTreeNode[] {
     return [...nodes]
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+      )
       .map((node) => ({
         ...node,
         children: node.children ? this.sortTreeNodes(node.children) : [],
@@ -845,10 +865,20 @@ export class PengaAccounts extends LitElement {
   }
 
   private extractFlatList(nodes: AccountTreeNode[]) {
-    const list: { id: string; name: string; description?: string | null; type: AccountType }[] = [];
+    const list: {
+      id: string;
+      name: string;
+      description?: string | null;
+      type: AccountType;
+    }[] = [];
     const traverse = (items: AccountTreeNode[]) => {
       for (const item of items) {
-        list.push({ id: item.id, name: item.name, description: item.description, type: item.type });
+        list.push({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          type: item.type,
+        });
         if (item.children && item.children.length > 0) {
           traverse(item.children);
         }
@@ -894,7 +924,10 @@ export class PengaAccounts extends LitElement {
     this.openMenuUpwards = false;
   }
 
-  private openCreateModal(preselectedParentId?: string, preselectedType?: AccountType) {
+  private openCreateModal(
+    preselectedParentId?: string,
+    preselectedType?: AccountType,
+  ) {
     this.closeMenu();
     this.editingAccountId = null;
     this.createName = '';
@@ -902,7 +935,9 @@ export class PengaAccounts extends LitElement {
     this.createParentId = preselectedParentId || '';
 
     if (preselectedParentId) {
-      const parentAcc = this.flatAccounts.find((a) => a.id === preselectedParentId);
+      const parentAcc = this.flatAccounts.find(
+        (a) => a.id === preselectedParentId,
+      );
       if (parentAcc) {
         this.createType = parentAcc.type;
       }
@@ -978,13 +1013,28 @@ export class PengaAccounts extends LitElement {
     }
 
     try {
-      const parsed = this.createInitialBalance ? parseMoney(this.createInitialBalance) : 0;
-      if (!Number.isFinite(parsed)) throw new Error('Enter a valid opening balance with at most two decimal places within the supported range.');
+      const parsed = this.createInitialBalance
+        ? parseMoney(this.createInitialBalance)
+        : 0;
+      if (!Number.isFinite(parsed))
+        throw new Error(
+          'Enter a valid opening balance with at most two decimal places within the supported range.',
+        );
       let initialBalanceCents: number | undefined;
       const initialBalanceDate = this.createSettlementDate;
-      if (parsed !== 0 && this.createType === 'SETTLEMENT' && this.createSettlementPosition !== 'settled') {
-        initialBalanceCents = this.createSettlementPosition === 'they-owe' ? Math.abs(parsed) : -Math.abs(parsed);
-      } else if (parsed !== 0 && (this.createType === 'ASSET' || this.createType === 'LIABILITY')) {
+      if (
+        parsed !== 0 &&
+        this.createType === 'SETTLEMENT' &&
+        this.createSettlementPosition !== 'settled'
+      ) {
+        initialBalanceCents =
+          this.createSettlementPosition === 'they-owe'
+            ? Math.abs(parsed)
+            : -Math.abs(parsed);
+      } else if (
+        parsed !== 0 &&
+        (this.createType === 'ASSET' || this.createType === 'LIABILITY')
+      ) {
         initialBalanceCents = parsed;
       }
       const payload = {
@@ -1011,14 +1061,19 @@ export class PengaAccounts extends LitElement {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `Failed to ${this.editingAccountId ? 'update' : 'create'} account`);
+        throw new Error(
+          errJson.error ||
+            `Failed to ${this.editingAccountId ? 'update' : 'create'} account`,
+        );
       }
 
       this.isCreateModalOpen = false;
       this.editingAccountId = null;
       await this.fetchAccounts();
-    } catch (err: any) {
-      this.actionError = err.message || 'Unable to complete the account action.';
+    } catch (err) {
+      this.actionError =
+        (err instanceof Error ? err.message : String(err)) ||
+        'Unable to complete the account action.';
     }
   }
 
@@ -1041,8 +1096,10 @@ export class PengaAccounts extends LitElement {
       }
 
       await this.fetchAccounts();
-    } catch (err: any) {
-      this.actionError = err.message || 'Unable to complete the account action.';
+    } catch (err) {
+      this.actionError =
+        (err instanceof Error ? err.message : String(err)) ||
+        'Unable to complete the account action.';
     }
   }
 
@@ -1063,7 +1120,9 @@ export class PengaAccounts extends LitElement {
   private nodeMatchesSearch(node: AccountTreeNode, query: string): boolean {
     if (!query) return true;
     const nameMatch = node.name.toLowerCase().includes(query);
-    const descMatch = node.description ? node.description.toLowerCase().includes(query) : false;
+    const descMatch = node.description
+      ? node.description.toLowerCase().includes(query)
+      : false;
     return nameMatch || descMatch;
   }
 
@@ -1071,11 +1130,15 @@ export class PengaAccounts extends LitElement {
     return this.selectedFilter === 'ALL' || node.type === this.selectedFilter;
   }
 
-  private shouldShowNode(node: AccountTreeNode, parentSearchMatched = false): boolean {
+  private shouldShowNode(
+    node: AccountTreeNode,
+    parentSearchMatched = false,
+  ): boolean {
     const q = this.searchQuery.trim().toLowerCase();
     const selfSearch = this.nodeMatchesSearch(node, q);
     const selfType = this.nodeMatchesType(node);
-    const effectiveSearchMatch = selfSearch || (parentSearchMatched && q.length > 0);
+    const effectiveSearchMatch =
+      selfSearch || (parentSearchMatched && q.length > 0);
 
     if (effectiveSearchMatch && selfType) {
       return true;
@@ -1083,7 +1146,7 @@ export class PengaAccounts extends LitElement {
 
     if (node.children && node.children.length > 0) {
       return node.children.some((child) =>
-        this.shouldShowNode(child, parentSearchMatched || selfSearch)
+        this.shouldShowNode(child, parentSearchMatched || selfSearch),
       );
     }
 
@@ -1114,13 +1177,21 @@ export class PengaAccounts extends LitElement {
       if (matchIndex > cur) {
         parts.push(text.slice(cur, matchIndex));
       }
-      parts.push(html`<mark class="search-highlight">${text.slice(matchIndex, matchIndex + query.length)}</mark>`);
+      parts.push(
+        html`<mark class="search-highlight"
+          >${text.slice(matchIndex, matchIndex + query.length)}</mark
+        >`,
+      );
       cur = matchIndex + query.length;
     }
     return html`${parts}`;
   }
 
-  private renderNode(node: AccountTreeNode, depth = 0, parentSearchMatched = false): unknown {
+  private renderNode(
+    node: AccountTreeNode,
+    depth = 0,
+    parentSearchMatched = false,
+  ): unknown {
     if (!this.shouldShowNode(node, parentSearchMatched)) {
       return nothing;
     }
@@ -1134,25 +1205,30 @@ export class PengaAccounts extends LitElement {
       <li class="tree-node">
         <div class="node-row" style="padding-left: ${1.25 + depth * 1.5}rem;">
           <div class="node-main">
-            ${hasChildren
-              ? html`
-                  <button
-                    class="toggle-btn ${isCollapsed ? 'collapsed' : ''}"
-                    @click="${() => this.toggleCollapse(node.id)}"
-                    aria-label="${isCollapsed ? 'Expand' : 'Collapse'} ${node.name}"
-                  >
-                    ${icon("chevron-down", "ASSET", 16)}
-                  </button>
-                `
-              : html`<span class="toggle-placeholder"></span>`}
+            ${
+              hasChildren
+                ? html`
+                    <button
+                      class="toggle-btn ${isCollapsed ? 'collapsed' : ''}"
+                      @click="${() => this.toggleCollapse(node.id)}"
+                      aria-label="${isCollapsed ? 'Expand' : 'Collapse'} ${node.name}"
+                    >
+                      ${icon('chevron-down', 'ASSET', 16)}
+                    </button>
+                  `
+                : html`<span class="toggle-placeholder"></span>`
+            }
 
-            <div class="account-icon">
-              ${icon(node.icon, node.type)}
-            </div>
+            <div class="account-icon">${icon(node.icon, node.type)}</div>
 
-            <div class="account-info" title="${node.description ? `${node.name} — ${node.description}` : node.name}">
+            <div
+              class="account-info"
+              title="${node.description ? `${node.name} — ${node.description}` : node.name}"
+            >
               <div class="account-title-row">
-                <span class="account-name">${this.highlightMatch(node.name, q)}</span>
+                <span class="account-name"
+                  >${this.highlightMatch(node.name, q)}</span
+                >
                 ${hasChildren ? html`<span class="subaccount-pill">${node.children.length} sub</span>` : nothing}
               </div>
               ${node.description ? html`<span class="account-description">${this.highlightMatch(node.description, q)}</span>` : nothing}
@@ -1160,7 +1236,9 @@ export class PengaAccounts extends LitElement {
           </div>
 
           <div class="node-type">
-            <span class="type-badge ${node.type.toLowerCase()}">${node.type}</span>
+            <span class="type-badge ${node.type.toLowerCase()}"
+              >${node.type}</span
+            >
           </div>
 
           <div class="node-actions">
@@ -1171,73 +1249,95 @@ export class PengaAccounts extends LitElement {
                 title="Account actions"
                 aria-label="Actions for ${node.name}"
               >
-                ${icon("ellipsis", "ASSET", 16)}
+                ${icon('ellipsis', 'ASSET', 16)}
               </button>
-              ${this.openMenuAccountId === node.id
-                ? html`
-                    <div class="actions-menu ${this.openMenuUpwards ? 'open-upwards' : ''}">
-                      <button
-                        class="actions-menu-item"
-                        @click="${() => this.openEditModal(node)}"
+              ${
+                this.openMenuAccountId === node.id
+                  ? html`
+                      <div
+                        class="actions-menu ${this.openMenuUpwards ? 'open-upwards' : ''}"
                       >
-                        <span>${icon("pencil", "ASSET", 16)}</span>
-                        <span>Edit Account</span>
-                      </button>
-                      <button
-                        class="actions-menu-item"
-                        @click="${() => {
-                          this.closeMenu();
-                          this.openCreateModal(node.id, node.type);
-                        }}"
-                      >
-                        <span>${icon("plus", "ASSET", 16)}</span>
-                        <span>Add Sub-Account</span>
-                      </button>
-                      <div class="actions-menu-divider"></div>
-                      <button
-                        class="actions-menu-item danger"
-                        @click="${() => {
-                          this.closeMenu();
-                          this.deleteAccount(node);
-                        }}"
-                      >
-                        <span>${icon("trash-2", "ASSET", 16)}</span>
-                        <span>Delete Account</span>
-                      </button>
-                    </div>
-                  `
-                : nothing}
+                        <button
+                          class="actions-menu-item"
+                          @click="${() => this.openEditModal(node)}"
+                        >
+                          <span>${icon('pencil', 'ASSET', 16)}</span>
+                          <span>Edit Account</span>
+                        </button>
+                        <button
+                          class="actions-menu-item"
+                          @click="${() => {
+                            this.closeMenu();
+                            this.openCreateModal(node.id, node.type);
+                          }}"
+                        >
+                          <span>${icon('plus', 'ASSET', 16)}</span>
+                          <span>Add Sub-Account</span>
+                        </button>
+                        <div class="actions-menu-divider"></div>
+                        <button
+                          class="actions-menu-item danger"
+                          @click="${() => {
+                            this.closeMenu();
+                            this.deleteAccount(node);
+                          }}"
+                        >
+                          <span>${icon('trash-2', 'ASSET', 16)}</span>
+                          <span>Delete Account</span>
+                        </button>
+                      </div>
+                    `
+                  : nothing
+              }
             </div>
           </div>
         </div>
 
-        ${hasChildren && !isCollapsed
-          ? html`
-              <ul class="tree-list children-container">
-                ${node.children.map((child) => this.renderNode(child, depth + 1, parentSearchMatched || selfSearch))}
-              </ul>
-            `
-          : nothing}
+        ${
+          hasChildren && !isCollapsed
+            ? html`
+                <ul class="tree-list children-container">
+                  ${node.children.map((child) => this.renderNode(child, depth + 1, parentSearchMatched || selfSearch))}
+                </ul>
+              `
+            : nothing
+        }
       </li>
     `;
   }
 
   override render() {
     const totalCount = this.flatAccounts.length;
-    const assetCount = this.flatAccounts.filter((a) => a.type === 'ASSET').length;
-    const liabilityCount = this.flatAccounts.filter((a) => a.type === 'LIABILITY').length;
-    const settlementCount = this.flatAccounts.filter((a) => a.type === 'SETTLEMENT').length;
-    const equityCount = this.flatAccounts.filter((a) => a.type === 'EQUITY').length;
-    const incomeCount = this.flatAccounts.filter((a) => a.type === 'INCOME').length;
-    const expenseCount = this.flatAccounts.filter((a) => a.type === 'EXPENSE').length;
+    const assetCount = this.flatAccounts.filter(
+      (a) => a.type === 'ASSET',
+    ).length;
+    const liabilityCount = this.flatAccounts.filter(
+      (a) => a.type === 'LIABILITY',
+    ).length;
+    const settlementCount = this.flatAccounts.filter(
+      (a) => a.type === 'SETTLEMENT',
+    ).length;
+    const equityCount = this.flatAccounts.filter(
+      (a) => a.type === 'EQUITY',
+    ).length;
+    const incomeCount = this.flatAccounts.filter(
+      (a) => a.type === 'INCOME',
+    ).length;
+    const expenseCount = this.flatAccounts.filter(
+      (a) => a.type === 'EXPENSE',
+    ).length;
 
-    const visibleNodes = this.treeNodes.filter((node) => this.shouldShowNode(node));
+    const visibleNodes = this.treeNodes.filter((node) =>
+      this.shouldShowNode(node),
+    );
 
     return html`
       <div class="page-header">
         <div class="header-title">
           <h2>Accounts & Categories</h2>
-          <p>Hierarchical double-entry ledger tree with custom icons and rollups</p>
+          <p>
+            Hierarchical double-entry ledger tree with custom icons and rollups
+          </p>
         </div>
         <button class="btn-primary" @click="${() => this.openCreateModal()}">
           <span>+</span>
@@ -1300,7 +1400,7 @@ export class PengaAccounts extends LitElement {
         </div>
 
         <div class="search-box">
-          <span class="search-icon">${icon("search", "ASSET", 16)}</span>
+          <span class="search-icon">${icon('search', 'ASSET', 16)}</span>
           <input
             type="text"
             class="search-input"
@@ -1310,15 +1410,24 @@ export class PengaAccounts extends LitElement {
             @keydown="${this.handleSearchKeyDown}"
             aria-label="Filter accounts"
           />
-          ${this.searchQuery ? html`
-            <button class="search-clear-btn" @click="${() => this.clearSearch()}" title="Clear search (Esc)" aria-label="Clear search">
-              ${icon("x", "ASSET", 16)}
-            </button>
-          ` : nothing}
+          ${
+            this.searchQuery
+              ? html`
+                  <button
+                    class="search-clear-btn"
+                    @click="${() => this.clearSearch()}"
+                    title="Clear search (Esc)"
+                    aria-label="Clear search"
+                  >
+                    ${icon('x', 'ASSET', 16)}
+                  </button>
+                `
+              : nothing
+          }
         </div>
       </div>
 
-${this.actionError ? html`<p class="empty-state" role="alert">${this.actionError}</p>` : nothing}
+      ${this.actionError ? html`<p class="empty-state" role="alert">${this.actionError}</p>` : nothing}
       <!-- Account Tree Content -->
       <div class="tree-card">
         <div class="tree-header">
@@ -1327,255 +1436,362 @@ ${this.actionError ? html`<p class="empty-state" role="alert">${this.actionError
           <span class="tree-header-actions">Actions</span>
         </div>
 
-        ${this.isLoading
-          ? html`<div class="loading-state">Loading accounts from PostgreSQL...</div>`
-          : this.errorMessage
-          ? html`<div class="empty-state"><h4>Error Loading Accounts</h4><p>${this.errorMessage}</p></div>`
-          : this.treeNodes.length === 0
-          ? html`
-              <div class="empty-state">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${icon("folder", "ASSET", 32)}</div>
-                <h4>No Accounts Found</h4>
-                <p>Create your first account or run the database seed script.</p>
-              </div>
-            `
-          : visibleNodes.length === 0
-          ? html`
-              <div class="empty-state">
-                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">${icon("search", "ASSET", 32)}</div>
-                <h4>No Matching Accounts</h4>
-                <p>No accounts found matching "${this.searchQuery}" ${this.selectedFilter !== 'ALL' ? `in ${this.selectedFilter}` : ''}.</p>
-                <button class="btn-secondary" style="margin-top: 0.75rem;" @click="${() => this.clearSearch()}">
-                  Clear Search
-                </button>
-              </div>
-            `
-          : html`
-              <ul class="tree-list">
-                ${this.treeNodes.map((node) => this.renderNode(node))}
-              </ul>
-            `}
+        ${
+          this.isLoading
+            ? html`<div class="loading-state">
+                Loading accounts from PostgreSQL...
+              </div>`
+            : this.errorMessage
+              ? html`<div class="empty-state">
+                  <h4>Error Loading Accounts</h4>
+                  <p>${this.errorMessage}</p>
+                </div>`
+              : this.treeNodes.length === 0
+                ? html`
+                    <div class="empty-state">
+                      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">
+                        ${icon('folder', 'ASSET', 32)}
+                      </div>
+                      <h4>No Accounts Found</h4>
+                      <p>
+                        Create your first account or run the database seed
+                        script.
+                      </p>
+                    </div>
+                  `
+                : visibleNodes.length === 0
+                  ? html`
+                      <div class="empty-state">
+                        <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">
+                          ${icon('search', 'ASSET', 32)}
+                        </div>
+                        <h4>No Matching Accounts</h4>
+                        <p>
+                          No accounts found matching "${this.searchQuery}"
+                          ${this.selectedFilter !== 'ALL' ? `in ${this.selectedFilter}` : ''}.
+                        </p>
+                        <button
+                          class="btn-secondary"
+                          style="margin-top: 0.75rem;"
+                          @click="${() => this.clearSearch()}"
+                        >
+                          Clear Search
+                        </button>
+                      </div>
+                    `
+                  : html`
+                      <ul class="tree-list">
+                        ${this.treeNodes.map((node) => this.renderNode(node))}
+                      </ul>
+                    `
+        }
       </div>
 
       <!-- Create / Edit Account Modal -->
-      ${this.isCreateModalOpen
-        ? html`
-            <div class="modal-backdrop" @click="${(e: MouseEvent) => {
-              if (e.target === e.currentTarget) {
-                this.isCreateModalOpen = false;
-                this.editingAccountId = null;
-              }
-            }}">
-              <div class="modal-box">
-                <div class="modal-header">
-                  <h3>
-                    ${this.editingAccountId
-                      ? 'Edit Account / Category'
-                      : (this.createParentId ? 'Add Sub-Account' : 'New Account / Category')}
-                  </h3>
-                  <button
-                    class="modal-close"
-                    @click="${() => {
-                      this.isCreateModalOpen = false;
-                      this.editingAccountId = null;
-                    }}"
-                  >
-                    ${icon("x", "ASSET", 16)}
-                  </button>
-                </div>
-
-                <form @submit="${this.submitCreate}">
-                  <div class="modal-body">
-                    <div class="form-group">
-                      <label class="form-label">Account Name</label>
-                      <input
-                        type="text"
-                        class="form-input"
-                        placeholder="e.g. Vacation Savings or Fuel"
-                        .value="${this.createName}"
-                        @input="${(e: any) => (this.createName = e.target.value)}"
-                        required
-                        autofocus
-                      />
-                    </div>
-
-                    <div class="form-group">
-                      <label class="form-label">Description (Optional)</label>
-                      <textarea
-                        class="form-textarea"
-                        rows="2"
-                        placeholder="Detailed info about the intent and scope of this account..."
-                        .value="${this.createDescription}"
-                        @input="${(e: any) => (this.createDescription = e.target.value)}"
-                      ></textarea>
-                    </div>
-
-                    <div class="form-group">
-                      <label class="form-label">Account Type</label>
-                      <select
-                        class="form-select"
-                        .value="${this.createType}"
-                        @change="${this.handleTypeChange}"
-                        ?disabled="${Boolean(this.createParentId)}"
-                      >
-                        <option value="ASSET">ASSET (Liquid, cash, checking)</option>
-                        <option value="LIABILITY">LIABILITY (Debt, credit cards)</option>
-                        <option value="SETTLEMENT">SETTLEMENT (Tracks money owed between you & others)</option>
-                        <option value="EQUITY">EQUITY (Opening balances, capital)</option>
-                        <option value="INCOME">INCOME (Salary, dividends)</option>
-                        <option value="EXPENSE">EXPENSE (Groceries, transport)</option>
-                      </select>
-                      ${this.createType === 'SETTLEMENT'
-                        ? html`
-                            <p style="margin: 0.35rem 0 0 0; font-size: 0.75rem; color: var(--text-muted);">
-                              Tracks money owed between you and another person. The balance may move in either direction.
-                            </p>
-                          `
-                        : nothing}
-                    </div>
-
-                    ${this.createType === 'SETTLEMENT'
-                      ? html`
-                          <div class="form-group" style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-                            <label class="form-label" style="margin-bottom: 0.4rem; font-weight: 600;">Opening position</label>
-                            <div style="display: flex; gap: 1.25rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
-                              <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
-                                <input
-                                  type="radio"
-                                  name="settlementPosition"
-                                  value="they-owe"
-                                  .checked="${this.createSettlementPosition === 'they-owe'}"
-                                  @change="${() => (this.createSettlementPosition = 'they-owe')}"
-                                />
-                                They owe me
-                              </label>
-                              <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
-                                <input
-                                  type="radio"
-                                  name="settlementPosition"
-                                  value="i-owe"
-                                  .checked="${this.createSettlementPosition === 'i-owe'}"
-                                  @change="${() => (this.createSettlementPosition = 'i-owe')}"
-                                />
-                                I owe them
-                              </label>
-                              <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;">
-                                <input
-                                  type="radio"
-                                  name="settlementPosition"
-                                  value="settled"
-                                  .checked="${this.createSettlementPosition === 'settled'}"
-                                  @change="${() => (this.createSettlementPosition = 'settled')}"
-                                />
-                                Settled
-                              </label>
-                            </div>
-
-                            ${this.createSettlementPosition !== 'settled'
-                              ? html`
-                                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.4rem;">
-                                    <div>
-                                      <label class="form-label" style="font-size: 0.75rem;">Amount</label>
-                                      <input
-                                        type="text"
-                                        class="form-input"
-                                        placeholder="0.00"
-                                        .value="${this.createInitialBalance}"
-                                        @input="${(e: any) => (this.createInitialBalance = e.target.value)}"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label class="form-label" style="font-size: 0.75rem;">Opening date</label>
-                                      <input
-                                        type="date"
-                                        class="form-input"
-                                        .value="${this.createSettlementDate}"
-                                        @input="${(e: any) => (this.createSettlementDate = e.target.value)}"
-                                      />
-                                    </div>
-                                  </div>
-                                `
-                              : nothing}
-                            <p style="margin: 0.25rem 0 0 0; font-size: 0.72rem; color: var(--text-muted);">
-                              Positive means they owe you. Negative means you owe them.
-                            </p>
-                          </div>
-                        `
-                      : nothing}
-
-                    ${(this.createType === 'ASSET' || this.createType === 'LIABILITY')
-                      ? html`
-                          <div class="form-group">
-                            <label class="form-label">
-                              Opening Balance (Optional)
-                              <span style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);">
-                                — auto-creates opening transaction against Equity
-                              </span>
-                            </label>
-                            <input
-                              type="text"
-                              class="form-input"
-                              placeholder="${this.createType === 'ASSET' ? 'e.g. 1500.00' : 'e.g. -450.00'}"
-                              .value="${this.createInitialBalance}"
-                              @input="${(e: any) => (this.createInitialBalance = e.target.value)}"
-                            />
-                          </div>
-                        `
-                      : nothing}
-
-                    ${['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(this.createType) ? html`<div class="form-group">
-                      ${this.createType !== 'SETTLEMENT' ? html`<label class="form-label">Opening-balance date</label><input type="date" class="form-input" .value=${this.createSettlementDate} @input=${(e: any) => this.createSettlementDate = e.target.value}>` : nothing}
-                      <p>Enter the balance at the beginning of the selected date, before ordinary transactions on that date. Negative amounts represent debt. Opening balances use equity, never income or expenses. Leave the amount empty to keep the existing balance. To change an existing opening balance, edit it in Transactions; delete it there before entering a replacement.</p>
-                    </div>` : nothing}
-                    ${this.actionError ? html`<p role="alert">${this.actionError}</p>` : nothing}
-                    <div class="form-group">
-                      <label class="form-label">Parent Account (Tree Hierarchy)</label>
-                      <select
-                        class="form-select"
-                        .value="${this.createParentId}"
-                        @change="${this.handleParentChange}"
-                      >
-                        <option value="">None (Top-Level Account)</option>
-                        ${this.flatAccounts
-                          .filter((acc) => !this.editingAccountId || acc.id !== this.editingAccountId)
-                          .map(
-                            (acc) => html`
-                              <option value="${acc.id}">
-                                ${acc.name} (${acc.type})
-                              </option>
-                            `
-                          )}
-                      </select>
-                    </div>
-
-                    <div class="form-group">
-                      <label class="form-label">Icon</label>
-                      <penga-icon-picker .value=${this.createIcon} .accountType=${this.createType} @icon-selected=${(event: CustomEvent) => this.createIcon = event.detail.value}></penga-icon-picker>
-                    </div>
-
-
-                  </div>
-
-                  <div class="modal-footer">
+      ${
+        this.isCreateModalOpen
+          ? html`
+              <div
+                class="modal-backdrop"
+                @click="${(e: MouseEvent) => {
+                  if (e.target === e.currentTarget) {
+                    this.isCreateModalOpen = false;
+                    this.editingAccountId = null;
+                  }
+                }}"
+              >
+                <div class="modal-box">
+                  <div class="modal-header">
+                    <h3>
+                      ${
+                        this.editingAccountId
+                          ? 'Edit Account / Category'
+                          : this.createParentId
+                            ? 'Add Sub-Account'
+                            : 'New Account / Category'
+                      }
+                    </h3>
                     <button
-                      type="button"
-                      class="btn-secondary"
+                      class="modal-close"
                       @click="${() => {
                         this.isCreateModalOpen = false;
                         this.editingAccountId = null;
                       }}"
                     >
-                      Cancel
-                    </button>
-                    <button type="submit" class="btn-primary">
-                      ${this.editingAccountId ? 'Save Changes' : 'Create Account'}
+                      ${icon('x', 'ASSET', 16)}
                     </button>
                   </div>
-                </form>
+
+                  <form @submit="${this.submitCreate}">
+                    <div class="modal-body">
+                      <div class="form-group">
+                        <label class="form-label">Account Name</label>
+                        <input
+                          type="text"
+                          class="form-input"
+                          placeholder="e.g. Vacation Savings or Fuel"
+                          .value="${this.createName}"
+                          @input="${(e: Event) => (this.createName = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                          required
+                          autofocus
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea
+                          class="form-textarea"
+                          rows="2"
+                          placeholder="Detailed info about the intent and scope of this account..."
+                          .value="${this.createDescription}"
+                          @input="${(e: Event) => (this.createDescription = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                        ></textarea>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label">Account Type</label>
+                        <select
+                          class="form-select"
+                          .value="${this.createType}"
+                          @change="${this.handleTypeChange}"
+                          ?disabled="${Boolean(this.createParentId)}"
+                        >
+                          <option value="ASSET">
+                            ASSET (Liquid, cash, checking)
+                          </option>
+                          <option value="LIABILITY">
+                            LIABILITY (Debt, credit cards)
+                          </option>
+                          <option value="SETTLEMENT">
+                            SETTLEMENT (Tracks money owed between you & others)
+                          </option>
+                          <option value="EQUITY">
+                            EQUITY (Opening balances, capital)
+                          </option>
+                          <option value="INCOME">
+                            INCOME (Salary, dividends)
+                          </option>
+                          <option value="EXPENSE">
+                            EXPENSE (Groceries, transport)
+                          </option>
+                        </select>
+                        ${
+                          this.createType === 'SETTLEMENT'
+                            ? html`
+                                <p
+                                  style="margin: 0.35rem 0 0 0; font-size: 0.75rem; color: var(--text-muted);"
+                                >
+                                  Tracks money owed between you and another
+                                  person. The balance may move in either
+                                  direction.
+                                </p>
+                              `
+                            : nothing
+                        }
+                      </div>
+
+                      ${
+                        this.createType === 'SETTLEMENT'
+                          ? html`
+                              <div
+                                class="form-group"
+                                style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);"
+                              >
+                                <label
+                                  class="form-label"
+                                  style="margin-bottom: 0.4rem; font-weight: 600;"
+                                  >Opening position</label
+                                >
+                                <div
+                                  style="display: flex; gap: 1.25rem; margin-bottom: 0.75rem; flex-wrap: wrap;"
+                                >
+                                  <label
+                                    style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;"
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="settlementPosition"
+                                      value="they-owe"
+                                      .checked="${this.createSettlementPosition === 'they-owe'}"
+                                      @change="${() => (this.createSettlementPosition = 'they-owe')}"
+                                    />
+                                    They owe me
+                                  </label>
+                                  <label
+                                    style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;"
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="settlementPosition"
+                                      value="i-owe"
+                                      .checked="${this.createSettlementPosition === 'i-owe'}"
+                                      @change="${() => (this.createSettlementPosition = 'i-owe')}"
+                                    />
+                                    I owe them
+                                  </label>
+                                  <label
+                                    style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;"
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="settlementPosition"
+                                      value="settled"
+                                      .checked="${this.createSettlementPosition === 'settled'}"
+                                      @change="${() => (this.createSettlementPosition = 'settled')}"
+                                    />
+                                    Settled
+                                  </label>
+                                </div>
+
+                                ${
+                                  this.createSettlementPosition !== 'settled'
+                                    ? html`
+                                        <div
+                                          style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.4rem;"
+                                        >
+                                          <div>
+                                            <label
+                                              class="form-label"
+                                              style="font-size: 0.75rem;"
+                                              >Amount</label
+                                            >
+                                            <input
+                                              type="text"
+                                              class="form-input"
+                                              placeholder="0.00"
+                                              .value="${this.createInitialBalance}"
+                                              @input="${(e: Event) => (this.createInitialBalance = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label
+                                              class="form-label"
+                                              style="font-size: 0.75rem;"
+                                              >Opening date</label
+                                            >
+                                            <input
+                                              type="date"
+                                              class="form-input"
+                                              .value="${this.createSettlementDate}"
+                                              @input="${(e: Event) => (this.createSettlementDate = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                                            />
+                                          </div>
+                                        </div>
+                                      `
+                                    : nothing
+                                }
+                                <p
+                                  style="margin: 0.25rem 0 0 0; font-size: 0.72rem; color: var(--text-muted);"
+                                >
+                                  Positive means they owe you. Negative means
+                                  you owe them.
+                                </p>
+                              </div>
+                            `
+                          : nothing
+                      }
+                      ${
+                        this.createType === 'ASSET' ||
+                        this.createType === 'LIABILITY'
+                          ? html`
+                              <div class="form-group">
+                                <label class="form-label">
+                                  Opening Balance (Optional)
+                                  <span
+                                    style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);"
+                                  >
+                                    — auto-creates opening transaction against
+                                    Equity
+                                  </span>
+                                </label>
+                                <input
+                                  type="text"
+                                  class="form-input"
+                                  placeholder="${this.createType === 'ASSET' ? 'e.g. 1500.00' : 'e.g. -450.00'}"
+                                  .value="${this.createInitialBalance}"
+                                  @input="${(e: Event) => (this.createInitialBalance = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                                />
+                              </div>
+                            `
+                          : nothing
+                      }
+                      ${
+                        ['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(
+                          this.createType,
+                        )
+                          ? html`<div class="form-group">
+                              ${this.createType !== 'SETTLEMENT' ? html`<label class="form-label">Opening-balance date</label><input type="date" class="form-input" .value=${this.createSettlementDate} @input=${(e: Event) => (this.createSettlementDate = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)} />` : nothing}
+                              <p>
+                                Enter the balance at the beginning of the
+                                selected date, before ordinary transactions on
+                                that date. Negative amounts represent debt.
+                                Opening balances use equity, never income or
+                                expenses. Leave the amount empty to keep the
+                                existing balance. To change an existing opening
+                                balance, edit it in Transactions; delete it
+                                there before entering a replacement.
+                              </p>
+                            </div>`
+                          : nothing
+                      }
+                      ${this.actionError ? html`<p role="alert">${this.actionError}</p>` : nothing}
+                      <div class="form-group">
+                        <label class="form-label"
+                          >Parent Account (Tree Hierarchy)</label
+                        >
+                        <select
+                          class="form-select"
+                          .value="${this.createParentId}"
+                          @change="${this.handleParentChange}"
+                        >
+                          <option value="">None (Top-Level Account)</option>
+                          ${this.flatAccounts
+                            .filter(
+                              (acc) =>
+                                !this.editingAccountId ||
+                                acc.id !== this.editingAccountId,
+                            )
+                            .map(
+                              (acc) => html`
+                                <option value="${acc.id}">
+                                  ${acc.name} (${acc.type})
+                                </option>
+                              `,
+                            )}
+                        </select>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label">Icon</label>
+                        <penga-icon-picker
+                          .value=${this.createIcon}
+                          .accountType=${this.createType}
+                          @icon-selected=${(event: CustomEvent) => (this.createIcon = event.detail.value)}
+                        ></penga-icon-picker>
+                      </div>
+                    </div>
+
+                    <div class="modal-footer">
+                      <button
+                        type="button"
+                        class="btn-secondary"
+                        @click="${() => {
+                          this.isCreateModalOpen = false;
+                          this.editingAccountId = null;
+                        }}"
+                      >
+                        Cancel
+                      </button>
+                      <button type="submit" class="btn-primary">
+                        ${this.editingAccountId ? 'Save Changes' : 'Create Account'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
-            </div>
-          `
-        : nothing}
+            `
+          : nothing
+      }
     `;
   }
 }
