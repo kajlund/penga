@@ -553,7 +553,8 @@ export class PengaAccounts extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1.5rem;
+        padding: 1rem;
+        box-sizing: border-box;
       }
 
       .modal-box {
@@ -562,7 +563,10 @@ export class PengaAccounts extends LitElement {
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-lg);
         width: 100%;
-        max-width: 520px;
+        max-width: 560px;
+        max-height: min(90vh, 90dvh);
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
         animation: modalFadeIn 0.2s ease-out;
       }
@@ -578,8 +582,17 @@ export class PengaAccounts extends LitElement {
         }
       }
 
+      .modal-box form {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+
       .modal-header {
-        padding: 1.25rem 1.5rem;
+        flex-shrink: 0;
+        padding: 1rem 1.25rem;
         border-bottom: 1px solid var(--border-subtle);
         display: flex;
         align-items: center;
@@ -601,6 +614,9 @@ export class PengaAccounts extends LitElement {
         cursor: pointer;
         padding: 0.25rem;
         border-radius: var(--radius-sm);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .modal-close:hover {
@@ -609,42 +625,84 @@ export class PengaAccounts extends LitElement {
       }
 
       .modal-body {
-        padding: 1.5rem;
+        padding: 1.15rem 1.25rem;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
         display: flex;
         flex-direction: column;
-        gap: 1.15rem;
+        gap: 0.85rem;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+
+      @media (max-width: 520px) {
+        .grid-2 {
+          grid-template-columns: 1fr;
+          gap: 0.75rem;
+        }
       }
 
       .form-group {
         display: flex;
         flex-direction: column;
-        gap: 0.35rem;
+        gap: 0.3rem;
       }
 
       .form-label {
         font-size: 0.8rem;
         font-weight: 600;
         color: var(--text-secondary);
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+      }
+
+      .label-subtext {
+        font-size: 0.72rem;
+        font-weight: normal;
+        color: var(--text-muted);
+      }
+
+      .form-help {
+        margin: 0.15rem 0 0 0;
+        font-size: 0.72rem;
+        line-height: 1.35;
+        color: var(--text-muted);
+      }
+
+      .settlement-box {
+        background: var(--bg-subtle);
+        padding: 0.75rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-subtle);
       }
 
       .form-input,
       .form-select,
       .form-textarea {
-        padding: 0.65rem 0.85rem;
+        padding: 0.55rem 0.75rem;
         border-radius: var(--radius-md);
         background: var(--bg-subtle);
         border: 1px solid var(--border-subtle);
         color: var(--text-primary);
         font-family: var(--font-sans);
-        font-size: 0.9rem;
+        font-size: 0.875rem;
         outline: none;
         transition: all var(--transition-fast);
+        box-sizing: border-box;
+        width: 100%;
       }
 
       .form-textarea {
         resize: vertical;
-        min-height: 60px;
-        line-height: 1.4;
+        min-height: 48px;
+        line-height: 1.35;
       }
 
       .form-input:focus,
@@ -677,7 +735,8 @@ export class PengaAccounts extends LitElement {
       }
 
       .modal-footer {
-        padding: 1rem 1.5rem;
+        flex-shrink: 0;
+        padding: 0.85rem 1.25rem;
         border-top: 1px solid var(--border-subtle);
         display: flex;
         align-items: center;
@@ -1548,62 +1607,79 @@ export class PengaAccounts extends LitElement {
                         ></textarea>
                       </div>
 
-                      <div class="form-group">
-                        <label class="form-label">Account Type</label>
-                        <select
-                          class="form-select"
-                          .value="${this.createType}"
-                          @change="${this.handleTypeChange}"
-                          ?disabled="${Boolean(this.createParentId)}"
-                        >
-                          <option value="ASSET">
-                            ASSET (Liquid, cash, checking)
-                          </option>
-                          <option value="LIABILITY">
-                            LIABILITY (Debt, credit cards)
-                          </option>
-                          <option value="SETTLEMENT">
-                            SETTLEMENT (Tracks money owed between you & others)
-                          </option>
-                          <option value="EQUITY">
-                            EQUITY (Opening balances, capital)
-                          </option>
-                          <option value="INCOME">
-                            INCOME (Salary, dividends)
-                          </option>
-                          <option value="EXPENSE">
-                            EXPENSE (Groceries, transport)
-                          </option>
-                        </select>
-                        ${
-                          this.createType === 'SETTLEMENT'
-                            ? html`
-                                <p
-                                  style="margin: 0.35rem 0 0 0; font-size: 0.75rem; color: var(--text-muted);"
-                                >
-                                  Tracks money owed between you and another
-                                  person. The balance may move in either
-                                  direction.
-                                </p>
-                              `
-                            : nothing
-                        }
+                      <div class="grid-2">
+                        <div class="form-group">
+                          <label class="form-label">Account Type</label>
+                          <select
+                            class="form-select"
+                            .value="${this.createType}"
+                            @change="${this.handleTypeChange}"
+                            ?disabled="${Boolean(this.createParentId)}"
+                          >
+                            <option value="ASSET">
+                              ASSET (Liquid, cash, checking)
+                            </option>
+                            <option value="LIABILITY">
+                              LIABILITY (Debt, credit cards)
+                            </option>
+                            <option value="SETTLEMENT">
+                              SETTLEMENT (Tracks money owed between you & others)
+                            </option>
+                            <option value="EQUITY">
+                              EQUITY (Opening balances, capital)
+                            </option>
+                            <option value="INCOME">
+                              INCOME (Salary, dividends)
+                            </option>
+                            <option value="EXPENSE">
+                              EXPENSE (Groceries, transport)
+                            </option>
+                          </select>
+                        </div>
+
+                        <div class="form-group">
+                          <label class="form-label"
+                            >Parent Account (Tree Hierarchy)</label
+                          >
+                          <select
+                            class="form-select"
+                            .value="${this.createParentId}"
+                            @change="${this.handleParentChange}"
+                          >
+                            <option value="">None (Top-Level Account)</option>
+                            ${this.flatAccounts
+                              .filter(
+                                (acc) =>
+                                  !this.editingAccountId ||
+                                  acc.id !== this.editingAccountId,
+                              )
+                              .map(
+                                (acc) => html`
+                                  <option value="${acc.id}">
+                                    ${acc.name} (${acc.type})
+                                  </option>
+                                `,
+                              )}
+                          </select>
+                        </div>
                       </div>
 
                       ${
                         this.createType === 'SETTLEMENT'
                           ? html`
-                              <div
-                                class="form-group"
-                                style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);"
-                              >
+                              <p class="form-help">
+                                Tracks money owed between you and another
+                                person. The balance may move in either
+                                direction.
+                              </p>
+                              <div class="form-group settlement-box">
                                 <label
                                   class="form-label"
-                                  style="margin-bottom: 0.4rem; font-weight: 600;"
+                                  style="font-size: 0.78rem; font-weight: 600;"
                                   >Opening position</label
                                 >
                                 <div
-                                  style="display: flex; gap: 1.25rem; margin-bottom: 0.75rem; flex-wrap: wrap;"
+                                  style="display: flex; gap: 1.25rem; margin-bottom: 0.5rem; flex-wrap: wrap;"
                                 >
                                   <label
                                     style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer;"
@@ -1646,9 +1722,7 @@ export class PengaAccounts extends LitElement {
                                 ${
                                   this.createSettlementPosition !== 'settled'
                                     ? html`
-                                        <div
-                                          style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.4rem;"
-                                        >
+                                        <div class="grid-2">
                                           <div>
                                             <label
                                               class="form-label"
@@ -1680,11 +1754,9 @@ export class PengaAccounts extends LitElement {
                                       `
                                     : nothing
                                 }
-                                <p
-                                  style="margin: 0.25rem 0 0 0; font-size: 0.72rem; color: var(--text-muted);"
-                                >
+                                <p class="form-help">
                                   Positive means they owe you. Negative means
-                                  you owe them.
+                                  you owe them. Leave empty to keep existing balance.
                                 </p>
                               </div>
                             `
@@ -1694,72 +1766,39 @@ export class PengaAccounts extends LitElement {
                         this.createType === 'ASSET' ||
                         this.createType === 'LIABILITY'
                           ? html`
-                              <div class="form-group">
-                                <label class="form-label">
-                                  Opening Balance (Optional)
-                                  <span
-                                    style="font-size: 0.75rem; font-weight: normal; color: var(--text-muted);"
-                                  >
-                                    — auto-creates opening transaction against
-                                    Equity
-                                  </span>
-                                </label>
-                                <input
-                                  type="text"
-                                  class="form-input"
-                                  placeholder="${this.createType === 'ASSET' ? 'e.g. 1500.00' : 'e.g. -450.00'}"
-                                  .value="${this.createInitialBalance}"
-                                  @input="${(e: Event) => (this.createInitialBalance = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
-                                />
+                              <div class="grid-2">
+                                <div class="form-group">
+                                  <label class="form-label">
+                                    Opening Balance
+                                    <span class="label-subtext">
+                                      (Optional, vs Equity)
+                                    </span>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="${this.createType === 'ASSET' ? 'e.g. 1500.00' : 'e.g. -450.00'}"
+                                    .value="${this.createInitialBalance}"
+                                    @input="${(e: Event) => (this.createInitialBalance = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
+                                  />
+                                </div>
+                                <div class="form-group">
+                                  <label class="form-label">Opening-balance date</label>
+                                  <input
+                                    type="date"
+                                    class="form-input"
+                                    .value=${this.createSettlementDate}
+                                    @input=${(e: Event) => (this.createSettlementDate = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}
+                                  />
+                                </div>
                               </div>
+                              <p class="form-help">
+                                Balance at beginning of selected date (auto-creates opening transaction against Equity; negative amounts represent debt). Leave empty to keep existing balance.
+                              </p>
                             `
                           : nothing
                       }
-                      ${
-                        ['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(
-                          this.createType,
-                        )
-                          ? html`<div class="form-group">
-                              ${this.createType !== 'SETTLEMENT' ? html`<label class="form-label">Opening-balance date</label><input type="date" class="form-input" .value=${this.createSettlementDate} @input=${(e: Event) => (this.createSettlementDate = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)} />` : nothing}
-                              <p>
-                                Enter the balance at the beginning of the
-                                selected date, before ordinary transactions on
-                                that date. Negative amounts represent debt.
-                                Opening balances use equity, never income or
-                                expenses. Leave the amount empty to keep the
-                                existing balance. To change an existing opening
-                                balance, edit it in Transactions; delete it
-                                there before entering a replacement.
-                              </p>
-                            </div>`
-                          : nothing
-                      }
-                      ${this.actionError ? html`<p role="alert">${this.actionError}</p>` : nothing}
-                      <div class="form-group">
-                        <label class="form-label"
-                          >Parent Account (Tree Hierarchy)</label
-                        >
-                        <select
-                          class="form-select"
-                          .value="${this.createParentId}"
-                          @change="${this.handleParentChange}"
-                        >
-                          <option value="">None (Top-Level Account)</option>
-                          ${this.flatAccounts
-                            .filter(
-                              (acc) =>
-                                !this.editingAccountId ||
-                                acc.id !== this.editingAccountId,
-                            )
-                            .map(
-                              (acc) => html`
-                                <option value="${acc.id}">
-                                  ${acc.name} (${acc.type})
-                                </option>
-                              `,
-                            )}
-                        </select>
-                      </div>
+                      ${this.actionError ? html`<p role="alert" style="margin: 0; color: var(--color-danger); font-size: 0.85rem;">${this.actionError}</p>` : nothing}
 
                       <div class="form-group">
                         <label class="form-label">Icon</label>

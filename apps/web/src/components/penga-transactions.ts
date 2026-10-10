@@ -676,12 +676,14 @@ export class PengaTransactions extends LitElement {
         box-shadow: var(--shadow-md);
         width: 100%;
         max-width: 500px;
+        max-height: min(90vh, 90dvh);
         overflow: hidden;
         display: flex;
         flex-direction: column;
       }
 
       .modal-header {
+        flex-shrink: 0;
         padding: 1.15rem 1.5rem;
         border-bottom: 1px solid var(--border-subtle);
         display: flex;
@@ -719,6 +721,9 @@ export class PengaTransactions extends LitElement {
         color: var(--text-primary);
         font-size: 0.9rem;
         line-height: 1.5;
+        overflow-y: auto;
+        min-height: 0;
+        flex: 1;
       }
 
       .modal-body p {
@@ -726,6 +731,7 @@ export class PengaTransactions extends LitElement {
       }
 
       .modal-footer {
+        flex-shrink: 0;
         padding: 1rem 1.5rem;
         border-top: 1px solid var(--border-subtle);
         display: flex;

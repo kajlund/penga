@@ -23,9 +23,9 @@ export class IconPicker extends LitElement {
       font: inherit;
     }
     .choices {
-      max-height: 180px;
+      max-height: 140px;
       overflow: auto;
-      margin-top: 0.5rem;
+      margin-top: 0.35rem;
     }
     h4 {
       font-size: 0.72rem;

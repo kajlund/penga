@@ -469,6 +469,9 @@ export class PengaBudgets extends LitElement {
         padding: 2rem;
         width: 90%;
         max-width: 480px;
+        max-height: min(90vh, 90dvh);
+        overflow-y: auto;
+        box-sizing: border-box;
         box-shadow: var(--shadow-md);
       }
 
