@@ -843,6 +843,47 @@ export class PengaAccounts extends LitElement {
   private createSettlementDate = '';
 
   @state() private actionError = '';
+
+  private initialFormState: {
+    name: string;
+    description: string;
+    type: string;
+    parentId: string;
+    icon: string;
+    initialBalance: string;
+    settlementPosition: string;
+    settlementDate: string;
+  } | null = null;
+
+  public isFormDirty(): boolean {
+    if (!this.initialFormState) return false;
+    return (
+      this.createName !== this.initialFormState.name ||
+      this.createDescription !== this.initialFormState.description ||
+      this.createType !== this.initialFormState.type ||
+      this.createParentId !== this.initialFormState.parentId ||
+      this.createIcon !== this.initialFormState.icon ||
+      this.createInitialBalance !== this.initialFormState.initialBalance ||
+      this.createSettlementPosition !== this.initialFormState.settlementPosition ||
+      this.createSettlementDate !== this.initialFormState.settlementDate
+    );
+  }
+
+  public requestCloseModal(): void {
+    if (this.isFormDirty()) {
+      if (!confirm('Discard unsaved changes?')) {
+        return;
+      }
+    }
+    this.closeModal();
+  }
+
+  public closeModal(): void {
+    this.isCreateModalOpen = false;
+    this.editingAccountId = null;
+    this.initialFormState = null;
+  }
+
   private today() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -872,6 +913,24 @@ export class PengaAccounts extends LitElement {
   };
 
   private handleWindowKeyDown = (e: KeyboardEvent) => {
+    if (this.isCreateModalOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.requestCloseModal();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const form = this.shadowRoot?.querySelector<HTMLFormElement>('.modal-box form');
+        if (form) {
+          form.requestSubmit();
+        } else {
+          this.submitCreate(new Event('submit'));
+        }
+        return;
+      }
+    }
+
     if (e.key === 'Escape') {
       this.openMenuAccountId = null;
       this.openMenuUpwards = false;
@@ -1010,6 +1069,16 @@ export class PengaAccounts extends LitElement {
     this.createSettlementPosition = 'they-owe';
     this.createSettlementDate = this.today();
     this.actionError = '';
+    this.initialFormState = {
+      name: this.createName,
+      description: this.createDescription,
+      type: this.createType,
+      parentId: this.createParentId,
+      icon: this.createIcon,
+      initialBalance: this.createInitialBalance,
+      settlementPosition: this.createSettlementPosition,
+      settlementDate: this.createSettlementDate,
+    };
     this.isCreateModalOpen = true;
   }
 
@@ -1026,6 +1095,16 @@ export class PengaAccounts extends LitElement {
     this.createParentId = node.parentId || '';
     this.createIcon = node.icon || '';
     this.createColor = node.color || this.getDefaultColor(node.type);
+    this.initialFormState = {
+      name: this.createName,
+      description: this.createDescription,
+      type: this.createType,
+      parentId: this.createParentId,
+      icon: this.createIcon,
+      initialBalance: this.createInitialBalance,
+      settlementPosition: this.createSettlementPosition,
+      settlementDate: this.createSettlementDate,
+    };
     this.isCreateModalOpen = true;
   }
 
@@ -1126,8 +1205,7 @@ export class PengaAccounts extends LitElement {
         );
       }
 
-      this.isCreateModalOpen = false;
-      this.editingAccountId = null;
+      this.closeModal();
       await this.fetchAccounts();
     } catch (err) {
       this.actionError =
@@ -1554,8 +1632,7 @@ export class PengaAccounts extends LitElement {
                 class="modal-backdrop"
                 @click="${(e: MouseEvent) => {
                   if (e.target === e.currentTarget) {
-                    this.isCreateModalOpen = false;
-                    this.editingAccountId = null;
+                    this.requestCloseModal();
                   }
                 }}"
               >
@@ -1572,10 +1649,7 @@ export class PengaAccounts extends LitElement {
                     </h3>
                     <button
                       class="modal-close"
-                      @click="${() => {
-                        this.isCreateModalOpen = false;
-                        this.editingAccountId = null;
-                      }}"
+                      @click="${() => this.requestCloseModal()}"
                     >
                       ${icon('x', 'ASSET', 16)}
                     </button>
@@ -1814,10 +1888,7 @@ export class PengaAccounts extends LitElement {
                       <button
                         type="button"
                         class="btn-secondary"
-                        @click="${() => {
-                          this.isCreateModalOpen = false;
-                          this.editingAccountId = null;
-                        }}"
+                        @click="${() => this.requestCloseModal()}"
                       >
                         Cancel
                       </button>

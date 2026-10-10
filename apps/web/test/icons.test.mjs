@@ -280,3 +280,86 @@ test('account deletion shows the API dependency explanation inline without a bro
     globalThis.alert = previousAlert;
   }
 });
+
+test('modal escape and click outside prompt verification only when dirty', async () => {
+  const component = document.createElement('penga-accounts');
+  document.body.append(component);
+  await settle(component);
+  let confirmCalls = 0;
+  let confirmResult = false;
+  const prevConfirm = globalThis.confirm;
+  globalThis.confirm = () => {
+    confirmCalls++;
+    return confirmResult;
+  };
+  try {
+    // Open clean modal
+    component.openCreateModal();
+    await settle(component);
+    assert.equal(component.isCreateModalOpen, true);
+
+    // Escape when clean should close immediately without confirm
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await settle(component);
+    assert.equal(component.isCreateModalOpen, false);
+    assert.equal(confirmCalls, 0);
+
+    // Reopen and make changes
+    component.openCreateModal();
+    await settle(component);
+    component.createName = 'Groceries';
+    assert.equal(component.isFormDirty(), true);
+
+    // Escape when dirty: user declines confirm -> stays open
+    confirmResult = false;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await settle(component);
+    assert.equal(confirmCalls, 1);
+    assert.equal(component.isCreateModalOpen, true);
+    assert.equal(component.createName, 'Groceries');
+
+    // Click outside when dirty: user declines confirm -> stays open
+    const backdrop = component.shadowRoot.querySelector('.modal-backdrop');
+    backdrop.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await settle(component);
+    assert.equal(confirmCalls, 2);
+    assert.equal(component.isCreateModalOpen, true);
+
+    // Click outside when dirty: user accepts confirm -> closes
+    confirmResult = true;
+    backdrop.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await settle(component);
+    assert.equal(confirmCalls, 3);
+    assert.equal(component.isCreateModalOpen, false);
+  } finally {
+    component.remove();
+    globalThis.confirm = prevConfirm;
+  }
+});
+
+test('modal submits via Ctrl+Enter keyboard shortcut', async () => {
+  let submitted = false;
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (options && options.method === 'POST') {
+      submitted = true;
+    }
+    return { ok: true, json: async () => ({ data: [] }) };
+  };
+  const component = document.createElement('penga-accounts');
+  document.body.append(component);
+  await settle(component);
+  try {
+    component.openCreateModal();
+    await settle(component);
+    component.createName = 'Savings';
+    await settle(component);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+    await settle(component);
+    assert.equal(submitted, true);
+    assert.equal(component.isCreateModalOpen, false);
+  } finally {
+    component.remove();
+    globalThis.fetch = prevFetch;
+  }
+});

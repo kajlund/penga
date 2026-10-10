@@ -657,10 +657,63 @@ export class PengaTemplates extends LitElement {
   @state()
   private isSaving = false;
 
+  private initialTemplateSnapshot: string | null = null;
+
+  public serializeTemplateState(): string {
+    return JSON.stringify({
+      name: this.templateName,
+      payee: this.templatePayee,
+      note: this.templateNote,
+      icon: this.templateIcon,
+      splits: this.templateSplits,
+    });
+  }
+
+  public isDirty(): boolean {
+    if (!this.initialTemplateSnapshot) return false;
+    return this.serializeTemplateState() !== this.initialTemplateSnapshot;
+  }
+
+  public captureInitialState(): void {
+    this.initialTemplateSnapshot = this.serializeTemplateState();
+  }
+
+  public requestCloseModal(): void {
+    if (this.isDirty()) {
+      if (!confirm('Discard unsaved changes?')) {
+        return;
+      }
+    }
+    this.closeModal();
+  }
+
+  public closeModal(): void {
+    this.isModalOpen = false;
+    this.editingTemplate = null;
+    this.initialTemplateSnapshot = null;
+  }
+
   override connectedCallback() {
     super.connectedCallback();
     this.fetchData();
+    window.addEventListener('keydown', this.handleKeyDown);
   }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('keydown', this.handleKeyDown);
+  }
+
+  private handleKeyDown = (e: KeyboardEvent) => {
+    if (!this.isModalOpen) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.requestCloseModal();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      this.handleSaveTemplate();
+    }
+  };
 
   public async fetchData() {
     this.isLoading = true;
@@ -736,6 +789,7 @@ export class PengaTemplates extends LitElement {
       { id: '2', accountId: destAccId, amount: '0.00' },
     ];
     this.isModalOpen = true;
+    this.captureInitialState();
   }
 
   private handleOpenEdit(template: TransactionTemplateWithSplits) {
@@ -760,6 +814,7 @@ export class PengaTemplates extends LitElement {
     }
 
     this.isModalOpen = true;
+    this.captureInitialState();
   }
 
   private async handleDelete(template: TransactionTemplateWithSplits) {
@@ -849,7 +904,7 @@ export class PengaTemplates extends LitElement {
       }
 
       await this.fetchTemplates();
-      this.isModalOpen = false;
+      this.closeModal();
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1059,7 +1114,7 @@ export class PengaTemplates extends LitElement {
               <div
                 class="modal-backdrop"
                 @click="${(e: MouseEvent) => {
-                  if (e.target === e.currentTarget) this.isModalOpen = false;
+                  if (e.target === e.currentTarget) this.requestCloseModal();
                 }}"
               >
                 <div class="modal-card">
@@ -1075,7 +1130,7 @@ export class PengaTemplates extends LitElement {
                     </div>
                     <button
                       class="close-btn"
-                      @click="${() => (this.isModalOpen = false)}"
+                      @click="${() => this.requestCloseModal()}"
                       aria-label="Close dialog"
                       title="Close dialog"
                     >
@@ -1209,7 +1264,7 @@ export class PengaTemplates extends LitElement {
                   <div class="modal-footer">
                     <button
                       class="btn-cancel"
-                      @click="${() => (this.isModalOpen = false)}"
+                      @click="${() => this.requestCloseModal()}"
                     >
                       Cancel
                     </button>

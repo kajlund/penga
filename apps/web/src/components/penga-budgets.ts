@@ -604,10 +604,61 @@ export class PengaBudgets extends LitElement {
   @state()
   private modalNotes = '';
 
+  private initialModalState: {
+    accountId: string;
+    targetDollars: string;
+    notes: string;
+  } | null = null;
+
+  public isModalDirty(): boolean {
+    if (!this.initialModalState) return false;
+    return (
+      this.modalAccountId !== this.initialModalState.accountId ||
+      this.modalTargetDollars !== this.initialModalState.targetDollars ||
+      this.modalNotes !== this.initialModalState.notes
+    );
+  }
+
+  public requestCloseSetBudgetModal(): void {
+    if (this.isModalDirty()) {
+      if (!confirm('Discard unsaved changes?')) {
+        return;
+      }
+    }
+    this.closeSetBudgetModal();
+  }
+
+  public closeSetBudgetModal() {
+    this.isModalOpen = false;
+    this.initialModalState = null;
+  }
+
   override connectedCallback() {
     super.connectedCallback();
     this.fetchData();
+    window.addEventListener('keydown', this.handleKeyDown);
   }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('keydown', this.handleKeyDown);
+  }
+
+  private handleKeyDown = (e: KeyboardEvent) => {
+    if (!this.isModalOpen) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.requestCloseSetBudgetModal();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      const form = this.shadowRoot?.querySelector<HTMLFormElement>('.modal-dialog form');
+      if (form) {
+        form.requestSubmit();
+      } else {
+        this.handleSaveBudget(new Event('submit'));
+      }
+    }
+  };
 
   public async fetchData() {
     await Promise.all([this.fetchBudgetReport(), this.fetchExpenseAccounts()]);
@@ -701,11 +752,12 @@ export class PengaBudgets extends LitElement {
       this.modalTargetDollars = '';
       this.modalNotes = '';
     }
+    this.initialModalState = {
+      accountId: this.modalAccountId,
+      targetDollars: this.modalTargetDollars,
+      notes: this.modalNotes,
+    };
     this.isModalOpen = true;
-  }
-
-  private closeSetBudgetModal() {
-    this.isModalOpen = false;
   }
 
   private async adoptSuggestedTarget(item: BudgetProgressItem) {
@@ -754,7 +806,7 @@ export class PengaBudgets extends LitElement {
         throw new Error('Failed to save budget target');
       }
 
-      this.isModalOpen = false;
+      this.closeSetBudgetModal();
       this.fetchBudgetReport();
     } catch (err) {
       alert(
@@ -1067,7 +1119,12 @@ export class PengaBudgets extends LitElement {
       ${
         this.isModalOpen
           ? html`
-              <div class="modal-backdrop" @click="${this.closeSetBudgetModal}">
+              <div
+                class="modal-backdrop"
+                @click="${(e: MouseEvent) => {
+                  if (e.target === e.currentTarget) this.requestCloseSetBudgetModal();
+                }}"
+              >
                 <div
                   class="modal-dialog"
                   @click="${(e: Event) => e.stopPropagation()}"
@@ -1123,7 +1180,7 @@ export class PengaBudgets extends LitElement {
                       <button
                         type="button"
                         class="btn-secondary"
-                        @click="${this.closeSetBudgetModal}"
+                        @click="${this.requestCloseSetBudgetModal}"
                       >
                         Cancel
                       </button>

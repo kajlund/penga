@@ -336,6 +336,31 @@ test('Escape follows existing close behavior', async () => {
   await settle();
   assert.equal(form.isOpen, false);
 });
+test('modal escape and click outside prompt verification when dirty', async () => {
+  assert.equal(form.isOpen, true);
+  await type('Payee', 'Changed payee');
+  assert.equal(form.isDirty(), true);
+
+  globalThis.confirm = () => false;
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  await settle();
+  assert.equal(form.isOpen, true);
+
+  const backdrop = form.shadowRoot.querySelector('.modal-backdrop');
+  backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  await settle();
+  assert.equal(form.isOpen, true);
+
+  globalThis.confirm = (msg) => {
+    confirmations.push(msg);
+    return true;
+  };
+  backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  await settle();
+  assert.equal(confirmations.length, 1);
+  assert.match(confirmations[0], /Discard unsaved changes/i);
+  assert.equal(form.isOpen, false);
+});
 test('advanced templates can still save zero amount placeholders', async () => {
   await form.openWithTemplate(
     template([

@@ -1175,9 +1175,13 @@ export class TransactionForm extends LitElement {
         this.isSaveTemplateModalOpen = false;
         return;
       }
-      this.closeModal();
+      this.requestCloseModal();
     } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
+      if (this.isSaveTemplateModalOpen) {
+        this.confirmSaveAsTemplate();
+        return;
+      }
       if (this.canSubmit()) {
         this.submitTransaction();
       }
@@ -1351,6 +1355,7 @@ export class TransactionForm extends LitElement {
   override updated(changedProps: Map<string, unknown>) {
     if (changedProps.has('isOpen') && this.isOpen) {
       this.returnFocus = document.activeElement as HTMLElement | null;
+      this.captureInitialState();
       void this.updateComplete.then(() =>
         this.shadowRoot
           ?.querySelector<HTMLInputElement>('input[type=date]')
@@ -1463,6 +1468,7 @@ export class TransactionForm extends LitElement {
     this.applyTemplate(tpl);
     this.preparedOpen = true;
     this.isOpen = true;
+    this.captureInitialState();
     this.requestUpdate();
   }
 
@@ -1484,6 +1490,7 @@ export class TransactionForm extends LitElement {
     this.entry = entryFromSplits(tx.splits, this.availableAccounts);
     this.preparedOpen = true;
     this.isOpen = true;
+    this.captureInitialState();
     this.requestUpdate();
   }
 
@@ -1561,6 +1568,7 @@ export class TransactionForm extends LitElement {
     this.resetForm(preselectedAccountId);
     this.preparedOpen = true;
     this.isOpen = true;
+    this.captureInitialState();
     this.requestUpdate();
   }
 
@@ -1571,8 +1579,40 @@ export class TransactionForm extends LitElement {
     this.populateForEdit(tx);
     this.preparedOpen = true;
     this.isOpen = true;
+    this.captureInitialState();
     this.requestUpdate();
   }
+
+  private initialStateSnapshot: string | null = null;
+
+  public serializeFormState(): string {
+    return JSON.stringify({
+      date: this.transactionDate,
+      payee: this.payee,
+      note: this.note,
+      isCleared: this.isCleared,
+      tags: Array.from(this.selectedTagIds).sort(),
+      entry: this.entry,
+    });
+  }
+
+  public isDirty(): boolean {
+    if (!this.initialStateSnapshot) return false;
+    return this.serializeFormState() !== this.initialStateSnapshot;
+  }
+
+  public captureInitialState(): void {
+    this.initialStateSnapshot = this.serializeFormState();
+  }
+
+  public requestCloseModal = () => {
+    if (this.isDirty()) {
+      if (!confirm('Discard unsaved changes?')) {
+        return;
+      }
+    }
+    this.closeModal();
+  };
 
   public closeModal() {
     this.preparedOpen = false;
@@ -1580,6 +1620,7 @@ export class TransactionForm extends LitElement {
     this.transactionToEdit = null;
     this.isSaveTemplateModalOpen = false;
     this.isTemplateDropdownOpen = false;
+    this.initialStateSnapshot = null;
     this.returnFocus?.focus();
     this.dispatchEvent(
       new CustomEvent('close', { bubbles: true, composed: true }),
@@ -2065,7 +2106,7 @@ export class TransactionForm extends LitElement {
       <div
         class="modal-backdrop"
         @click="${(e: MouseEvent) => {
-          if (e.target === e.currentTarget) this.closeModal();
+          if (e.target === e.currentTarget) this.requestCloseModal();
         }}"
       >
         <div
@@ -2090,8 +2131,7 @@ export class TransactionForm extends LitElement {
             </div>
             <button
               class="close-btn"
-              @click="${this.closeModal}"
-              aria-label="Close modal"
+              @click="${this.requestCloseModal}"
               aria-label="Close dialog"
               title="Close dialog"
             >
@@ -2340,7 +2380,7 @@ export class TransactionForm extends LitElement {
               <button
                 type="button"
                 class="btn-cancel"
-                @click="${this.closeModal}"
+                @click="${this.requestCloseModal}"
               >
                 Cancel
               </button>

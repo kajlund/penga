@@ -1028,12 +1028,20 @@ export class PengaTransactions extends LitElement {
   private handleWindowKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       if (this.deleteModalTx || this.voidModalTx) {
-        this.closeModals();
+        this.requestCloseModals();
         return;
       }
       if (this.openMenuTxId) {
         this.openMenuTxId = null;
         this.openMenuUpwards = false;
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      if (this.deleteModalTx) {
+        e.preventDefault();
+        this.handleDeleteSubmit();
+      } else if (this.voidModalTx) {
+        e.preventDefault();
+        this.handleVoidSubmit();
       }
     }
   };
@@ -1472,6 +1480,15 @@ export class PengaTransactions extends LitElement {
     this.deleteModalTx = null;
     this.voidModalTx = null;
     this.actionError = null;
+  }
+
+  public requestCloseModals() {
+    if (this.voidModalTx && this.voidReason && this.voidReason.trim() !== '') {
+      if (!confirm('Discard unsaved changes?')) {
+        return;
+      }
+    }
+    this.closeModals();
   }
 
   private showToast(msg: string) {
@@ -2250,7 +2267,12 @@ export class PengaTransactions extends LitElement {
     if (!this.deleteModalTx) return nothing;
     const tx = this.deleteModalTx;
     return html`
-      <div class="modal-backdrop" @click="${this.closeModals}">
+      <div
+        class="modal-backdrop"
+        @click="${(e: MouseEvent) => {
+          if (e.target === e.currentTarget) this.requestCloseModals();
+        }}"
+      >
         <div class="modal-card" @click="${(e: Event) => e.stopPropagation()}">
           <div class="modal-header">
             <h3>
@@ -2259,7 +2281,7 @@ export class PengaTransactions extends LitElement {
             <button
               type="button"
               class="modal-close-btn"
-              @click="${this.closeModals}"
+              @click="${this.requestCloseModals}"
               title="Close"
               aria-label="Close dialog"
               title="Close dialog"
@@ -2290,7 +2312,7 @@ export class PengaTransactions extends LitElement {
             <button
               type="button"
               class="btn-secondary"
-              @click="${this.closeModals}"
+              @click="${this.requestCloseModals}"
               ?disabled="${this.isDeleting}"
             >
               Cancel
@@ -2313,14 +2335,19 @@ export class PengaTransactions extends LitElement {
     if (!this.voidModalTx) return nothing;
     const tx = this.voidModalTx;
     return html`
-      <div class="modal-backdrop" @click="${this.closeModals}">
+      <div
+        class="modal-backdrop"
+        @click="${(e: MouseEvent) => {
+          if (e.target === e.currentTarget) this.requestCloseModals();
+        }}"
+      >
         <div class="modal-card" @click="${(e: Event) => e.stopPropagation()}">
           <div class="modal-header">
             <h3>Reverse cleared transaction?</h3>
             <button
               type="button"
               class="modal-close-btn"
-              @click="${this.closeModals}"
+              @click="${this.requestCloseModals}"
               title="Close"
               aria-label="Close dialog"
               title="Close dialog"
@@ -2365,7 +2392,7 @@ export class PengaTransactions extends LitElement {
             <button
               type="button"
               class="btn-secondary"
-              @click="${this.closeModals}"
+              @click="${this.requestCloseModals}"
               ?disabled="${this.isVoiding}"
             >
               Cancel
