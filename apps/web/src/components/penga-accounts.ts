@@ -1,7 +1,7 @@
 import { calmStyles } from './calm-styles.js';
 import './icon-picker.js';
 import { icon, resolveIcon } from './icons.js';
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css, nothing, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { AccountType, parseMoney, type AccountTreeNode } from '@penga/shared';
 
@@ -895,6 +895,7 @@ export class PengaAccounts extends LitElement {
     name: string;
     description?: string | null;
     type: AccountType;
+    parentId?: string | null;
   }[] = [];
 
   private handleWindowClick = (e: MouseEvent) => {
@@ -950,6 +951,24 @@ export class PengaAccounts extends LitElement {
     window.removeEventListener('keydown', this.handleWindowKeyDown);
   }
 
+  override updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties);
+    if (this.isCreateModalOpen) {
+      const parentSelect = this.shadowRoot?.querySelector<HTMLSelectElement>(
+        '#parent-account-select',
+      );
+      if (parentSelect && parentSelect.value !== this.createParentId) {
+        parentSelect.value = this.createParentId;
+      }
+      const typeSelect = this.shadowRoot?.querySelector<HTMLSelectElement>(
+        '#account-type-select',
+      );
+      if (typeSelect && typeSelect.value !== this.createType) {
+        typeSelect.value = this.createType;
+      }
+    }
+  }
+
   async fetchAccounts() {
     this.isLoading = true;
     this.errorMessage = null;
@@ -982,12 +1001,39 @@ export class PengaAccounts extends LitElement {
       }));
   }
 
+  private getDescendantIds(accountId: string): Set<string> {
+    const descendants = new Set<string>();
+    const findAndCollect = (nodes: AccountTreeNode[]): boolean => {
+      for (const node of nodes) {
+        if (node.id === accountId) {
+          const collect = (children: AccountTreeNode[]) => {
+            for (const child of children) {
+              descendants.add(child.id);
+              if (child.children && child.children.length > 0) {
+                collect(child.children);
+              }
+            }
+          };
+          collect(node.children || []);
+          return true;
+        }
+        if (node.children && node.children.length > 0) {
+          if (findAndCollect(node.children)) return true;
+        }
+      }
+      return false;
+    };
+    findAndCollect(this.treeNodes);
+    return descendants;
+  }
+
   private extractFlatList(nodes: AccountTreeNode[]) {
     const list: {
       id: string;
       name: string;
       description?: string | null;
       type: AccountType;
+      parentId?: string | null;
     }[] = [];
     const traverse = (items: AccountTreeNode[]) => {
       for (const item of items) {
@@ -996,6 +1042,7 @@ export class PengaAccounts extends LitElement {
           name: item.name,
           description: item.description,
           type: item.type,
+          parentId: item.parentId,
         });
         if (item.children && item.children.length > 0) {
           traverse(item.children);
@@ -1685,27 +1732,46 @@ export class PengaAccounts extends LitElement {
                         <div class="form-group">
                           <label class="form-label">Account Type</label>
                           <select
+                            id="account-type-select"
                             class="form-select"
                             .value="${this.createType}"
                             @change="${this.handleTypeChange}"
                             ?disabled="${Boolean(this.createParentId)}"
                           >
-                            <option value="ASSET">
+                            <option
+                              value="ASSET"
+                              ?selected="${this.createType === 'ASSET'}"
+                            >
                               ASSET (Liquid, cash, checking)
                             </option>
-                            <option value="LIABILITY">
+                            <option
+                              value="LIABILITY"
+                              ?selected="${this.createType === 'LIABILITY'}"
+                            >
                               LIABILITY (Debt, credit cards)
                             </option>
-                            <option value="SETTLEMENT">
+                            <option
+                              value="SETTLEMENT"
+                              ?selected="${this.createType === 'SETTLEMENT'}"
+                            >
                               SETTLEMENT (Tracks money owed between you & others)
                             </option>
-                            <option value="EQUITY">
+                            <option
+                              value="EQUITY"
+                              ?selected="${this.createType === 'EQUITY'}"
+                            >
                               EQUITY (Opening balances, capital)
                             </option>
-                            <option value="INCOME">
+                            <option
+                              value="INCOME"
+                              ?selected="${this.createType === 'INCOME'}"
+                            >
                               INCOME (Salary, dividends)
                             </option>
-                            <option value="EXPENSE">
+                            <option
+                              value="EXPENSE"
+                              ?selected="${this.createType === 'EXPENSE'}"
+                            >
                               EXPENSE (Groceries, transport)
                             </option>
                           </select>
@@ -1716,24 +1782,37 @@ export class PengaAccounts extends LitElement {
                             >Parent Account (Tree Hierarchy)</label
                           >
                           <select
+                            id="parent-account-select"
                             class="form-select"
                             .value="${this.createParentId}"
                             @change="${this.handleParentChange}"
                           >
-                            <option value="">None (Top-Level Account)</option>
-                            ${this.flatAccounts
-                              .filter(
-                                (acc) =>
-                                  !this.editingAccountId ||
-                                  acc.id !== this.editingAccountId,
-                              )
-                              .map(
-                                (acc) => html`
-                                  <option value="${acc.id}">
-                                    ${acc.name} (${acc.type})
-                                  </option>
-                                `,
-                              )}
+                            <option
+                              value=""
+                              ?selected="${!this.createParentId}"
+                            >
+                              None (Top-Level Account)
+                            </option>
+                            ${(() => {
+                              const excludedIds = this.editingAccountId
+                                ? this.getDescendantIds(this.editingAccountId)
+                                : new Set<string>();
+                              if (this.editingAccountId) {
+                                excludedIds.add(this.editingAccountId);
+                              }
+                              return this.flatAccounts
+                                .filter((acc) => !excludedIds.has(acc.id))
+                                .map(
+                                  (acc) => html`
+                                    <option
+                                      value="${acc.id}"
+                                      ?selected="${acc.id === this.createParentId}"
+                                    >
+                                      ${acc.name} (${acc.type})
+                                    </option>
+                                  `,
+                                );
+                            })()}
                           </select>
                         </div>
                       </div>

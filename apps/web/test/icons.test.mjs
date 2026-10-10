@@ -363,3 +363,95 @@ test('modal submits via Ctrl+Enter keyboard shortcut', async () => {
     globalThis.fetch = prevFetch;
   }
 });
+
+test('editing account displays parent account and allows clearing to top-level', async () => {
+  const treeData = [
+    {
+      id: 'parent-1',
+      name: 'Bank Parent',
+      type: 'ASSET',
+      parentId: null,
+      icon: null,
+      color: null,
+      children: [
+        {
+          id: 'child-1',
+          name: 'Daily Checking',
+          type: 'ASSET',
+          parentId: 'parent-1',
+          icon: null,
+          color: null,
+          children: [
+            {
+              id: 'grandchild-1',
+              name: 'Sub Pocket',
+              type: 'ASSET',
+              parentId: 'child-1',
+              icon: null,
+              color: null,
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'other-1',
+      name: 'Savings Other',
+      type: 'ASSET',
+      parentId: null,
+      icon: null,
+      color: null,
+      children: [],
+    },
+  ];
+
+  let patchPayload = null;
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (options && options.method === 'PATCH') {
+      patchPayload = JSON.parse(options.body);
+      return { ok: true, json: async () => ({ data: { id: 'child-1' } }) };
+    }
+    return { ok: true, json: async () => ({ data: treeData }) };
+  };
+
+  const component = document.createElement('penga-accounts');
+  document.body.append(component);
+  await settle(component);
+
+  try {
+    const childNode = treeData[0].children[0];
+    component.openEditModal(childNode);
+    await settle(component);
+
+    const parentSelect = component.shadowRoot.querySelector('#parent-account-select');
+    assert.ok(parentSelect, 'Parent account select exists');
+    assert.equal(parentSelect.value, 'parent-1', 'Parent account is selected');
+    assert.equal(component.createParentId, 'parent-1');
+
+    // Verify descendant (grandchild-1) and self (child-1) are excluded from options
+    const optionValues = [...parentSelect.querySelectorAll('option')].map((o) => o.value);
+    assert.ok(optionValues.includes(''), 'None option is available');
+    assert.ok(optionValues.includes('parent-1'), 'Parent is available');
+    assert.ok(optionValues.includes('other-1'), 'Other account is available');
+    assert.equal(optionValues.includes('child-1'), false, 'Self is excluded');
+    assert.equal(optionValues.includes('grandchild-1'), false, 'Descendant is excluded');
+
+    // Clear parent account to None
+    parentSelect.value = '';
+    parentSelect.dispatchEvent(new Event('change'));
+    await settle(component);
+    assert.equal(component.createParentId, '', 'createParentId is cleared');
+    assert.equal(component.isFormDirty(), true, 'Form is marked dirty after clearing parent');
+
+    // Submit form and verify PATCH payload has parentId: null
+    await component.submitCreate(new Event('submit'));
+    assert.ok(patchPayload, 'PATCH was sent');
+    assert.equal(patchPayload.parentId, null, 'parentId sent as null to clear parent');
+  } finally {
+    component.remove();
+    globalThis.fetch = prevFetch;
+  }
+});
+
