@@ -15,20 +15,29 @@ export class PengaTransactions extends LitElement {
   static override styles = [
     css`
       :host {
-        display: block;
-        padding: 2rem 2.5rem 4rem;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        padding: 1.5rem 2.5rem 1.5rem;
         max-width: 1240px;
+        width: 100%;
         margin: 0 auto;
+        box-sizing: border-box;
         font-family: var(--font-sans);
+        overflow: hidden;
       }
 
       .page-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1.75rem;
+        margin-bottom: 1rem;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 0.75rem;
+        flex-shrink: 0;
       }
 
       .header-title h2 {
@@ -100,14 +109,15 @@ export class PengaTransactions extends LitElement {
         background: var(--bg-surface);
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-lg);
-        padding: 1.25rem 1.5rem;
-        margin-bottom: 1.5rem;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
         box-shadow: var(--shadow-md);
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: 1.25rem;
+        gap: 1rem;
+        flex-shrink: 0;
       }
 
       .reconciliation-stats {
@@ -151,9 +161,10 @@ export class PengaTransactions extends LitElement {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1.25rem;
+        margin-bottom: 0.75rem;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 0.75rem;
+        flex-shrink: 0;
       }
 
       .filter-pills {
@@ -213,7 +224,11 @@ export class PengaTransactions extends LitElement {
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-md);
-        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
       }
 
       .ledger-header {
@@ -230,6 +245,36 @@ export class PengaTransactions extends LitElement {
         letter-spacing: 0.06em;
         color: var(--text-muted);
         align-items: center;
+        flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      .transactions-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-strong) transparent;
+      }
+
+      .transactions-list::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .transactions-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .transactions-list::-webkit-scrollbar-thumb {
+        background: var(--border-strong);
+        border-radius: var(--radius-full);
+      }
+
+      .transactions-list::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
       }
 
       .transaction-row {
@@ -1084,15 +1129,29 @@ export class PengaTransactions extends LitElement {
       }
 
       .empty-state {
-        padding: 4rem 2rem;
+        padding: 3rem 2rem;
         text-align: center;
         color: var(--text-muted);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 180px;
+        overflow-y: auto;
       }
 
       .loading-state {
-        padding: 4rem 2rem;
+        padding: 3rem 2rem;
         text-align: center;
         color: var(--text-secondary);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 180px;
+        overflow-y: auto;
       }
 
       .spinner {
@@ -1347,8 +1406,13 @@ export class PengaTransactions extends LitElement {
     const triggerBtn = e.currentTarget as HTMLElement | null;
     if (triggerBtn) {
       const rect = triggerBtn.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      this.openMenuUpwards = spaceBelow < 170;
+      const spaceBelowWindow = window.innerHeight - rect.bottom;
+      const listEl = this.shadowRoot?.querySelector('.transactions-list');
+      const listRect = listEl?.getBoundingClientRect();
+      const spaceBelowList = listRect
+        ? listRect.bottom - rect.bottom
+        : spaceBelowWindow;
+      this.openMenuUpwards = spaceBelowWindow < 185 || spaceBelowList < 185;
     } else {
       this.openMenuUpwards = false;
     }

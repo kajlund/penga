@@ -28,7 +28,9 @@ export class PengaApp extends LitElement {
     css`
       :host {
         display: flex;
-        min-height: 100vh;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
         background-color: var(--bg-base);
         color: var(--text-primary);
         transition:
@@ -40,7 +42,9 @@ export class PengaApp extends LitElement {
       .app-layout {
         display: flex;
         width: 100%;
-        min-height: 100vh;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
       }
 
       .main-viewport {
@@ -48,6 +52,9 @@ export class PengaApp extends LitElement {
         display: flex;
         flex-direction: column;
         min-width: 0;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
         background-color: var(--bg-base);
       }
 
@@ -63,6 +70,7 @@ export class PengaApp extends LitElement {
         position: sticky;
         top: 0;
         z-index: 100;
+        flex-shrink: 0;
         transition:
           background var(--transition-normal),
           border-color var(--transition-normal);
@@ -90,6 +98,14 @@ export class PengaApp extends LitElement {
       .content-area {
         flex: 1;
         min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+
+      .content-area.fixed-layout {
+        overflow-y: hidden;
       }
 
       .placeholder-view {
@@ -267,7 +283,9 @@ export class PengaApp extends LitElement {
             </div>
           </header>
 
-          <main class="content-area">
+          <main
+            class="content-area ${this.currentView === 'transactions' || this.currentView === 'reconciliation' ? 'fixed-layout' : ''}"
+          >
             ${
               this.currentView === 'settings'
                 ? html`<penga-settings
