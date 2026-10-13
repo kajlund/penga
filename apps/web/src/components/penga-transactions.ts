@@ -6,6 +6,7 @@ import {
   formatMoney,
   type TransactionWithSplits,
   type Account,
+  type AccountType,
   type Tag,
 } from '@penga/shared';
 
@@ -217,7 +218,7 @@ export class PengaTransactions extends LitElement {
 
       .ledger-header {
         display: grid;
-        grid-template-columns: 24px 105px 1fr 115px 75px 32px;
+        grid-template-columns: 24px 24px 95px minmax(130px, 1.4fr) minmax(140px, 1.1fr) 115px 105px 32px;
         gap: 0.75rem;
         padding: 0.75rem 0.85rem 0.75rem 0.5rem;
         background: var(--bg-subtle);
@@ -264,10 +265,194 @@ export class PengaTransactions extends LitElement {
 
       .tx-main {
         display: grid;
-        grid-template-columns: 24px 105px 1fr 115px 75px 32px;
+        grid-template-columns: 24px 24px 95px minmax(130px, 1.4fr) minmax(140px, 1.1fr) 115px 105px 32px;
         align-items: center;
         padding: 0.85rem 0.85rem 0.85rem 0.5rem;
         gap: 0.75rem;
+        cursor: pointer;
+      }
+
+      /* Expand Toggle Button */
+      .expand-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .btn-expand {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        padding: 0;
+      }
+
+      .btn-expand:hover {
+        background: var(--bg-muted);
+        color: var(--text-primary);
+      }
+
+      .btn-expand svg {
+        transition: transform var(--transition-fast);
+      }
+
+      .btn-expand.expanded svg {
+        transform: rotate(90deg);
+      }
+
+      .btn-expand-toggle-all {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.65rem;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        font-family: var(--font-sans);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+
+      .btn-expand-toggle-all:hover {
+        background: var(--bg-muted);
+        color: var(--text-primary);
+        border-color: var(--border-strong);
+      }
+
+      /* From Account Column */
+      .from-account-cell {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .from-account-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      .from-account-icon {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .from-account-name {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .account-type-badge {
+        flex-shrink: 0;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.1rem 0.35rem;
+        border-radius: var(--radius-sm);
+        line-height: 1.2;
+      }
+
+      .account-type-badge.asset {
+        background: color-mix(in srgb, #52677c 15%, transparent);
+        color: #52677c;
+        border: 1px solid color-mix(in srgb, #52677c 30%, transparent);
+      }
+
+      .account-type-badge.liability {
+        background: color-mix(in srgb, #795e73 15%, transparent);
+        color: #795e73;
+        border: 1px solid color-mix(in srgb, #795e73 30%, transparent);
+      }
+
+      .account-type-badge.settlement {
+        background: color-mix(in srgb, #476f6c 15%, transparent);
+        color: #476f6c;
+        border: 1px solid color-mix(in srgb, #476f6c 30%, transparent);
+      }
+
+      .from-account-none {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+      }
+
+      /* Total Amount Column */
+      .total-amount-cell {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .total-amount-value {
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
+        text-align: right;
+      }
+
+      /* Expanded Panel (Splits & Notes) */
+      .tx-expanded-panel {
+        background: var(--bg-subtle);
+        border-top: 1px dashed var(--border-subtle);
+        padding: 0.75rem 1rem 0.85rem 3.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+
+      .tx-expanded-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        font-size: 0.825rem;
+        color: var(--text-secondary);
+        background: var(--bg-surface);
+        padding: 0.45rem 0.75rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-subtle);
+      }
+
+      .tx-expanded-note .note-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-shrink: 0;
+      }
+
+      .tx-expanded-note .note-text {
+        color: var(--text-secondary);
+        word-break: break-word;
+      }
+
+      .splits-detail-header {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 0.15rem;
       }
 
       /* Drag Handle */
@@ -864,12 +1049,9 @@ export class PengaTransactions extends LitElement {
 
       /* Nested Splits Detail */
       .splits-detail-list {
-        padding: 0.65rem 0.85rem 0.85rem 2.25rem;
         display: flex;
         flex-direction: column;
         gap: 0.4rem;
-        background: var(--bg-subtle);
-        border-top: 1px dashed var(--border-subtle);
       }
 
       .split-detail-line {
@@ -1001,6 +1183,114 @@ export class PengaTransactions extends LitElement {
 
   @state()
   private toastMessage: string | null = null;
+
+  @state()
+  private expandedTxIds = new Set<string>();
+
+  private toggleExpand(txId: string) {
+    const next = new Set(this.expandedTxIds);
+    if (next.has(txId)) {
+      next.delete(txId);
+    } else {
+      next.add(txId);
+    }
+    this.expandedTxIds = next;
+  }
+
+  private isTxExpanded(txId: string): boolean {
+    return this.expandedTxIds.has(txId);
+  }
+
+  private areAllExpanded(txs: TransactionWithSplits[]): boolean {
+    if (txs.length === 0) return false;
+    return txs.every((tx) => this.expandedTxIds.has(tx.id));
+  }
+
+  private toggleExpandAll(txs: TransactionWithSplits[]) {
+    if (this.areAllExpanded(txs)) {
+      this.expandedTxIds = new Set();
+    } else {
+      this.expandedTxIds = new Set(txs.map((tx) => tx.id));
+    }
+  }
+
+  private handleRowClick(e: MouseEvent, txId: string) {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    if (
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('.drag-handle') ||
+      target.closest('.actions-dropdown-container') ||
+      target.closest('.actions-menu')
+    ) {
+      return;
+    }
+    this.toggleExpand(txId);
+  }
+
+  private getFromAccount(tx: TransactionWithSplits): {
+    name: string;
+    type?: AccountType;
+    icon?: string | null;
+  } | null {
+    const resolveType = (
+      s: TransactionWithSplits['splits'][0],
+    ): AccountType | undefined => {
+      if (s.accountType) return s.accountType;
+      return this.accounts.find((a) => a.id === s.accountId)?.type;
+    };
+    const resolveName = (s: TransactionWithSplits['splits'][0]): string => {
+      if (s.accountName) return s.accountName;
+      return this.accounts.find((a) => a.id === s.accountId)?.name || 'Account';
+    };
+    const resolveIcon = (
+      s: TransactionWithSplits['splits'][0],
+    ): string | null | undefined => {
+      if (s.accountIcon !== undefined) return s.accountIcon;
+      return this.accounts.find((a) => a.id === s.accountId)?.icon;
+    };
+
+    const isAssetOrLiability = (type?: AccountType) =>
+      type === 'ASSET' || type === 'LIABILITY' || type === 'SETTLEMENT';
+
+    // 1. Source asset/liability/settlement (where money came from: negative split)
+    const negativeBalanceSplit = tx.splits.find(
+      (s) => s.amountCents < 0 && isAssetOrLiability(resolveType(s)),
+    );
+    if (negativeBalanceSplit) {
+      return {
+        name: resolveName(negativeBalanceSplit),
+        type: resolveType(negativeBalanceSplit),
+        icon: resolveIcon(negativeBalanceSplit),
+      };
+    }
+
+    // 2. Any asset/liability/settlement split (e.g. Income deposit where asset split > 0)
+    const anyBalanceSplit = tx.splits.find((s) =>
+      isAssetOrLiability(resolveType(s)),
+    );
+    if (anyBalanceSplit) {
+      return {
+        name: resolveName(anyBalanceSplit),
+        type: resolveType(anyBalanceSplit),
+        icon: resolveIcon(anyBalanceSplit),
+      };
+    }
+
+    // 3. Fallback: First negative split or first split
+    const fallbackSplit =
+      tx.splits.find((s) => s.amountCents < 0) || tx.splits[0];
+    if (fallbackSplit) {
+      return {
+        name: resolveName(fallbackSplit),
+        type: resolveType(fallbackSplit),
+        icon: resolveIcon(fallbackSplit),
+      };
+    }
+
+    return null;
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -1708,8 +1998,18 @@ export class PengaTransactions extends LitElement {
           </button>
         </div>
 
-        <div style="font-size: 0.8rem; color: var(--text-muted);">
-          Tip: Click any status badge to toggle cleared state
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="btn-expand-toggle-all"
+            @click="${() => this.toggleExpandAll(filteredTxs)}"
+          >
+            ${icon(this.areAllExpanded(filteredTxs) ? 'chevron-down' : 'chevron-right', 'ASSET', 14)}
+            <span>${this.areAllExpanded(filteredTxs) ? 'Collapse All' : 'Expand All'}</span>
+          </button>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">
+            Tip: Click any row to expand splits & notes
+          </div>
         </div>
       </div>
 
@@ -1721,10 +2021,16 @@ export class PengaTransactions extends LitElement {
             title="Drag handle to reorder within date"
             >${icon('grip-vertical', 'ASSET', 16)}</span
           >
+          <span
+            style="text-align: center; color: var(--text-muted); font-size: 0.85rem;"
+            title="Expand / collapse splits and notes"
+            >${icon('chevron-down', 'ASSET', 14)}</span
+          >
           <span>Date</span>
-          <span>Payee & Notes</span>
+          <span>Payee</span>
+          <span>From Account</span>
           <span style="text-align: center;">Status</span>
-          <span style="text-align: center;">Lines</span>
+          <span style="text-align: right;">Total Amount</span>
           <span></span>
         </div>
 
@@ -1785,16 +2091,21 @@ export class PengaTransactions extends LitElement {
                         const isOpeningBal = this.isOpeningBalance(tx);
                         const isVoided = Boolean(tx.voidedAt);
                         const isReversal = Boolean(tx.reversesTransactionId);
+                        const isExpanded = this.isTxExpanded(tx.id);
+                        const fromAcc = this.getFromAccount(tx);
 
                         return html`
                           <div
-                            class="transaction-row ${isVoided ? 'tx-voided' : ''} ${isReversal ? 'tx-reversal' : ''} ${this.draggedTxId === tx.id ? 'dragging' : ''} ${this.dragOverTxId === tx.id ? `drag-over-${this.dragOverPosition}` : ''}"
+                            class="transaction-row ${isVoided ? 'tx-voided' : ''} ${isReversal ? 'tx-reversal' : ''} ${this.draggedTxId === tx.id ? 'dragging' : ''} ${this.dragOverTxId === tx.id ? `drag-over-${this.dragOverPosition}` : ''} ${isExpanded ? 'expanded' : ''}"
                             data-tx-id="${tx.id}"
                             @dragover="${(e: DragEvent) => this.handleDragOver(e, tx)}"
                             @dragleave="${(e: DragEvent) => this.handleDragLeave(e, tx)}"
                             @drop="${(e: DragEvent) => this.handleDrop(e, tx)}"
                           >
-                            <div class="tx-main">
+                            <div
+                              class="tx-main"
+                              @click="${(e: MouseEvent) => this.handleRowClick(e, tx.id)}"
+                            >
                               <!-- Intraday drag handle -->
                               <div
                                 class="drag-handle-cell"
@@ -1810,11 +2121,27 @@ export class PengaTransactions extends LitElement {
                                 </div>
                               </div>
 
+                              <!-- Expand/collapse toggle -->
+                              <div class="expand-cell">
+                                <button
+                                  type="button"
+                                  class="btn-expand ${isExpanded ? 'expanded' : ''}"
+                                  @click="${(e: Event) => {
+                                    e.stopPropagation();
+                                    this.toggleExpand(tx.id);
+                                  }}"
+                                  title="${isExpanded ? 'Collapse transaction' : 'Expand to view splits and notes'}"
+                                  aria-label="${isExpanded ? 'Collapse' : 'Expand'}"
+                                >
+                                  ${icon('chevron-right', 'ASSET', 16)}
+                                </button>
+                              </div>
+
                               <span class="tx-date">${tx.transactionDate}</span>
 
                               <div class="tx-payee-group">
                                 <div class="tx-payee-row">
-                                  <span class="tx-payee"
+                                  <span class="tx-payee" title="${tx.payee || 'Unnamed Event'}"
                                     >${tx.payee || 'Unnamed Event'}</span
                                   >
                                   ${
@@ -1836,13 +2163,12 @@ export class PengaTransactions extends LitElement {
                                       : nothing
                                   }
                                 </div>
-                                ${tx.note ? html`<span class="tx-note">${tx.note}</span>` : nothing}
                                 ${
                                   isVoided
                                     ? html`
                                         <div class="tx-void-meta-row">
                                           <span class="tx-status-badge voided"
-                                            >${icon('ban', 'ASSET', 16)}
+                                            >${icon('ban', 'ASSET', 14)}
                                             Voided</span
                                           >
                                           ${tx.voidReason ? html`<span class="tx-void-meta">“${tx.voidReason}”</span>` : nothing}
@@ -1855,7 +2181,7 @@ export class PengaTransactions extends LitElement {
                                                     @click="${() => this.scrollToTx(tx.reversalTransactionId!)}"
                                                   >
                                                     View reversal
-                                                    ${icon('arrow-up-right', 'ASSET', 16)}
+                                                    ${icon('arrow-up-right', 'ASSET', 14)}
                                                   </button>
                                                 `
                                               : nothing
@@ -1867,7 +2193,7 @@ export class PengaTransactions extends LitElement {
                                           <div class="tx-void-meta-row">
                                             <span
                                               class="tx-status-badge reversal"
-                                              >${icon('undo-2', 'ASSET', 16)}
+                                              >${icon('undo-2', 'ASSET', 14)}
                                               Reversal</span
                                             >
                                             ${
@@ -1879,7 +2205,7 @@ export class PengaTransactions extends LitElement {
                                                       @click="${() => this.scrollToTx(tx.reversesTransactionId!)}"
                                                     >
                                                       View original
-                                                      ${icon('arrow-up-right', 'ASSET', 16)}
+                                                      ${icon('arrow-up-right', 'ASSET', 14)}
                                                     </button>
                                                   `
                                                 : nothing
@@ -1887,6 +2213,37 @@ export class PengaTransactions extends LitElement {
                                           </div>
                                         `
                                       : nothing
+                                }
+                              </div>
+
+                              <!-- From Account (Asset/Liability) -->
+                              <div class="from-account-cell">
+                                ${
+                                  fromAcc
+                                    ? html`
+                                        <div
+                                          class="from-account-pill"
+                                          title="${fromAcc.name} (${fromAcc.type || 'Account'})"
+                                        >
+                                          <span class="from-account-icon"
+                                            >${icon(fromAcc.icon, fromAcc.type || 'ASSET')}</span
+                                          >
+                                          <span class="from-account-name"
+                                            >${fromAcc.name}</span
+                                          >
+                                          ${
+                                            fromAcc.type
+                                              ? html`
+                                                  <span
+                                                    class="account-type-badge ${fromAcc.type.toLowerCase()}"
+                                                    >${fromAcc.type}</span
+                                                  >
+                                                `
+                                              : nothing
+                                          }
+                                        </div>
+                                      `
+                                    : html`<span class="from-account-none">—</span>`
                                 }
                               </div>
 
@@ -1908,9 +2265,12 @@ export class PengaTransactions extends LitElement {
                                 </button>
                               </div>
 
-                              <span class="splits-summary"
-                                >${tx.splits.length} splits</span
-                              >
+                              <!-- Total Amount -->
+                              <div class="total-amount-cell">
+                                <span class="total-amount-value">
+                                  ${this.getTransactionDisplayAmount(tx)}
+                                </span>
+                              </div>
 
                               <div class="tx-actions">
                                 <div class="actions-dropdown-container">
@@ -2215,32 +2575,52 @@ export class PengaTransactions extends LitElement {
                               </div>
                             </div>
 
-                            <!-- Sub-splits details -->
-                            <div class="splits-detail-list">
-                              ${tx.splits.map(
-                                (s) => html`
-                                  <div class="split-detail-line">
-                                    <span class="split-account-tag">
-                                      <span
-                                        >${icon(s.accountIcon, s.accountType || 'EXPENSE')}</span
-                                      >
-                                      <strong
-                                        >${s.accountName || 'Account'}</strong
-                                      >
-                                      <span
-                                        style="font-size: 0.7rem; color: var(--text-muted);"
-                                        >(${s.accountType})</span
-                                      >
-                                    </span>
-                                    <span
-                                      class="split-amount ${s.amountCents < 0 ? 'negative' : 'positive'}"
-                                    >
-                                      ${this.formatCents(s.amountCents)}
-                                    </span>
+                            <!-- Sub-splits and notes expanded panel -->
+                            ${isExpanded
+                              ? html`
+                                  <div class="tx-expanded-panel">
+                                    ${tx.note
+                                      ? html`
+                                          <div class="tx-expanded-note">
+                                            <span class="note-label">
+                                              ${icon('file-text', 'ASSET', 14)} Note:
+                                            </span>
+                                            <span class="note-text">${tx.note}</span>
+                                          </div>
+                                        `
+                                      : nothing}
+
+                                    <div class="splits-detail-list">
+                                      <div class="splits-detail-header">
+                                        <span>Splits (${tx.splits.length})</span>
+                                      </div>
+                                      ${tx.splits.map(
+                                        (s) => html`
+                                          <div class="split-detail-line">
+                                            <span class="split-account-tag">
+                                              <span
+                                                >${icon(s.accountIcon, s.accountType || 'EXPENSE')}</span
+                                              >
+                                              <strong
+                                                >${s.accountName || 'Account'}</strong
+                                              >
+                                              <span
+                                                style="font-size: 0.7rem; color: var(--text-muted);"
+                                                >(${s.accountType})</span
+                                              >
+                                            </span>
+                                            <span
+                                              class="split-amount ${s.amountCents < 0 ? 'negative' : 'positive'}"
+                                            >
+                                              ${this.formatCents(s.amountCents)}
+                                            </span>
+                                          </div>
+                                        `,
+                                      )}
+                                    </div>
                                   </div>
-                                `,
-                              )}
-                            </div>
+                                `
+                              : nothing}
                           </div>
                         `;
                       })}

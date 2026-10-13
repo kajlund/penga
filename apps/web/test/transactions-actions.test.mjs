@@ -398,3 +398,87 @@ test('void dialog opens and issues POST void request with reason and date upon c
     'Modal backdrop should be removed from DOM',
   );
 });
+
+test('transaction row renders single summary row when collapsed and reveals splits and notes when expanded', async () => {
+  const root = component.shadowRoot;
+  const row = root.querySelector('.transaction-row[data-tx-id="tx-unclear"]');
+  assert.ok(row, 'Transaction row tx-unclear exists');
+
+  // Verify single summary row columns
+  const dragHandle = row.querySelector('.drag-handle-cell .drag-handle');
+  assert.ok(dragHandle, 'Reorder drag handle exists');
+
+  const expandBtn = row.querySelector('.btn-expand');
+  assert.ok(expandBtn, 'Expand button exists');
+
+  const dateCol = row.querySelector('.tx-date');
+  assert.ok(dateCol && dateCol.textContent.includes('2026-09-25'), 'Date column rendered');
+
+  const payeeCol = row.querySelector('.tx-payee');
+  assert.ok(payeeCol && payeeCol.textContent.includes('Coffee Shop'), 'Payee column rendered');
+
+  const fromAccCol = row.querySelector('.from-account-cell');
+  assert.ok(fromAccCol, 'From Account column rendered');
+  assert.ok(fromAccCol.textContent.includes('Checking'), 'From Account name rendered');
+
+  const statusCol = row.querySelector('.status-cell .cleared-toggle');
+  assert.ok(statusCol, 'Status toggle rendered');
+
+  const amountCol = row.querySelector('.total-amount-cell .total-amount-value');
+  assert.ok(amountCol && amountCol.textContent.includes('5.50'), 'Total amount rendered');
+
+  // Verify collapsed state: no splits or notes panel
+  assert.equal(row.querySelector('.tx-expanded-panel'), null, 'Expanded panel not visible when collapsed');
+
+  // Expand the row via expand button
+  expandBtn.click();
+  await settle();
+
+  // Verify expanded state
+  const expandedPanel = row.querySelector('.tx-expanded-panel');
+  assert.ok(expandedPanel, 'Expanded panel is displayed after clicking expand');
+
+  const note = expandedPanel.querySelector('.tx-expanded-note');
+  assert.ok(note, 'Note is displayed in expanded panel');
+  assert.ok(note.textContent.includes('Morning latte'), 'Note text is displayed');
+
+  const splitsList = expandedPanel.querySelector('.splits-detail-list');
+  assert.ok(splitsList, 'Splits list is displayed in expanded panel');
+  const splitLines = splitsList.querySelectorAll('.split-detail-line');
+  assert.equal(splitLines.length, 2, 'All splits are shown in expanded list');
+
+  // Collapse again
+  expandBtn.click();
+  await settle();
+  assert.equal(row.querySelector('.tx-expanded-panel'), null, 'Panel collapses when clicking button again');
+});
+
+test('expand all and collapse all toggles all transactions', async () => {
+  const root = component.shadowRoot;
+  const toggleAllBtn = root.querySelector('.btn-expand-toggle-all');
+  assert.ok(toggleAllBtn, 'Expand All / Collapse All button exists in filters bar');
+  assert.ok(toggleAllBtn.textContent.includes('Expand All'));
+
+  // Click Expand All
+  toggleAllBtn.click();
+  await settle();
+
+  const expandedPanels = root.querySelectorAll('.tx-expanded-panel');
+  assert.equal(
+    expandedPanels.length,
+    component.transactions.length,
+    'All transaction panels should be expanded',
+  );
+  assert.ok(toggleAllBtn.textContent.includes('Collapse All'));
+
+  // Click Collapse All
+  toggleAllBtn.click();
+  await settle();
+
+  assert.equal(
+    root.querySelectorAll('.tx-expanded-panel').length,
+    0,
+    'All transaction panels should be collapsed',
+  );
+  assert.ok(toggleAllBtn.textContent.includes('Expand All'));
+});
