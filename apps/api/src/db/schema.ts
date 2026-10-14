@@ -298,3 +298,36 @@ export type NewTemplateSplit = typeof templateSplits.$inferInsert;
 
 export type TemplateTag = typeof templateTags.$inferSelect;
 export type NewTemplateTag = typeof templateTags.$inferInsert;
+import {
+  pgTable as table,
+  uuid as id,
+  date as day,
+  bigint,
+  timestamp as time,
+} from 'drizzle-orm/pg-core';
+export const reconciliations = table('reconciliations', {
+  id: id('id').defaultRandom().primaryKey(),
+  accountId: id('account_id')
+    .notNull()
+    .references(() => accounts.id),
+  startDate: day('start_date').notNull(),
+  closingDate: day('closing_date').notNull(),
+  startingBalanceCents: bigint('starting_balance_cents', {
+    mode: 'number',
+  }).notNull(),
+  closingBalanceCents: bigint('closing_balance_cents', {
+    mode: 'number',
+  }).notNull(),
+  completedAt: time('completed_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  undoneAt: time('undone_at', { withTimezone: true }),
+});
+export const reconciliationEntries = table('reconciliation_entries', {
+  splitId: id('split_id')
+    .primaryKey()
+    .references(() => splits.id),
+  reconciliationId: id('reconciliation_id')
+    .notNull()
+    .references(() => reconciliations.id),
+});

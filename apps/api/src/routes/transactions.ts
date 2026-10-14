@@ -15,6 +15,8 @@ import {
   accounts,
   tags,
   transactionTags,
+  reconciliationEntries,
+  reconciliations,
 } from '../db/index.js';
 import type {
   CreateTransactionInput,
@@ -450,6 +452,16 @@ transactionsRoute.get('/', async (c) => {
   }
 
   const conditions = [];
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  if (
+    (from && !validOpeningDate(from)) ||
+    (to && !validOpeningDate(to)) ||
+    (from && to && from > to)
+  )
+    return c.json({ error: 'Choose a valid inclusive date range.' }, 400);
+  if (from) conditions.push(sql`transaction_date >= ${from}`);
+  if (to) conditions.push(sql`transaction_date <= ${to}`);
   if (finalTxIdFilter) {
     conditions.push(inArray(transactions.id, finalTxIdFilter));
   }
@@ -489,6 +501,9 @@ transactionsRoute.get('/', async (c) => {
   const txIds = txRows.map((t) => t.id);
   const splitRows = await db
     .select({
+      reconciliationId: sql<
+        string | null
+      >`(select reconciliation_id from reconciliation_entries where split_id = ${splits.id})`,
       id: splits.id,
       transactionId: splits.transactionId,
       accountId: splits.accountId,
@@ -561,6 +576,9 @@ transactionsRoute.get('/:id', async (c) => {
 
   const splitRows = await db
     .select({
+      reconciliationId: sql<
+        string | null
+      >`(select reconciliation_id from reconciliation_entries where split_id = ${splits.id})`,
       id: splits.id,
       transactionId: splits.transactionId,
       accountId: splits.accountId,
@@ -673,6 +691,33 @@ transactionsRoute.patch('/:id', async (c) => {
       return c.json({ error: 'Transaction not found' }, 404);
     }
 
+    if (
+      body.splits !== undefined ||
+      body.transactionDate !== undefined ||
+      body.isCleared === false
+    ) {
+      const protectedEntries = await tx
+        .select({ id: reconciliations.id, date: reconciliations.closingDate })
+        .from(reconciliationEntries)
+        .innerJoin(splits, eq(splits.id, reconciliationEntries.splitId))
+        .innerJoin(
+          reconciliations,
+          eq(reconciliations.id, reconciliationEntries.reconciliationId),
+        )
+        .where(eq(splits.transactionId, id));
+      if (protectedEntries.length)
+        return c.json(
+          {
+            error:
+              'Protected by reconciliation ' +
+              protectedEntries[0].date +
+              ' (' +
+              protectedEntries[0].id +
+              '). Undo the latest reconciliation for that account first.',
+          },
+          409,
+        );
+    }
     if (existing.voidedAt) {
       return c.json({ error: 'Cannot edit a voided transaction' }, 409);
     }
@@ -930,6 +975,9 @@ transactionsRoute.patch('/:id', async (c) => {
 
     const splitRows = await tx
       .select({
+        reconciliationId: sql<
+          string | null
+        >`(select reconciliation_id from reconciliation_entries where split_id = ${splits.id})`,
         id: splits.id,
         transactionId: splits.transactionId,
         accountId: splits.accountId,
@@ -985,6 +1033,25 @@ transactionsRoute.delete('/:id', async (c) => {
         return { error: 'Transaction not found', status: 404 };
       }
 
+      const protectedEntries = await tx
+        .select({ id: reconciliations.id, date: reconciliations.closingDate })
+        .from(reconciliationEntries)
+        .innerJoin(splits, eq(splits.id, reconciliationEntries.splitId))
+        .innerJoin(
+          reconciliations,
+          eq(reconciliations.id, reconciliationEntries.reconciliationId),
+        )
+        .where(eq(splits.transactionId, id));
+      if (protectedEntries.length)
+        return {
+          error:
+            'Protected by reconciliation ' +
+            protectedEntries[0].date +
+            ' (' +
+            protectedEntries[0].id +
+            '). Undo the latest reconciliation for that account first.',
+          status: 409,
+        };
       if (existing.voidedAt) {
         return { error: 'Cannot delete a voided transaction', status: 409 };
       }
@@ -1074,6 +1141,25 @@ transactionsRoute.post('/:id/void', async (c) => {
         return { error: 'Transaction not found', status: 404 };
       }
 
+      const protectedEntries = await tx
+        .select({ id: reconciliations.id, date: reconciliations.closingDate })
+        .from(reconciliationEntries)
+        .innerJoin(splits, eq(splits.id, reconciliationEntries.splitId))
+        .innerJoin(
+          reconciliations,
+          eq(reconciliations.id, reconciliationEntries.reconciliationId),
+        )
+        .where(eq(splits.transactionId, id));
+      if (protectedEntries.length)
+        return {
+          error:
+            'Protected by reconciliation ' +
+            protectedEntries[0].date +
+            ' (' +
+            protectedEntries[0].id +
+            '). Undo the latest reconciliation for that account first.',
+          status: 409,
+        };
       if (original.voidedAt || original.reversalTransactionId) {
         return { error: 'Transaction is already voided', status: 409 };
       }

@@ -59,6 +59,13 @@ export async function createOpeningBalance(
     throw new OpeningBalanceError(
       'Opening balances require an asset, liability or settlement account.',
     );
+  const completed = await tx.execute(
+    sql`SELECT id FROM reconciliations WHERE account_id=${account.id} AND undone_at IS NULL LIMIT 1`,
+  );
+  if (completed.length)
+    throw new OpeningBalanceError(
+      'Undo completed reconciliations before recording an opening balance.',
+    );
   const previous = await tx
     .select({ payee: transactions.payee, note: transactions.note })
     .from(transactions)

@@ -1,3 +1,4 @@
+import { reconciliationsRoute } from './routes/reconciliations.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +31,7 @@ import { dataManagementRoute } from './routes/data-management.js';
 
 export const app = new Hono();
 export const webDistDir = path.resolve(repoRootDir, 'apps/web/dist');
+app.route('/api/reconciliations', reconciliationsRoute);
 app.route('/api/data-management', dataManagementRoute);
 
 const healthHandler = async (c: Context) => {

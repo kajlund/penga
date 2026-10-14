@@ -426,6 +426,15 @@ accountsRoute.patch('/:id', async (c) => {
   if (openingError) return c.json({ error: openingError }, 400);
   const updated = await db.transaction(async (tx) => {
     await lockLedgerHistory(tx);
+    if (updateValues.type && updateValues.type !== existing.type) {
+      const history = await tx.execute(
+        sql`SELECT id FROM reconciliations WHERE account_id=${id} AND undone_at IS NULL LIMIT 1`,
+      );
+      if (history.length)
+        throw new OpeningBalanceError(
+          'Undo completed reconciliations before changing this account type.',
+        );
+    }
     if (
       updateValues.type &&
       updateValues.type !== existing.type &&

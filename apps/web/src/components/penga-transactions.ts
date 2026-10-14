@@ -4,6 +4,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import {
   formatMoney,
+  inTransactionDateRange,
   type TransactionWithSplits,
   type Account,
   type AccountType,
@@ -233,7 +234,9 @@ export class PengaTransactions extends LitElement {
 
       .ledger-header {
         display: grid;
-        grid-template-columns: 24px 24px 95px minmax(130px, 1.4fr) minmax(140px, 1.1fr) 115px 105px 32px;
+        grid-template-columns:
+          24px 24px 95px minmax(130px, 1.4fr) minmax(140px, 1.1fr)
+          115px 105px 32px;
         gap: 0.75rem;
         padding: 0.75rem 0.85rem 0.75rem 0.5rem;
         background: var(--bg-subtle);
@@ -310,7 +313,9 @@ export class PengaTransactions extends LitElement {
 
       .tx-main {
         display: grid;
-        grid-template-columns: 24px 24px 95px minmax(130px, 1.4fr) minmax(140px, 1.1fr) 115px 105px 32px;
+        grid-template-columns:
+          24px 24px 95px minmax(130px, 1.4fr) minmax(140px, 1.1fr)
+          115px 105px 32px;
         align-items: center;
         padding: 0.85rem 0.85rem 0.85rem 0.5rem;
         gap: 0.75rem;
@@ -1187,10 +1192,15 @@ export class PengaTransactions extends LitElement {
   private tags: Tag[] = [];
 
   @state()
-  private selectedFilter: 'ALL' | 'UNCLEARED' | 'CLEARED' = 'ALL';
+  private selectedFilter: 'ALL' | 'UNCLEARED' | 'CLEARED' | 'RECONCILED' =
+    'ALL';
 
   @state()
   private selectedAccountId = '';
+
+  @state() private dateFrom = '';
+  @state() private dateTo = '';
+  @state() private searchText = '';
 
   @state()
   private selectedTagId = '';
@@ -1472,7 +1482,18 @@ export class PengaTransactions extends LitElement {
         ? `/api/transactions?${queryString}`
         : '/api/transactions';
 
-      const res = await fetch(url);
+      const loaded: TransactionWithSplits[] = [];
+      for (let offset = 0; ; offset += 100) {
+        const page = await fetch(
+          url + (queryString ? '&' : '?') + 'limit=100&offset=' + offset,
+        );
+        const payload = await page.json();
+        if (!page.ok)
+          throw new Error(payload.error || 'Could not load transactions.');
+        loaded.push(...payload.data);
+        if (payload.data.length < 100) break;
+      }
+      const res = new Response(JSON.stringify({ data: loaded }));
       if (!res.ok) {
         throw new Error(`Failed to load transactions: ${res.statusText}`);
       }
@@ -1952,6 +1973,21 @@ export class PengaTransactions extends LitElement {
   override render() {
     // Filter transactions based on selected filter
     const filteredTxs = this.transactions.filter((tx) => {
+      if (
+        !inTransactionDateRange(tx.transactionDate, this.dateFrom, this.dateTo)
+      )
+        return false;
+      if (
+        !(tx.payee ?? '').toLowerCase().includes(this.searchText.toLowerCase())
+      )
+        return false;
+      const reconciled = tx.splits.some(
+        (s) =>
+          s.reconciliationId &&
+          (!this.selectedAccountId || s.accountId === this.selectedAccountId),
+      );
+      if (this.selectedFilter === 'RECONCILED') return reconciled;
+      if (reconciled && this.selectedFilter !== 'ALL') return false;
       if (this.selectedFilter === 'CLEARED') return tx.isCleared;
       if (this.selectedFilter === 'UNCLEARED') return !tx.isCleared;
       return true;
@@ -1999,7 +2035,7 @@ export class PengaTransactions extends LitElement {
           <div class="stat-box">
             <span class="stat-label">Cleared with Bank</span>
             <span class="stat-value cleared"
-              >${icon('check', 'ASSET', 16)} ${clearedCount} reconciled</span
+              >${icon('check', 'ASSET', 16)} ${clearedCount} cleared</span
             >
           </div>
           <div class="stat-box">
@@ -2039,9 +2075,51 @@ export class PengaTransactions extends LitElement {
         </div>
       </div>
 
+      <div class="filters-bar">
+        <label
+          >From
+          <input
+            type="date"
+            .value=${this.dateFrom}
+            @input=${(e: Event) => (this.dateFrom = (e.target as HTMLInputElement).value)}
+        /></label>
+        <label
+          >To
+          <input
+            type="date"
+            .value=${this.dateTo}
+            @input=${(e: Event) => (this.dateTo = (e.target as HTMLInputElement).value)}
+        /></label>
+        <label
+          >Search
+          <input
+            .value=${this.searchText}
+            @input=${(e: Event) => (this.searchText = (e.target as HTMLInputElement).value)}
+        /></label>
+        <button
+          class="btn-secondary"
+          @click=${() => {
+            this.dateFrom = '';
+            this.dateTo = '';
+            this.searchText = '';
+          }}
+        >
+          Reset dates and search
+        </button>
+        <span
+          >Filtered: ${filteredTxs.length}
+          events${this.selectedAccountId ? ' | Movement: ' + formatMoney(filteredTxs.filter((t) => !t.voidedAt).reduce((sum, t) => sum + t.splits.filter((s) => s.accountId === this.selectedAccountId).reduce((n, s) => n + s.amountCents, 0), 0)) + ' (not account balance)' : ''}</span
+        >
+      </div>
       <!-- Filters Row -->
       <div class="filters-bar">
         <div class="filter-pills">
+          <button
+            class="filter-pill ${this.selectedFilter === 'RECONCILED' ? 'active' : ''}"
+            @click=${() => (this.selectedFilter = 'RECONCILED')}
+          >
+            Reconciled
+          </button>
           <button
             class="filter-pill ${this.selectedFilter === 'ALL' ? 'active' : ''}"
             @click="${() => (this.selectedFilter = 'ALL')}"
@@ -2062,14 +2140,18 @@ export class PengaTransactions extends LitElement {
           </button>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <div
+          style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;"
+        >
           <button
             type="button"
             class="btn-expand-toggle-all"
             @click="${() => this.toggleExpandAll(filteredTxs)}"
           >
             ${icon(this.areAllExpanded(filteredTxs) ? 'chevron-down' : 'chevron-right', 'ASSET', 14)}
-            <span>${this.areAllExpanded(filteredTxs) ? 'Collapse All' : 'Expand All'}</span>
+            <span
+              >${this.areAllExpanded(filteredTxs) ? 'Collapse All' : 'Expand All'}</span
+            >
           </button>
           <div style="font-size: 0.8rem; color: var(--text-muted);">
             Tip: Click any row to expand splits & notes
@@ -2205,7 +2287,9 @@ export class PengaTransactions extends LitElement {
 
                               <div class="tx-payee-group">
                                 <div class="tx-payee-row">
-                                  <span class="tx-payee" title="${tx.payee || 'Unnamed Event'}"
+                                  <span
+                                    class="tx-payee"
+                                    title="${tx.payee || 'Unnamed Event'}"
                                     >${tx.payee || 'Unnamed Event'}</span
                                   >
                                   ${
@@ -2307,7 +2391,9 @@ export class PengaTransactions extends LitElement {
                                           }
                                         </div>
                                       `
-                                    : html`<span class="from-account-none">—</span>`
+                                    : html`<span class="from-account-none"
+                                        >—</span
+                                      >`
                                 }
                               </div>
 
@@ -2318,13 +2404,13 @@ export class PengaTransactions extends LitElement {
                                   class="cleared-toggle ${tx.isCleared ? 'cleared' : 'pending'}"
                                   @click="${() => this.toggleCleared(tx)}"
                                   title="${isVoided || isReversal ? 'Cleared state is locked on voided/reversal transactions' : 'Click to toggle cleared status for bank reconciliation'}"
-                                  ?disabled="${this.updatingTxId === tx.id || isVoided || isReversal}"
+                                  ?disabled="${this.updatingTxId === tx.id || isVoided || isReversal || tx.splits.some((s) => s.reconciliationId)}"
                                 >
                                   <span class="cleared-icon"
                                     >${icon(tx.isCleared ? 'check' : 'circle', 'ASSET', 16)}</span
                                   >
                                   <span
-                                    >${tx.isCleared ? 'Cleared' : 'Uncleared'}</span
+                                    >${tx.splits.some((s) => s.reconciliationId && (!this.selectedAccountId || s.accountId === this.selectedAccountId)) ? 'Reconciled' : tx.isCleared ? 'Cleared' : 'Uncleared'}</span
                                   >
                                 </button>
                               </div>
@@ -2640,51 +2726,60 @@ export class PengaTransactions extends LitElement {
                             </div>
 
                             <!-- Sub-splits and notes expanded panel -->
-                            ${isExpanded
-                              ? html`
-                                  <div class="tx-expanded-panel">
-                                    ${tx.note
-                                      ? html`
-                                          <div class="tx-expanded-note">
-                                            <span class="note-label">
-                                              ${icon('file-text', 'ASSET', 14)} Note:
-                                            </span>
-                                            <span class="note-text">${tx.note}</span>
-                                          </div>
-                                        `
-                                      : nothing}
+                            ${
+                              isExpanded
+                                ? html`
+                                    <div class="tx-expanded-panel">
+                                      ${
+                                        tx.note
+                                          ? html`
+                                              <div class="tx-expanded-note">
+                                                <span class="note-label">
+                                                  ${icon('file-text', 'ASSET', 14)}
+                                                  Note:
+                                                </span>
+                                                <span class="note-text"
+                                                  >${tx.note}</span
+                                                >
+                                              </div>
+                                            `
+                                          : nothing
+                                      }
 
-                                    <div class="splits-detail-list">
-                                      <div class="splits-detail-header">
-                                        <span>Splits (${tx.splits.length})</span>
+                                      <div class="splits-detail-list">
+                                        <div class="splits-detail-header">
+                                          <span
+                                            >Splits (${tx.splits.length})</span
+                                          >
+                                        </div>
+                                        ${tx.splits.map(
+                                          (s) => html`
+                                            <div class="split-detail-line">
+                                              <span class="split-account-tag">
+                                                <span
+                                                  >${icon(s.accountIcon, s.accountType || 'EXPENSE')}</span
+                                                >
+                                                <strong
+                                                  >${s.accountName || 'Account'}</strong
+                                                >
+                                                <span
+                                                  style="font-size: 0.7rem; color: var(--text-muted);"
+                                                  >(${s.accountType})</span
+                                                >
+                                              </span>
+                                              <span
+                                                class="split-amount ${s.amountCents < 0 ? 'negative' : 'positive'}"
+                                              >
+                                                ${this.formatCents(s.amountCents)}
+                                              </span>
+                                            </div>
+                                          `,
+                                        )}
                                       </div>
-                                      ${tx.splits.map(
-                                        (s) => html`
-                                          <div class="split-detail-line">
-                                            <span class="split-account-tag">
-                                              <span
-                                                >${icon(s.accountIcon, s.accountType || 'EXPENSE')}</span
-                                              >
-                                              <strong
-                                                >${s.accountName || 'Account'}</strong
-                                              >
-                                              <span
-                                                style="font-size: 0.7rem; color: var(--text-muted);"
-                                                >(${s.accountType})</span
-                                              >
-                                            </span>
-                                            <span
-                                              class="split-amount ${s.amountCents < 0 ? 'negative' : 'positive'}"
-                                            >
-                                              ${this.formatCents(s.amountCents)}
-                                            </span>
-                                          </div>
-                                        `,
-                                      )}
                                     </div>
-                                  </div>
-                                `
-                              : nothing}
+                                  `
+                                : nothing
+                            }
                           </div>
                         `;
                       })}

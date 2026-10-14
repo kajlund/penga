@@ -174,3 +174,15 @@ npm run format:check
 ```
 
 ESLint checks supported JavaScript and TypeScript files and treats warnings as failures. Prettier formats its supported source, configuration, and documentation files with single quotes, trailing commas, and LF line endings. Dependencies, generated builds and test output, local data, editor settings, archived artifacts, and dependency lockfiles are excluded. SQL and Nunjucks templates are outside the installed tools' supported file types.
+
+### Statement reconciliation
+
+Apply migration `0009_keen_the_watchers.sql` with `npm run db:migrate -w @penga/api` before starting this version. It adds reconciliation history and per-split membership; it does not reconcile existing entries automatically.
+
+In Reconciliation, choose an Asset, Liability or Settlement account, enter the statement start, closing date and signed closing balance, then select the account entries shown on the statement. Negative liabilities use the same signed balance convention as Accounts. The first statement starts from the account's opening balance dated on or before the statement start (including that exact date), or zero. Record a genuine opening balance in the account form when needed. Later statements start from the latest completed closing balance and must begin after that statement's closing date. Older outstanding entries remain selectable regardless of the statement start.
+
+Completion requires an exact zero difference and saves membership atomically under the existing ledger write lock. Entries after the closing date, voided entries and previously reconciled entries are ineligible. Date/search/status display filters do not change selection or calculation; the screen reports hidden selected entries. Transactions also provides inclusive calendar-date filters, loads all matching pages before display filtering and labels filtered movement separately from account balance.
+
+History opens each active completed statement's entries. Undo latest reconciliation requires an inline confirmation, releases only that account's membership, preserves cleared status and retains an undone history record. Undo statements in reverse chronological order before changing protected transaction dates, amounts, splits, cleared status, or deleting/voiding them. Description and tag changes remain available. Clear all transactions removes reconciliation membership and history together with ledger history.
+
+Run reconciliation database tests using `PENGA_SCHEMA_DATABASE_TESTS=1 node --test apps/api/test/reconciliation.test.mjs` after building. These tests create, verify and remove a separate temporary schema, including reset verification there; they do not reset the normal ledger.

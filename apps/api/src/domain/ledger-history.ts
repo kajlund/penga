@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'drizzle-orm';
-import { db, transactions, splits, transactionTags } from '../db/index.js';
+import {
+  db,
+  transactions,
+  splits,
+  transactionTags,
+  reconciliationEntries,
+  reconciliations,
+} from '../db/index.js';
 
 type LedgerTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export const RESET_CONFIRMATION = 'DELETE ALL TRANSACTIONS';
@@ -19,9 +26,17 @@ async function summarize(tx: LedgerTransaction) {
     SELECT 'transactions' AS kind, to_jsonb(t)::text AS content, xmin::text AS version FROM transactions t
     UNION ALL SELECT 'splits', to_jsonb(s)::text, xmin::text FROM splits s
     UNION ALL SELECT 'transactionTags', to_jsonb(tt)::text, xmin::text FROM transaction_tags tt
+    UNION ALL SELECT 'reconciliations', to_jsonb(r)::text, xmin::text FROM reconciliations r
+    UNION ALL SELECT 'reconciliationEntries', to_jsonb(re)::text, xmin::text FROM reconciliation_entries re
     ORDER BY kind, content, version
   `);
-  const counts = { transactions: 0, splits: 0, transactionTags: 0 };
+  const counts = {
+    transactions: 0,
+    splits: 0,
+    transactionTags: 0,
+    reconciliations: 0,
+    reconciliationEntries: 0,
+  };
   const hash = createHash('sha256');
   for (const row of rows) {
     counts[row.kind as keyof typeof counts]++;
@@ -61,6 +76,8 @@ export async function clearLedgerHistory(
         'Transaction history changed. Refresh the summary and confirm again.',
       );
     }
+    await tx.delete(reconciliationEntries);
+    await tx.delete(reconciliations);
     // Explicit dependency order; reusable tags and templates are never deleted.
     const links = await tx
       .delete(transactionTags)

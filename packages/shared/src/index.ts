@@ -68,6 +68,7 @@ export interface VoidTransactionInput {
 }
 
 export interface Split {
+  reconciliationId?: string | null;
   id: string;
   transactionId: string;
   accountId: string;
@@ -256,3 +257,12 @@ export interface UpdateTransactionTemplateInput {
 }
 
 export * from './transaction-entry.js';
+
+/** Calendar dates remain YYYY-MM-DD strings; both bounds are inclusive. */
+export function inTransactionDateRange(
+  date: string,
+  from = '',
+  to = '',
+): boolean {
+  return (!from || date >= from) && (!to || date <= to);
+}

@@ -1,3 +1,5 @@
+import './components/penga-reconciliation.js';
+import type { PengaReconciliation } from './components/penga-reconciliation.js';
 import { calmStyles } from './components/calm-styles.js';
 import { icon } from './components/icons.js';
 import { LitElement, html, css } from 'lit';
@@ -181,6 +183,10 @@ export class PengaApp extends LitElement {
     const txView = this.shadowRoot?.querySelector(
       'penga-transactions',
     ) as PengaTransactions | null;
+    const reconciliationView = this.shadowRoot?.querySelector(
+      'penga-reconciliation',
+    ) as PengaReconciliation | null;
+    if (reconciliationView) void reconciliationView.fetchData();
     if (txView) {
       txView.fetchData();
     }
@@ -317,12 +323,7 @@ export class PengaApp extends LitElement {
                           `
                         : this.currentView === 'reconciliation'
                           ? html`
-                              <penga-transactions
-                                .reconciliationMode="${true}"
-                                @open-transaction-modal="${this.handleOpenCreateModal}"
-                                @edit-transaction="${this.handleEditTransaction}"
-                                @duplicate-transaction="${this.handleDuplicateTransaction}"
-                              ></penga-transactions>
+                              <penga-reconciliation></penga-reconciliation>
                             `
                           : this.currentView === 'budgets'
                             ? html`<penga-budgets></penga-budgets>`
