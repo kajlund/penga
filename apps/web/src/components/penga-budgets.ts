@@ -1,11 +1,14 @@
 import { calmStyles } from './calm-styles.js';
 import { icon } from './icons.js';
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import type {
-  MonthlyBudgetReport,
-  BudgetProgressItem,
-  Account,
+import {
+  APP_CURRENCY,
+  formatMoney,
+  shiftMonth,
+  type BudgetNode,
+  type BudgetTotals,
+  type HierarchicalBudgetReport,
 } from '@penga/shared';
 
 @customElement('penga-budgets')
@@ -14,1190 +17,742 @@ export class PengaBudgets extends LitElement {
     css`
       :host {
         display: block;
-        padding: 2rem 2.5rem 4rem;
+        padding: 1.5rem 2.5rem 3rem;
         max-width: 1240px;
-        margin: 0 auto;
+        margin: auto;
         font-family: var(--font-sans);
-      }
-
-      .page-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
-
-      .header-title h2 {
-        margin: 0 0 0.25rem 0;
-        font-size: 1.75rem;
-        font-weight: 700;
-        letter-spacing: -0.025em;
         color: var(--text-primary);
       }
-
-      .header-title p {
+      h2 {
         margin: 0;
-        color: var(--text-secondary);
-        font-size: 0.9rem;
+        font-size: 1.75rem;
+        letter-spacing: -0.025em;
       }
-
-      .header-actions {
+      h3 {
+        margin-top: 0;
+      }
+      p {
+        line-height: 1.5;
+      }
+      header,
+      .month,
+      .summary,
+      .actions {
         display: flex;
         align-items: center;
         gap: 0.75rem;
+        flex-wrap: wrap;
       }
-
-      .btn-primary {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.65rem 1.25rem;
-        border-radius: var(--radius-md);
+      header {
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+      .subtitle,
+      .muted,
+      small {
+        color: var(--text-secondary);
+      }
+      small {
+        display: block;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        line-height: 1.4;
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 0.45rem 0.65rem;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--bg-subtle);
+      }
+      .primary {
         background: var(--color-primary);
         color: var(--on-accent);
-        border: 1px solid transparent;
-        font-family: var(--font-sans);
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 2px 8px var(--border-subtle);
-        transition: all var(--transition-fast);
       }
-
-      .btn-primary:hover {
-        background: var(--color-primary-hover);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px var(--border-subtle);
-      }
-
-      .btn-secondary {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.6rem 1rem;
-        border-radius: var(--radius-md);
-        background: var(--bg-surface);
-        color: var(--text-primary);
-        border: 1px solid var(--border-subtle);
-        font-family: var(--font-sans);
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-      }
-
-      .btn-secondary:hover {
-        background: var(--bg-subtle);
-        border-color: var(--border-strong);
-      }
-
-      /* Month Selector Controls */
-      .month-selector {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        background: var(--bg-surface);
-        padding: 0.35rem 0.5rem;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--border-subtle);
-        box-shadow: var(--shadow-md);
-      }
-
-      .month-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: var(--radius-sm);
-        border: none;
-        background: transparent;
-        color: var(--text-secondary);
-        font-size: 0.95rem;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        transition: all var(--transition-fast);
-      }
-
-      .month-btn:hover {
-        background: var(--bg-subtle);
-        color: var(--text-primary);
-      }
-
-      .current-month-label {
-        font-size: 0.925rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        padding: 0 0.5rem;
-        min-width: 140px;
+      .month strong {
+        min-width: 9rem;
         text-align: center;
       }
-
-      /* Overall Monthly Budget Hero Card */
-      .summary-card {
+      .summary {
         background: var(--bg-surface);
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-lg);
-        padding: 1.75rem 2rem;
-        margin-bottom: 2rem;
-        box-shadow: var(--shadow-md);
-      }
-
-      .summary-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
-
-      .summary-metrics {
-        display: flex;
-        align-items: center;
-        gap: 3rem;
-        flex-wrap: wrap;
-      }
-
-      .metric-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-      }
-
-      .metric-title {
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--text-muted);
-      }
-
-      .metric-num {
-        font-family: var(--font-mono);
-        font-size: 1.85rem;
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .metric-num.spent {
-        color: var(--color-negative);
-      }
-
-      .metric-num.remaining {
-        color: var(--color-primary-text);
-      }
-
-      .metric-num.over {
-        color: var(--color-negative);
-      }
-
-      .progress-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.35rem 0.8rem;
-        border-radius: var(--radius-full);
-        font-size: 0.825rem;
-        font-weight: 600;
-      }
-
-      .progress-badge.normal {
-        background: var(--color-primary-subtle);
-        color: var(--color-primary-text);
-        border: 1px solid var(--color-primary-border);
-      }
-
-      .progress-badge.warning {
-        background: var(--color-warning-bg);
-        color: var(--color-warning);
-        border: 1px solid var(--color-warning-border);
-      }
-
-      .progress-badge.over {
-        background: var(--color-danger-bg);
-        color: var(--color-negative);
-        border: 1px solid var(--color-danger-border);
-      }
-
-      /* Overall Progress Bar */
-      .progress-track {
-        height: 10px;
-        border-radius: var(--radius-full);
-        background: var(--bg-muted);
-        overflow: hidden;
-        margin-bottom: 0.75rem;
-      }
-
-      .progress-fill {
-        height: 100%;
-        border-radius: var(--radius-full);
-        transition: width var(--transition-normal);
-      }
-
-      .progress-fill.normal {
-        background: var(--color-primary);
-      }
-
-      .progress-fill.warning {
-        background: var(--color-warning);
-      }
-
-      .progress-fill.over {
-        background: var(--color-negative);
-      }
-
-      .progress-legend {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        font-weight: 500;
-      }
-
-      /* Category Cards Grid */
-      .category-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        padding: 1rem;
         gap: 1.5rem;
+        margin: 1rem 0;
       }
-
-      .category-card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        box-shadow: var(--shadow-md);
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-        transition:
-          transform var(--transition-fast),
-          border-color var(--transition-fast);
+      .summary div {
+        flex: 1;
+        min-width: 170px;
       }
-
-      .category-card:hover {
-        transform: translateY(-2px);
-        border-color: var(--border-strong);
-      }
-
-      .card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-      }
-
-      .card-account {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        min-width: 0;
-      }
-
-      .account-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.35rem;
-        flex-shrink: 0;
-      }
-
-      .account-title {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .account-subtitle {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        margin-top: 0.15rem;
-      }
-
-      .card-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-      }
-
-      .btn-icon-action {
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        padding: 0.35rem;
-        border-radius: var(--radius-sm);
-        font-size: 0.85rem;
-        transition: all var(--transition-fast);
-      }
-
-      .btn-icon-action:hover {
-        background: var(--bg-subtle);
-        color: var(--text-primary);
-      }
-
-      /* Card Progress & Amounts */
-      .card-amounts {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-      }
-
-      .amount-spent {
-        font-family: var(--font-mono);
-        font-size: 1.4rem;
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .amount-target {
-        font-family: var(--font-mono);
-        font-size: 0.85rem;
-        color: var(--text-muted);
-      }
-
-      .card-progress-bar {
-        height: 8px;
-        border-radius: var(--radius-full);
-        background: var(--bg-muted);
-        overflow: hidden;
-      }
-
-      .card-remaining {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.78rem;
-        font-weight: 500;
-      }
-
-      .card-remaining.positive {
-        color: var(--color-primary-text);
-      }
-
-      .card-remaining.negative {
-        color: var(--color-negative);
-      }
-
-      /* Adaptive Analytics Box */
-      .analytics-box {
-        background: var(--bg-subtle);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-md);
-        padding: 0.85rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-        font-size: 0.78rem;
-      }
-
-      .analytics-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        color: var(--text-secondary);
-      }
-
-      .analytics-val {
-        font-family: var(--font-mono);
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-
-      .suggested-box {
-        margin-top: 0.2rem;
-        padding-top: 0.5rem;
-        border-top: 1px dashed var(--border-subtle);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-      }
-
-      .suggested-label {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--chart-secondary);
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-      }
-
-      .btn-adopt {
-        background: var(--color-info-bg);
-        color: var(--color-info);
-        border: 1px solid var(--color-info-border);
-        border-radius: var(--radius-sm);
-        font-size: 0.72rem;
-        font-weight: 600;
-        padding: 0.2rem 0.5rem;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-      }
-
-      .btn-adopt:hover {
-        background: var(--color-info-bg);
-      }
-
-      /* Modal Overlay & Form */
-      .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--overlay);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        animation: fadeIn 0.15s ease-out;
-      }
-
-      .modal-dialog {
-        background: var(--bg-surface);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
-        width: 90%;
-        max-width: 480px;
-        max-height: min(90vh, 90dvh);
-        overflow-y: auto;
-        box-sizing: border-box;
-        box-shadow: var(--shadow-md);
-      }
-
-      .modal-dialog h3 {
-        margin: 0 0 0.5rem;
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .modal-dialog p {
-        margin: 0 0 1.5rem;
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-      }
-
-      .form-group {
-        margin-bottom: 1.25rem;
-      }
-
-      .form-group label {
+      .summary span {
         display: block;
         font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--text-muted);
-        margin-bottom: 0.4rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .form-input,
-      .form-select {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 0.65rem 0.85rem;
-        border-radius: var(--radius-md);
-        background: var(--bg-base);
-        border: 1px solid var(--border-subtle);
-        color: var(--text-primary);
-        font-family: var(--font-sans);
-        font-size: 0.9rem;
-        outline: none;
-        transition: border-color var(--transition-fast);
-      }
-
-      .form-input:focus,
-      .form-select:focus {
-        border-color: var(--color-primary);
-      }
-
-      .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        margin-top: 1.75rem;
-      }
-
-      /* States */
-      .empty-state {
-        padding: 4rem 2rem;
-        text-align: center;
-        color: var(--text-muted);
-        background: var(--bg-surface);
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--border-subtle);
-      }
-
-      .loading-state {
-        padding: 4rem 2rem;
-        text-align: center;
         color: var(--text-secondary);
       }
-
-      .spinner {
-        display: inline-block;
-        width: 24px;
-        height: 24px;
-        border: 3px solid var(--border-subtle);
-        border-radius: 50%;
-        border-top-color: var(--color-primary);
-        animation: spin 0.8s linear infinite;
-        margin-bottom: 0.5rem;
+      .summary strong {
+        display: block;
+        margin-top: 0.35rem;
+        font-family: var(--font-mono);
+        font-size: 1.2rem;
       }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
       }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 820px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.7rem 0.8rem;
+        border-bottom: 1px solid var(--border-subtle);
+        vertical-align: top;
+      }
+      th {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      td.money {
+        font-family: var(--font-mono);
+        white-space: nowrap;
+      }
+      .group {
+        background: var(--bg-subtle);
+      }
+      .name {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+      }
+      .expand {
+        border: 0;
+        background: transparent;
+        padding: 0.1rem;
+        width: 1.5rem;
+      }
+      .track {
+        height: 5px;
+        background: var(--bg-muted);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 0.4rem;
+        min-width: 90px;
+      }
+      .fill {
+        height: 100%;
+        background: var(--color-primary);
+      }
+      .over {
+        font-weight: 600;
+      }
+      .over .fill {
+        background: var(--color-warning);
+      }
+      .note {
+        max-width: 15rem;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .detail-content {
+        padding: 1rem;
+        background: var(--bg-subtle);
+      }
+      summary {
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .coverage {
+        margin-top: 1rem;
+        padding: 1rem;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+      }
+      .error {
+        padding: 0.75rem;
+        border: 1px solid var(--color-danger-border);
+        color: var(--color-negative);
+      }
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        background: var(--overlay);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .dialog {
+        background: var(--bg-surface);
+        padding: 1.5rem;
+        max-width: 460px;
+        width: 100%;
+        max-height: 85vh;
+        overflow: auto;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+      }
+      label {
+        display: block;
+        margin: 0.8rem 0;
+      }
+      label input,
+      label textarea {
+        display: block;
+        margin-top: 0.35rem;
+        box-sizing: border-box;
+        width: 100%;
+      }
+      .dialog .actions {
+        justify-content: flex-end;
+        margin-top: 1rem;
+      }
+      textarea {
+        min-height: 5rem;
+        resize: vertical;
+      }
+      @media (max-width: 700px) {
+        :host {
+          padding: 1rem;
         }
-        to {
-          opacity: 1;
+        .summary {
+          gap: 1rem;
+        }
+        .summary div {
+          min-width: 130px;
+        }
+        header {
+          align-items: flex-start;
+        }
+        .month {
+          gap: 0.35rem;
+        }
+        .dialog {
+          padding: 1rem;
         }
       }
     `,
     calmStyles,
   ];
-
-  @state()
-  private report: MonthlyBudgetReport | null = null;
-
-  @state()
-  private expenseAccounts: Account[] = [];
-
-  @state()
-  private currentYear = new Date().getFullYear();
-
-  @state()
-  private currentMonth = new Date().getMonth() + 1;
-
-  @state()
-  private isLoading = true;
-
-  @state()
-  private errorMessage: string | null = null;
-
-  @state()
-  private isModalOpen = false;
-
-  @state()
-  private modalAccountId = '';
-
-  @state()
-  private modalTargetDollars = '';
-
-  @state()
-  private modalNotes = '';
-
-  private initialModalState: {
-    accountId: string;
-    targetDollars: string;
-    notes: string;
-  } | null = null;
-
-  public isModalDirty(): boolean {
-    if (!this.initialModalState) return false;
-    return (
-      this.modalAccountId !== this.initialModalState.accountId ||
-      this.modalTargetDollars !== this.initialModalState.targetDollars ||
-      this.modalNotes !== this.initialModalState.notes
-    );
-  }
-
-  public requestCloseSetBudgetModal(): void {
-    if (this.isModalDirty()) {
-      if (!confirm('Discard unsaved changes?')) {
-        return;
-      }
-    }
-    this.closeSetBudgetModal();
-  }
-
-  public closeSetBudgetModal() {
-    this.isModalOpen = false;
-    this.initialModalState = null;
-  }
-
+  @state() private report: HierarchicalBudgetReport | null = null;
+  @state() private currentYear = new Date().getFullYear();
+  @state() private currentMonth = new Date().getMonth() + 1;
+  @state() private isLoading = false;
+  @state() private errorMessage = '';
+  @state() private collapsed = new Set<string>();
+  @state() private editing: BudgetNode | null = null;
+  @state() private modalTarget = '';
+  @state() private modalNotes = '';
+  @state() private modalError = '';
+  @state() private saving = false;
+  @state() private discard = false;
+  @state() private coverageDate = '';
+  @state() private coverageError = '';
+  private requestVersion = 0;
+  private initial = '';
+  private previousFocus: HTMLElement | null = null;
   override connectedCallback() {
     super.connectedCallback();
-    this.fetchData();
+    void this.fetchData();
     window.addEventListener('keydown', this.handleKeyDown);
   }
-
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('keydown', this.handleKeyDown);
   }
-
-  private handleKeyDown = (e: KeyboardEvent) => {
-    if (!this.isModalOpen) return;
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      this.requestCloseSetBudgetModal();
-    } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      const form = this.shadowRoot?.querySelector<HTMLFormElement>('.modal-dialog form');
-      if (form) {
-        form.requestSubmit();
-      } else {
-        this.handleSaveBudget(new Event('submit'));
-      }
-    }
-  };
-
   public async fetchData() {
-    await Promise.all([this.fetchBudgetReport(), this.fetchExpenseAccounts()]);
+    await this.fetchBudgetReport();
   }
-
-  public async fetchExpenseAccounts() {
-    try {
-      const res = await fetch('/api/accounts?type=EXPENSE');
-      if (res.ok) {
-        const json = await res.json();
-        this.expenseAccounts = json.data || [];
-      }
-    } catch {
-      // Non-blocking
-    }
+  private today() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
-
   public async fetchBudgetReport() {
+    const version = ++this.requestVersion;
     this.isLoading = true;
-    this.errorMessage = null;
-
+    this.errorMessage = '';
     try {
-      const res = await fetch(
-        `/api/budgets?year=${this.currentYear}&month=${this.currentMonth}`,
+      const r = await fetch(
+        `/api/budgets?year=${this.currentYear}&month=${this.currentMonth}&today=${this.today()}`,
       );
-      if (!res.ok) {
-        throw new Error(`Failed to load budgets: ${res.statusText}`);
-      }
-      const json = await res.json();
-      this.report = json.data;
-    } catch (err) {
-      this.errorMessage =
-        (err instanceof Error ? err.message : String(err)) ||
-        'Failed to load budgets';
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Could not load budget.');
+      if (version !== this.requestVersion) return;
+      this.report = j.data;
+      this.coverageDate = j.data.trackingStartDate ?? '';
+    } catch (e) {
+      if (version === this.requestVersion)
+        this.errorMessage = (e as Error).message;
     } finally {
-      this.isLoading = false;
+      if (version === this.requestVersion) this.isLoading = false;
     }
   }
-
-  private handlePrevMonth() {
-    if (this.currentMonth === 1) {
-      this.currentMonth = 12;
-      this.currentYear--;
-    } else {
-      this.currentMonth--;
-    }
-    this.fetchBudgetReport();
+  private navigate(delta: number) {
+    const d = shiftMonth(this.currentYear, this.currentMonth, delta);
+    if (d.year < 1900 || d.year > 9999) return;
+    this.currentYear = d.year;
+    this.currentMonth = d.month;
+    void this.fetchBudgetReport();
   }
-
-  private handleNextMonth() {
-    if (this.currentMonth === 12) {
-      this.currentMonth = 1;
-      this.currentYear++;
-    } else {
-      this.currentMonth++;
-    }
-    this.fetchBudgetReport();
-  }
-
-  private handleCurrentMonth() {
+  private current() {
     const now = new Date();
     this.currentYear = now.getFullYear();
     this.currentMonth = now.getMonth() + 1;
-    this.fetchBudgetReport();
+    void this.fetchBudgetReport();
   }
-
-  private formatMonthName(year: number, month: number): string {
-    const d = new Date(year, month - 1, 1);
-    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-  }
-
-  private formatCents(cents: number): string {
-    const abs = Math.abs(cents);
-    const dollars = (abs / 100).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+  private async post(path: string, body: unknown) {
+    const r = await fetch('/api/budgets' + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
-    return cents < 0 ? `-$${dollars}` : `$${dollars}`;
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Could not save budget.');
   }
-
-  private openSetBudgetModal(item?: BudgetProgressItem) {
-    if (item) {
-      this.modalAccountId = item.accountId;
-      this.modalTargetDollars =
-        item.targetAmountCents > 0
-          ? (item.targetAmountCents / 100).toFixed(2)
-          : '';
-      this.modalNotes = item.notes || '';
-    } else {
-      this.modalAccountId = this.expenseAccounts[0]?.id || '';
-      this.modalTargetDollars = '';
-      this.modalNotes = '';
-    }
-    this.initialModalState = {
-      accountId: this.modalAccountId,
-      targetDollars: this.modalTargetDollars,
-      notes: this.modalNotes,
-    };
-    this.isModalOpen = true;
-  }
-
-  private async adoptSuggestedTarget(item: BudgetProgressItem) {
-    if (item.suggestedTargetCents <= 0) return;
-
+  private async saveCoverage(clear = false) {
+    this.saving = true;
+    this.coverageError = '';
     try {
-      const res = await fetch('/api/budgets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: item.accountId,
-          targetAmountCents: item.suggestedTargetCents,
-          notes: 'Adaptive run-rate baseline',
-        }),
+      await this.post('/coverage', {
+        trackingStartDate: clear ? null : this.coverageDate || null,
       });
-
-      if (!res.ok) throw new Error('Failed to set budget');
-      this.fetchBudgetReport();
-    } catch (err) {
-      console.error('Error adopting suggested target:', err);
+      await this.fetchBudgetReport();
+    } catch (e) {
+      this.coverageError = (e as Error).message;
+    } finally {
+      this.saving = false;
     }
   }
-
-  private async handleSaveBudget(e: Event) {
-    e.preventDefault();
-    const dollars = parseFloat(this.modalTargetDollars);
-    if (isNaN(dollars) || dollars < 0) {
-      alert('Please enter a valid non-negative target amount');
+  private openSetBudgetModal(item: BudgetNode) {
+    this.previousFocus = this.shadowRoot?.activeElement as HTMLElement | null;
+    this.editing = item;
+    this.modalTarget =
+      item.savedBudget?.targetAmountCents == null
+        ? ''
+        : (item.savedBudget.targetAmountCents / 100).toFixed(2);
+    this.modalNotes = item.savedBudget?.notes ?? '';
+    this.modalError = '';
+    this.discard = false;
+    this.initial = JSON.stringify([this.modalTarget, this.modalNotes]);
+    void this.updateComplete.then(() =>
+      this.shadowRoot
+        ?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          '.dialog input, .dialog textarea',
+        )
+        ?.focus(),
+    );
+  }
+  public isModalDirty() {
+    return (
+      !!this.editing &&
+      this.initial !== JSON.stringify([this.modalTarget, this.modalNotes])
+    );
+  }
+  public requestCloseSetBudgetModal() {
+    if (this.saving) return;
+    if (this.isModalDirty()) {
+      this.discard = true;
       return;
     }
-
-    const targetAmountCents = Math.round(dollars * 100);
-
-    try {
-      const res = await fetch('/api/budgets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: this.modalAccountId,
-          targetAmountCents,
-          notes: this.modalNotes,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to save budget target');
-      }
-
-      this.closeSetBudgetModal();
-      this.fetchBudgetReport();
-    } catch (err) {
-      alert(
-        (err instanceof Error ? err.message : String(err)) ||
-          'Error saving budget',
+    this.closeSetBudgetModal();
+  }
+  public closeSetBudgetModal() {
+    this.editing = null;
+    this.discard = false;
+    this.previousFocus?.focus();
+  }
+  private handleKeyDown = (e: KeyboardEvent) => {
+    if (!this.editing) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.requestCloseSetBudgetModal();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      this.shadowRoot
+        ?.querySelector<HTMLFormElement>('.dialog form')
+        ?.requestSubmit();
+    }
+    if (e.key === 'Tab') {
+      const controls = Array.from(
+        this.shadowRoot?.querySelectorAll<HTMLElement>(
+          '.dialog button:not([disabled]), .dialog input:not([disabled]), .dialog textarea',
+        ) ?? [],
       );
+      const first = controls[0],
+        last = controls.at(-1),
+        active = this.shadowRoot?.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    }
+  };
+  private async handleSaveBudget(e: Event, remove = false) {
+    e.preventDefault();
+    if (!this.editing || this.saving) return;
+    const item = this.editing;
+    let target: number | null = null;
+    if (!remove && !item.children.length && this.modalTarget.trim()) {
+      if (!/^\d+(?:[.,]\d{1,2})?$/.test(this.modalTarget.trim())) {
+        this.modalError =
+          'Enter a non-negative amount with up to two decimal places.';
+        return;
+      }
+      const [whole, fraction = ''] = this.modalTarget
+        .trim()
+        .replace(',', '.')
+        .split('.');
+      target = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+      if (!Number.isSafeInteger(target) || target > 2147483647) {
+        this.modalError = 'The target is too large.';
+        return;
+      }
+    }
+    this.saving = true;
+    this.modalError = '';
+    try {
+      await this.post('', {
+        accountId: item.accountId,
+        ...(!item.children.length || remove
+          ? { targetAmountCents: target }
+          : {}),
+        notes: this.modalNotes,
+        periodYear: item.savedBudget?.periodYear ?? null,
+        periodMonth: item.savedBudget?.periodMonth ?? null,
+      });
+      this.closeSetBudgetModal();
+      await this.fetchBudgetReport();
+    } catch (error) {
+      this.modalError = (error as Error).message;
+    } finally {
+      this.saving = false;
     }
   }
-
+  private usage(item: BudgetTotals) {
+    if (!item.budgetedCount)
+      return html`<span class="muted">Unavailable</span>`;
+    const over = (item.remainingCents ?? 0) < 0;
+    const label =
+      item.budgetedSpentCents < 0
+        ? 'Net refund'
+        : item.targetCents === 0
+          ? over
+            ? 'Above zero target'
+            : 'Zero target'
+          : `${item.usagePercent}% used`;
+    return html`<div class=${over ? 'over' : ''}>
+      ${label}${over ? html`<small>Over by ${formatMoney(-(item.remainingCents ?? 0))}</small>` : nothing}
+      <div class="track" aria-hidden="true">
+        <div
+          class="fill"
+          style=${`width:${Math.max(0, Math.min(100, item.usagePercent ?? (over ? 100 : 0)))}%`}
+        ></div>
+      </div>
+    </div>`;
+  }
+  private renderRow(item: BudgetNode, depth = 0): TemplateResult {
+    const group = !!item.children.length;
+    const open = !this.collapsed.has(item.accountId);
+    const period =
+      item.savedBudget?.periodYear != null
+        ? `${item.savedBudget.periodYear}-${String(item.savedBudget.periodMonth).padStart(2, '0')} override`
+        : 'Every month';
+    return html`<tr class=${group ? 'group' : ''}>
+        <td style=${`padding-left:${0.8 + depth * 1.15}rem`}>
+          <div class="name">
+            ${
+              group
+                ? html`<button
+                    class="expand"
+                    aria-label=${`${open ? 'Collapse' : 'Expand'} ${item.name}`}
+                    aria-expanded=${open}
+                    @click=${() => {
+                const next = new Set(this.collapsed);
+                if (open) next.add(item.accountId);
+                else next.delete(item.accountId);
+                this.collapsed = next;
+              }}
+                  >
+                    ${icon(open ? 'chevron-down' : 'chevron-right', 'EXPENSE', 14)}
+                  </button>`
+                : nothing
+            }<span class="account-icon">${icon(item.icon, 'EXPENSE', 16)}</span
+            ><strong>${item.name}</strong>
+          </div>
+          ${group ? html`<small>Calculated from descendants${item.directActualCents !== 0 ? html` · Direct postings: ${formatMoney(item.directActualCents)} (unbudgeted)` : nothing}</small>` : html`<small>${period}</small>`}
+        </td>
+        <td class="money">
+          ${item.budgetedCount ? formatMoney(item.targetCents) : 'No budget'}${group && item.unbudgetedCount ? html`<small>${item.budgetedCount ? 'Partial coverage' : 'No budget coverage'}</small>` : nothing}${item.excludedParentTargetCents !== null ? html`<small>Saved group target ${formatMoney(item.excludedParentTargetCents)} preserved, excluded from totals. ${period}.</small>` : nothing}
+        </td>
+        <td class="money">
+          ${formatMoney(item.actualCents)}${group && item.unbudgetedCount ? html`<small>Unbudgeted: ${formatMoney(item.unbudgetedSpentCents)}</small>` : nothing}
+        </td>
+        <td class="money">
+          ${item.remainingCents === null ? 'Unavailable' : formatMoney(item.remainingCents)}${group ? html`<small>Remaining on budgeted accounts</small>` : nothing}
+        </td>
+        <td>${this.usage(item)}</td>
+        <td>
+          ${
+            item.savedBudget?.notes
+              ? html`<details>
+                  <summary>Note</summary>
+                  <p class="note">${item.savedBudget.notes}</p>
+                </details>`
+              : nothing
+          }<button
+            aria-label=${`Edit ${item.name} ${group ? 'notes' : 'target and note'}`}
+            @click=${() => this.openSetBudgetModal(item)}
+          >
+            ${group ? 'Notes / saved target' : 'Edit target / note'}
+          </button>
+          <details>
+            <summary>Statistics</summary>
+            <div class="detail-content">
+              ${item.projectedMonthEndCents === null ? html`<p>Month-end pace: unavailable outside the current month.</p>` : html`<p>Estimated month-end pace: ${formatMoney(item.projectedMonthEndCents)}. Based on spending to date and elapsed calendar days; irregular bills can make this misleading.</p>`}
+              <p>
+                3-month window:
+                ${item.sample3 ? html`${formatMoney(item.rolling3MonthAvgCents!)} · Average of ${item.sample3} completed month${item.sample3 === 1 ? '' : 's'}` : 'Not enough history'}
+              </p>
+              <p>
+                12-month window:
+                ${item.sample12 ? html`${formatMoney(item.rolling12MonthAvgCents!)} · Average of ${item.sample12} completed month${item.sample12 === 1 ? '' : 's'}` : 'Not enough history'}
+              </p>
+            </div>
+          </details>
+        </td>
+      </tr>
+      ${group && open ? item.children.map((child) => this.renderRow(child, depth + 1)) : nothing}`;
+  }
   override render() {
     const data = this.report;
-    const now = new Date();
-    const isTodayMonth =
-      this.currentYear === now.getFullYear() &&
-      this.currentMonth === now.getMonth() + 1;
-
-    const progressClass =
-      !data || data.overallProgressPercent < 80
-        ? 'normal'
-        : data.overallProgressPercent <= 100
-          ? 'warning'
-          : 'over';
-
-    return html`
-      <div class="page-header">
-        <div class="header-title">
-          <h2>Adaptive Budgets & Run-Rates</h2>
-          <p>
-            Project recurring costs, smooth seasonal variances, and track
-            monthly spending targets
+    const t = data?.totals;
+    return html`<header>
+        <div>
+          <h2>Budget</h2>
+          <p class="subtitle">
+            Monthly expense targets and notes. Recurring target edits apply to
+            every month; existing month-specific overrides are labelled.
           </p>
         </div>
-
-        <div class="header-actions">
-          <div class="month-selector">
-            <button
-              class="month-btn"
-              @click="${this.handlePrevMonth}"
-              title="Previous month"
-              aria-label="Previous month"
-            >
-              ${icon('chevron-left', 'ASSET', 16)}
-            </button>
-            <span class="current-month-label">
-              ${this.formatMonthName(this.currentYear, this.currentMonth)}
-            </span>
-            <button
-              class="month-btn"
-              @click="${this.handleNextMonth}"
-              title="Next month"
-              aria-label="Next month"
-            >
-              ${icon('chevron-right', 'ASSET', 16)}
-            </button>
-          </div>
-
-          ${
-            !isTodayMonth
-              ? html`
-                  <button
-                    class="btn-secondary"
-                    @click="${this.handleCurrentMonth}"
-                  >
-                    Today
-                  </button>
-                `
-              : nothing
-          }
-
+        <div class="month">
           <button
-            class="btn-primary"
-            @click="${() => this.openSetBudgetModal()}"
+            aria-label="Previous month"
+            ?disabled=${this.saving}
+            @click=${() => this.navigate(-1)}
           >
-            <span>+</span> Set Target
+            ${icon('chevron-left', 'ASSET', 16)}</button
+          ><strong
+            >${new Date(this.currentYear, this.currentMonth - 1, 1).toLocaleString('en-IE', { month: 'long', year: 'numeric' })}</strong
+          ><button
+            aria-label="Next month"
+            ?disabled=${this.saving}
+            @click=${() => this.navigate(1)}
+          >
+            ${icon('chevron-right', 'ASSET', 16)}</button
+          ><button ?disabled=${this.saving} @click=${this.current}>
+            Current month
           </button>
         </div>
-      </div>
-
+      </header>
       ${
-        this.isLoading
-          ? html`
-              <div class="loading-state">
-                <div class="spinner"></div>
-                <p>
-                  Calculating category run-rates, rolling averages, and budget
-                  progress...
-                </p>
-              </div>
-            `
-          : this.errorMessage
-            ? html`
-                <div class="empty-state">
-                  <h4>Error Loading Budgets</h4>
-                  <p>${this.errorMessage}</p>
-                  <button class="btn-secondary" @click="${this.fetchData}">
-                    Retry
-                  </button>
-                </div>
-              `
-            : !data || data.items.length === 0
-              ? html`
-                  <div class="empty-state">
-                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">
-                      ${icon('target', 'ASSET', 32)}
-                    </div>
-                    <h4 style="margin: 0 0 0.5rem; color: var(--text-primary);">
-                      No Expense Categories Configured
-                    </h4>
-                    <p style="margin: 0 0 1.5rem;">
-                      Create expense accounts first to set monthly targets and
-                      run-rates.
-                    </p>
-                  </div>
-                `
-              : html`
-                  <!-- Overall Monthly Summary Card -->
-                  <div class="summary-card">
-                    <div class="summary-top">
-                      <div class="summary-metrics">
-                        <div class="metric-group">
-                          <span class="metric-title">Total Budgeted</span>
-                          <span class="metric-num"
-                            >${this.formatCents(data.totalBudgetedCents)}</span
-                          >
-                        </div>
-
-                        <div class="metric-group">
-                          <span class="metric-title">Actual Spent</span>
-                          <span class="metric-num spent"
-                            >${this.formatCents(data.totalSpentCents)}</span
-                          >
-                        </div>
-
-                        <div class="metric-group">
-                          <span class="metric-title">
-                            ${data.totalRemainingCents >= 0 ? 'Remaining' : 'Over Budget'}
-                          </span>
-                          <span
-                            class="metric-num ${data.totalRemainingCents >= 0 ? 'remaining' : 'over'}"
-                          >
-                            ${this.formatCents(Math.abs(data.totalRemainingCents))}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span class="progress-badge ${progressClass}">
-                          <span
-                            >${data.overallProgressPercent}% of Budget
-                            Used</span
-                          >
-                        </span>
-                      </div>
-                    </div>
-
-                    <!-- Master Progress Bar -->
-                    <div class="progress-track">
-                      <div
-                        class="progress-fill ${progressClass}"
-                        style="width: ${Math.min(data.overallProgressPercent, 100)}%;"
-                      ></div>
-                    </div>
-
-                    <div class="progress-legend">
-                      <span>Month-to-Date Spending</span>
-                      <span
-                        >${data.items.filter((i) => i.targetAmountCents > 0).length}
-                        Categories Active</span
-                      >
-                    </div>
-                  </div>
-
-                  <!-- Categories Grid -->
-                  <div class="category-grid">
-                    ${data.items.map((item) => {
-                      const itemProgressClass =
-                        item.progressPercent < 80
-                          ? 'normal'
-                          : item.progressPercent <= 100
-                            ? 'warning'
-                            : 'over';
-
-                      const isOver =
-                        item.actualSpentCents > item.targetAmountCents &&
-                        item.targetAmountCents > 0;
-
-                      return html`
-                        <div class="category-card">
-                          <div class="card-header">
-                            <div class="card-account">
-                              <div class="account-avatar">
-                                ${icon(item.accountIcon, 'EXPENSE')}
-                              </div>
-                              <div>
-                                <div class="account-title">
-                                  ${item.accountName}
-                                </div>
-                                <div class="account-subtitle">
-                                  ${item.notes || 'Monthly target'}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div class="card-actions">
-                              <button
-                                class="btn-icon-action"
-                                title="Edit Target"
-                                aria-label="Edit Target"
-                                @click="${() => this.openSetBudgetModal(item)}"
-                              >
-                                ${icon('pencil', 'ASSET', 16)}
-                              </button>
-                            </div>
-                          </div>
-
-                          <!-- Amounts & Progress -->
-                          <div>
-                            <div class="card-amounts">
-                              <span class="amount-spent"
-                                >${this.formatCents(item.actualSpentCents)}</span
-                              >
-                              <span class="amount-target">
-                                of
-                                ${item.targetAmountCents > 0 ? this.formatCents(item.targetAmountCents) : 'No Target Set'}
-                              </span>
-                            </div>
-
-                            <div
-                              class="card-progress-bar"
-                              style="margin: 0.6rem 0;"
-                            >
-                              <div
-                                class="progress-fill ${itemProgressClass}"
-                                style="width: ${Math.min(item.progressPercent, 100)}%;"
-                              ></div>
-                            </div>
-
-                            <div
-                              class="card-remaining ${isOver ? 'negative' : 'positive'}"
-                            >
-                              <span>
-                                ${
-                                  item.targetAmountCents === 0
-                                    ? 'Uncapped spending'
-                                    : isOver
-                                      ? `${this.formatCents(Math.abs(item.remainingCents))} over limit`
-                                      : `${this.formatCents(item.remainingCents)} remaining`
-                                }
-                              </span>
-                              <span>${item.progressPercent}%</span>
-                            </div>
-                          </div>
-
-                          <!-- Adaptive Run-Rate & Projections Box -->
-                          <div class="analytics-box">
-                            <div class="analytics-row">
-                              <span>Month-End Projected Pace:</span>
-                              <span class="analytics-val"
-                                >${this.formatCents(item.projectedMonthEndCents)}</span
-                              >
-                            </div>
-                            <div class="analytics-row">
-                              <span>Rolling 3-Mo Average:</span>
-                              <span class="analytics-val"
-                                >${this.formatCents(item.rolling3MonthAvgCents)}</span
-                              >
-                            </div>
-                            <div class="analytics-row">
-                              <span>Rolling 12-Mo Baseline:</span>
-                              <span class="analytics-val"
-                                >${this.formatCents(item.rolling12MonthAvgCents)}</span
-                              >
-                            </div>
-
-                            ${
-                              item.suggestedTargetCents > 0 &&
-                              item.suggestedTargetCents !==
-                                item.targetAmountCents
-                                ? html`
-                                    <div class="suggested-box">
-                                      <span class="suggested-label">
-                                        <span
-                                          >${icon('lightbulb', 'ASSET', 16)}</span
-                                        >
-                                        <span
-                                          >Suggested:
-                                          ${this.formatCents(item.suggestedTargetCents)}</span
-                                        >
-                                      </span>
-                                      <button
-                                        class="btn-adopt"
-                                        @click="${() => this.adoptSuggestedTarget(item)}"
-                                        title="Adopt adaptive target based on rolling averages"
-                                      >
-                                        Adopt
-                                      </button>
-                                    </div>
-                                  `
-                                : nothing
-                            }
-                          </div>
-                        </div>
-                      `;
-                    })}
-                  </div>
-                `
-      }
-
-      <!-- Set / Edit Budget Target Modal -->
-      ${
-        this.isModalOpen
-          ? html`
-              <div
-                class="modal-backdrop"
-                @click="${(e: MouseEvent) => {
-                  if (e.target === e.currentTarget) this.requestCloseSetBudgetModal();
-                }}"
-              >
-                <div
-                  class="modal-dialog"
-                  @click="${(e: Event) => e.stopPropagation()}"
-                >
-                  <h3>Set Monthly Target</h3>
-                  <p>
-                    Configure a monthly spending target and adaptive baseline
-                    for this expense category.
-                  </p>
-
-                  <form @submit="${this.handleSaveBudget}">
-                    <div class="form-group">
-                      <label>Expense Category</label>
-                      <select
-                        class="form-select"
-                        .value="${this.modalAccountId}"
-                        @change="${(e: Event) => (this.modalAccountId = (e.target as HTMLSelectElement).value)}"
-                      >
-                        ${this.expenseAccounts.map(
-                          (acc) => html`
-                            <option value="${acc.id}">${acc.name}</option>
-                          `,
-                        )}
-                      </select>
-                    </div>
-
-                    <div class="form-group">
-                      <label>Monthly Target ($)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        class="form-input"
-                        placeholder="e.g. 450.00"
-                        .value="${this.modalTargetDollars}"
-                        @input="${(e: Event) => (this.modalTargetDollars = (e.target as HTMLInputElement).value)}"
-                        required
-                      />
-                    </div>
-
-                    <div class="form-group">
-                      <label>Notes / Strategy (Optional)</label>
-                      <input
-                        type="text"
-                        class="form-input"
-                        placeholder="e.g. Weekly grocery baseline"
-                        .value="${this.modalNotes}"
-                        @input="${(e: Event) => (this.modalNotes = (e.target as HTMLInputElement).value)}"
-                      />
-                    </div>
-
-                    <div class="modal-actions">
-                      <button
-                        type="button"
-                        class="btn-secondary"
-                        @click="${this.requestCloseSetBudgetModal}"
-                      >
-                        Cancel
-                      </button>
-                      <button type="submit" class="btn-primary">
-                        Save Target
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            `
+        this.errorMessage
+          ? html`<p role="alert" class="error">${this.errorMessage}</p>
+              <button @click=${this.fetchData}>Retry</button>`
           : nothing
       }
-    `;
+      ${
+        this.isLoading
+          ? html`<p role="status">Loading monthly budget...</p>`
+          : !this.errorMessage && data && t
+            ? html` <section
+                  class="summary"
+                  aria-label="Monthly budget overview"
+                >
+                  <div>
+                    <span>Total monthly targets</span
+                    ><strong>${formatMoney(t.targetCents)}</strong>
+                  </div>
+                  <div>
+                    <span>Spending in budgeted accounts</span
+                    ><strong>${formatMoney(t.budgetedSpentCents)}</strong>
+                  </div>
+                  <div>
+                    <span>Remaining on budgeted accounts</span
+                    ><strong
+                      >${t.remainingCents === null ? 'Unavailable' : formatMoney(t.remainingCents)}</strong
+                    >
+                  </div>
+                  <div>
+                    <span>Spending in unbudgeted accounts</span
+                    ><strong>${formatMoney(t.unbudgetedSpentCents)}</strong>
+                  </div>
+                </section>
+                <p class="muted">
+                  Expense budget only: loan principal, transfers and other
+                  balance-account movements are outside it.
+                  ${t.unbudgetedCount ? html`Incomplete budget coverage: ${t.unbudgetedCount} account${t.unbudgetedCount === 1 ? '' : 's'} with no target.` : nothing}
+                </p>
+                ${
+                  data.items.length
+                    ? html`<div class="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th scope="col">Account / group</th>
+                              <th scope="col">
+                                Monthly target (${APP_CURRENCY})
+                              </th>
+                              <th scope="col">Actual spending</th>
+                              <th scope="col">Remaining</th>
+                              <th scope="col">Budget usage</th>
+                              <th scope="col">Notes / details</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${data.items.map((item) => this.renderRow(item))}
+                          </tbody>
+                        </table>
+                      </div>`
+                    : html`<p>
+                        No expense accounts. Create expense accounts in Accounts
+                        to start budgeting.
+                      </p>`
+                }
+                <details class="coverage">
+                  <summary>
+                    Historical coverage
+                    ${data.trackingStartDate ? `· Complete records from ${data.trackingStartDate}` : '· Not set'}
+                  </summary>
+                  <p>
+                    Declare the date from which all expense records are
+                    complete. Averages use only fully covered, completed months
+                    before the selected month, including genuine zero-spending
+                    months. A partial first month and months before tracking
+                    began are excluded. No coverage is inferred from the first
+                    expense.
+                  </p>
+                  <label
+                    >Complete tracking starts
+                    <input
+                      type="date"
+                      .value=${this.coverageDate}
+                      @input=${(e: Event) => (this.coverageDate = (e.target as HTMLInputElement).value)} /></label
+                  ><button
+                    ?disabled=${this.saving || !this.coverageDate}
+                    @click=${() => this.saveCoverage()}
+                  >
+                    Save coverage
+                  </button>
+                  <button
+                    ?disabled=${this.saving}
+                    @click=${() => this.saveCoverage(true)}
+                  >
+                    Clear coverage</button
+                  >${this.coverageError ? html`<p class="error" role="alert">${this.coverageError}</p>` : nothing}
+                </details>`
+            : nothing
+      }
+      ${
+        this.editing
+          ? html`<div
+              class="backdrop"
+              @click=${(e: MouseEvent) => {
+                if (e.target === e.currentTarget)
+                  this.requestCloseSetBudgetModal();
+              }}
+            >
+              <div
+                class="dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="budget-edit-title"
+              >
+                <h3 id="budget-edit-title">${this.editing.name}</h3>
+                <p>
+                  ${this.editing.savedBudget?.periodYear != null ? `Editing the existing ${this.editing.savedBudget.periodYear}-${String(this.editing.savedBudget.periodMonth).padStart(2, '0')} override.` : 'Target and note apply to every month.'}
+                </p>
+                <form @submit=${this.handleSaveBudget}>
+                  ${
+                    this.editing.children.length
+                      ? html`<p>
+                            Group budgets are calculated from descendant
+                            targets. Direct parent postings are unbudgeted.
+                          </p>
+                          ${this.editing.excludedParentTargetCents !== null ? html`<p>Saved group target ${formatMoney(this.editing.excludedParentTargetCents)} is preserved but excluded from totals to avoid overlap. You can remove it without losing the note.</p>` : nothing}`
+                      : html`<label
+                            >Monthly target (${APP_CURRENCY})<input
+                              inputmode="decimal"
+                              .value=${this.modalTarget}
+                              @input=${(e: Event) => (this.modalTarget = (e.target as HTMLInputElement).value)}
+                              aria-describedby="target-help" /></label
+                          ><small id="target-help"
+                            >Leave blank for No budget. Zero is an explicit zero
+                            budget.</small
+                          >`
+                  }
+                  <label
+                    >Note<textarea
+                      .value=${this.modalNotes}
+                      @input=${(e: Event) => (this.modalNotes = (e.target as HTMLTextAreaElement).value)}
+                    ></textarea></label
+                  >${this.modalError ? html`<p role="alert" class="error">${this.modalError}</p>` : nothing}
+                  <div class="actions">
+                    <button
+                      type="button"
+                      ?disabled=${this.saving}
+                      @click=${this.requestCloseSetBudgetModal}
+                    >
+                      Cancel</button
+                    >${this.editing.savedBudget?.targetAmountCents != null ? html`<button type="button" ?disabled=${this.saving} @click=${(e: Event) => this.handleSaveBudget(e, true)}>Remove target, keep note</button>` : nothing}<button
+                      class="primary"
+                      type="submit"
+                      ?disabled=${this.saving}
+                    >
+                      ${this.saving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </form>
+                ${
+                  this.discard
+                    ? html`<p>Discard unsaved changes?</p>
+                        <button
+                          ?disabled=${this.saving}
+                          @click=${this.closeSetBudgetModal}
+                        >
+                          Discard changes
+                        </button>
+                        <button @click=${() => (this.discard = false)}>
+                          Keep editing
+                        </button>`
+                    : nothing
+                }
+              </div>
+            </div>`
+          : nothing
+      }`;
   }
 }
-
 declare global {
   interface HTMLElementTagNameMap {
     'penga-budgets': PengaBudgets;

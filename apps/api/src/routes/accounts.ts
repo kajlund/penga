@@ -17,6 +17,7 @@ import {
 } from '../db/index.js';
 import {
   AccountType,
+  buildHierarchy,
   type AccountTreeNode,
   type CreateAccountInput,
 } from '@penga/shared';
@@ -50,46 +51,7 @@ const validAccountTypes = new Set<string>(Object.values(AccountType));
  * sorted alphabetically by name at every level.
  */
 export function buildAccountTree(allAccounts: Account[]): AccountTreeNode[] {
-  const nodeMap = new Map<string, AccountTreeNode>();
-  const rootNodes: AccountTreeNode[] = [];
-
-  for (const acc of allAccounts) {
-    nodeMap.set(acc.id, {
-      id: acc.id,
-      name: acc.name,
-      description: acc.description,
-      type: acc.type as AccountType,
-      parentId: acc.parentId,
-      icon: acc.icon,
-      color: acc.color,
-      createdAt: acc.createdAt,
-      updatedAt: acc.updatedAt,
-      children: [],
-    });
-  }
-
-  for (const acc of allAccounts) {
-    const node = nodeMap.get(acc.id)!;
-    if (acc.parentId && nodeMap.has(acc.parentId)) {
-      nodeMap.get(acc.parentId)!.children.push(node);
-    } else {
-      rootNodes.push(node);
-    }
-  }
-
-  const sortNodes = (nodes: AccountTreeNode[]) => {
-    nodes.sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
-    );
-    for (const n of nodes) {
-      if (n.children && n.children.length > 0) {
-        sortNodes(n.children);
-      }
-    }
-  };
-  sortNodes(rootNodes);
-
-  return rootNodes;
+  return buildHierarchy(allAccounts) as AccountTreeNode[];
 }
 
 /**

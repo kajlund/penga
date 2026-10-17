@@ -186,3 +186,15 @@ Completion requires an exact zero difference and saves membership atomically und
 History opens each active completed statement's entries. Undo latest reconciliation requires an inline confirmation, releases only that account's membership, preserves cleared status and retains an undone history record. Undo statements in reverse chronological order before changing protected transaction dates, amounts, splits, cleared status, or deleting/voiding them. Description and tag changes remain available. Clear all transactions removes reconciliation membership and history together with ledger history.
 
 Run reconciliation database tests using `PENGA_SCHEMA_DATABASE_TESTS=1 node --test apps/api/test/reconciliation.test.mjs` after building. These tests create, verify and remove a separate temporary schema, including reset verification there; they do not reset the normal ledger.
+
+### Monthly expense budget
+
+The Budget page uses the same alphabetical account hierarchy as Accounts, restricted to expense accounts. Groups sum descendant targets and all expense spending, including direct parent postings. Direct parent postings are unbudgeted. Remaining and usage apply only to budgeted accounts; unbudgeted spending is shown separately. Saved parent targets are preserved and explicitly excluded from calculated totals to prevent overlap. Parent notes remain editable, and legacy targets can be removed without losing notes.
+
+Recurring targets and notes apply to every month. Existing month-specific overrides remain supported and labelled; the page does not create new overrides. A blank target means **No budget**; zero is an explicit zero target. Removing a target keeps its note. Signed expense splits determine actual spending by transaction calendar date, so refunds reduce spending; voided transactions and opening balances are excluded. Transfers and principal repayments without an expense split are outside this budget.
+
+The ledger has no per-account currency model. Budget uses the existing `APP_CURRENCY` EUR default and `en-IE` formatter, matching the rest of the app. It does not introduce currency conversion.
+
+Set **Historical coverage** only when expense records are complete from that date. Averages use fully covered, completed months before the viewed month, counting confirmed zero-spending months and reporting the actual sample size. A partial first month is excluded. Until coverage is set, averages show **Not enough history**. Current-month pace uses spending through today and elapsed calendar days; it is an estimate and is unavailable for past/future months. The browser supplies its local calendar date; API requests without a date default to Europe/Helsinki.
+
+Apply migration `0010_wild_whistler.sql` with `npm run db:migrate -w @penga/api` before running this version. It makes budget targets nullable to preserve notes on removal and adds the historical-coverage setting; existing targets and notes are unchanged. Budget database tests can run with `PENGA_SCHEMA_DATABASE_TESTS=1 node --test apps/api/test/budgets.test.mjs` after building; they use isolated temporary schemas.

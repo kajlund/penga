@@ -157,7 +157,7 @@ export interface ReorderTransactionsInput {
 export interface Budget {
   id: string;
   accountId: string;
-  targetAmountCents: number;
+  targetAmountCents: number | null;
   periodYear?: number | null;
   periodMonth?: number | null;
   notes?: string | null;
@@ -165,36 +165,14 @@ export interface Budget {
   updatedAt?: string | Date;
 }
 
-export interface BudgetProgressItem {
-  budgetId?: string | null;
-  accountId: string;
-  accountName: string;
-  accountIcon?: string | null;
-  accountColor?: string | null;
-  targetAmountCents: number;
-  actualSpentCents: number;
-  remainingCents: number;
-  progressPercent: number;
-  projectedMonthEndCents: number;
-  rolling3MonthAvgCents: number;
-  rolling12MonthAvgCents: number;
-  suggestedTargetCents: number;
-  notes?: string | null;
-}
-
-export interface MonthlyBudgetReport {
-  year: number;
-  month: number;
-  totalBudgetedCents: number;
-  totalSpentCents: number;
-  totalRemainingCents: number;
-  overallProgressPercent: number;
-  items: BudgetProgressItem[];
-}
+export type {
+  BudgetNode as BudgetProgressItem,
+  HierarchicalBudgetReport as MonthlyBudgetReport,
+} from './budget.js';
 
 export interface SetBudgetInput {
   accountId: string;
-  targetAmountCents: number;
+  targetAmountCents?: number | null;
   periodYear?: number | null;
   periodMonth?: number | null;
   notes?: string | null;
@@ -266,3 +244,6 @@ export function inTransactionDateRange(
 ): boolean {
   return (!from || date >= from) && (!to || date <= to);
 }
+
+export * from './budget.js';
+export * from './account-tree.js';

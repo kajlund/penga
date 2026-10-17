@@ -190,7 +190,7 @@ export class PengaSidebar extends LitElement {
     { id: 'transactions', label: 'Transactions', icon: 'arrow-left-right' },
     { id: 'templates', label: 'Templates', icon: 'copy' },
     { id: 'reconciliation', label: 'Reconciliation', icon: 'list-checks' },
-    { id: 'budgets', label: 'Budgets & Rules', icon: 'target' },
+    { id: 'budgets', label: 'Budget', icon: 'target' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 

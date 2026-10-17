@@ -95,7 +95,7 @@ export const budgets = pgTable('budgets', {
   accountId: uuid('account_id')
     .references(() => accounts.id, { onDelete: 'cascade' })
     .notNull(),
-  targetAmountCents: integer('target_amount_cents').notNull(),
+  targetAmountCents: integer('target_amount_cents'),
   periodYear: integer('period_year'),
   periodMonth: integer('period_month'),
   notes: text('notes'),
@@ -330,4 +330,9 @@ export const reconciliationEntries = table('reconciliation_entries', {
   reconciliationId: id('reconciliation_id')
     .notNull()
     .references(() => reconciliations.id),
+});
+
+export const budgetSettings = pgTable('budget_settings', {
+  id: integer('id').primaryKey().default(1),
+  trackingStartDate: date('tracking_start_date', { mode: 'string' }),
 });
