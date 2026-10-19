@@ -482,3 +482,84 @@ test('expand all and collapse all toggles all transactions', async () => {
   );
   assert.ok(toggleAllBtn.textContent.includes('Expand All'));
 });
+
+test('filtered transactions are sorted by date oldest first, with UI manual order as secondary', async () => {
+  const root = component.shadowRoot;
+  const rows = [...root.querySelectorAll('.transaction-row')];
+  const dates = rows.map((r) => r.querySelector('.tx-date')?.textContent?.trim());
+
+  // Check dates are in non-decreasing (oldest to newest) order
+  for (let i = 0; i < dates.length - 1; i++) {
+    assert.ok(
+      dates[i].localeCompare(dates[i + 1]) <= 0,
+      `Expected date ${dates[i]} <= ${dates[i + 1]} in oldest-first order`,
+    );
+  }
+
+  // Opening balance (2026-01-01) should be first, and Coffee Shop (2026-09-25) should be last
+  assert.equal(dates[0], '2026-01-01');
+  assert.equal(dates[dates.length - 1], '2026-09-25');
+});
+
+test('toggling date sort button switches between oldest first and newest first', async () => {
+  const root = component.shadowRoot;
+  const sortBtn = root.querySelector('.header-sort-btn');
+  assert.ok(sortBtn, 'Header sort button should exist');
+  assert.ok(sortBtn.textContent.includes('Date'));
+  assert.ok(sortBtn.textContent.includes('▲'));
+
+  // Toggle to descending (newest first)
+  sortBtn.click();
+  await settle();
+
+  assert.ok(sortBtn.textContent.includes('▼'));
+  const rowsDesc = [...root.querySelectorAll('.transaction-row')];
+  const datesDesc = rowsDesc.map((r) => r.querySelector('.tx-date')?.textContent?.trim());
+
+  for (let i = 0; i < datesDesc.length - 1; i++) {
+    assert.ok(
+      datesDesc[i].localeCompare(datesDesc[i + 1]) >= 0,
+      `Expected date ${datesDesc[i]} >= ${datesDesc[i + 1]} in newest-first order`,
+    );
+  }
+  assert.equal(datesDesc[0], '2026-09-25');
+  assert.equal(datesDesc[datesDesc.length - 1], '2026-01-01');
+
+  // Toggle back to ascending (oldest first)
+  sortBtn.click();
+  await settle();
+
+  assert.ok(sortBtn.textContent.includes('▲'));
+  const rowsAsc = [...root.querySelectorAll('.transaction-row')];
+  const datesAsc = rowsAsc.map((r) => r.querySelector('.tx-date')?.textContent?.trim());
+  assert.equal(datesAsc[0], '2026-01-01');
+  assert.equal(datesAsc[datesAsc.length - 1], '2026-09-25');
+});
+
+test('within the same date, transactions follow sortOrder secondary order', async () => {
+  const sameDateTx1 = {
+    ...txUnclear,
+    id: 'tx-same-day-1',
+    transactionDate: '2026-09-25',
+    payee: 'First Morning Coffee',
+    sortOrder: 0,
+  };
+  const sameDateTx2 = {
+    ...txUnclear,
+    id: 'tx-same-day-2',
+    transactionDate: '2026-09-25',
+    payee: 'Second Afternoon Tea',
+    sortOrder: 1,
+  };
+
+  component.transactions = [sameDateTx2, sameDateTx1];
+  await settle();
+
+  const root = component.shadowRoot;
+  const payees = [...root.querySelectorAll('.transaction-row .tx-payee')].map((p) =>
+    p.textContent.trim(),
+  );
+
+  assert.deepEqual(payees, ['First Morning Coffee', 'Second Afternoon Tea']);
+});
+

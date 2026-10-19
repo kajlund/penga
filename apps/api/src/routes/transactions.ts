@@ -469,27 +469,33 @@ transactionsRoute.get('/', async (c) => {
     conditions.push(eq(transactions.isCleared, isClearedQuery === 'true'));
   }
 
+  const orderQuery = c.req.query('order');
+  const isAsc = orderQuery === 'asc';
+  const orderClauses = isAsc
+    ? [
+        asc(transactions.transactionDate),
+        asc(transactions.sortOrder),
+        asc(transactions.createdAt),
+      ]
+    : [
+        desc(transactions.transactionDate),
+        asc(transactions.sortOrder),
+        desc(transactions.createdAt),
+      ];
+
   const txRows =
     conditions.length > 0
       ? await db
           .select()
           .from(transactions)
           .where(and(...conditions))
-          .orderBy(
-            desc(transactions.transactionDate),
-            asc(transactions.sortOrder),
-            desc(transactions.createdAt),
-          )
+          .orderBy(...orderClauses)
           .limit(limit)
           .offset(offset)
       : await db
           .select()
           .from(transactions)
-          .orderBy(
-            desc(transactions.transactionDate),
-            asc(transactions.sortOrder),
-            desc(transactions.createdAt),
-          )
+          .orderBy(...orderClauses)
           .limit(limit)
           .offset(offset);
 

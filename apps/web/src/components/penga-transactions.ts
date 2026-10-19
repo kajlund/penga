@@ -254,6 +254,44 @@ export class PengaTransactions extends LitElement {
         z-index: 10;
       }
 
+      .header-sort-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        text-transform: inherit;
+        letter-spacing: inherit;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: color var(--transition-fast);
+        user-select: none;
+        text-align: left;
+      }
+
+      .header-sort-btn:hover {
+        color: var(--text-primary);
+      }
+
+      .header-sort-btn:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+
+      .header-sort-btn .sort-icon {
+        font-size: 0.65rem;
+        color: var(--color-primary);
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
+      }
+
       .transactions-list {
         flex: 1;
         min-height: 0;
@@ -1201,6 +1239,7 @@ export class PengaTransactions extends LitElement {
   @state() private dateFrom = '';
   @state() private dateTo = '';
   @state() private searchText = '';
+  @state() private dateSortDirection: 'asc' | 'desc' = 'asc';
 
   @state()
   private selectedTagId = '';
@@ -1476,6 +1515,7 @@ export class PengaTransactions extends LitElement {
       if (this.selectedAccountId)
         params.append('accountId', this.selectedAccountId);
       if (this.selectedTagId) params.append('tagId', this.selectedTagId);
+      params.append('order', this.dateSortDirection);
 
       const queryString = params.toString();
       const url = queryString
@@ -1498,7 +1538,21 @@ export class PengaTransactions extends LitElement {
         throw new Error(`Failed to load transactions: ${res.statusText}`);
       }
       const json = await res.json();
-      this.transactions = json.data || [];
+      this.transactions = ((json.data || []) as TransactionWithSplits[]).sort(
+        (a: TransactionWithSplits, b: TransactionWithSplits) => {
+          const dateCmp =
+            this.dateSortDirection === 'asc'
+              ? a.transactionDate.localeCompare(b.transactionDate)
+              : b.transactionDate.localeCompare(a.transactionDate);
+          if (dateCmp !== 0) return dateCmp;
+          const orderCmp = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+          if (orderCmp !== 0) return orderCmp;
+          return (
+            String(a.createdAt || '').localeCompare(String(b.createdAt || '')) ||
+            a.id.localeCompare(b.id)
+          );
+        },
+      );
     } catch (err) {
       this.errorMessage =
         (err instanceof Error ? err.message : String(err)) ||
@@ -1519,6 +1573,16 @@ export class PengaTransactions extends LitElement {
     this.selectedTagId = target.value;
     this.fetchTransactions();
   }
+
+  public toggleDateSort() {
+    this.dateSortDirection = this.dateSortDirection === 'asc' ? 'desc' : 'asc';
+  }
+
+  private handleSortChange = (e: Event) => {
+    this.dateSortDirection = (e.target as HTMLSelectElement).value as
+      | 'asc'
+      | 'desc';
+  };
 
   public async toggleCleared(tx: TransactionWithSplits) {
     const newCleared = !tx.isCleared;
@@ -1561,10 +1625,10 @@ export class PengaTransactions extends LitElement {
     tx: TransactionWithSplits,
     direction: 'up' | 'down',
   ) {
-    // Find all transactions on the same date
-    const sameDateTxs = this.transactions.filter(
-      (t) => t.transactionDate === tx.transactionDate,
-    );
+    // Find all transactions on the same date, ordered by sortOrder
+    const sameDateTxs = this.transactions
+      .filter((t) => t.transactionDate === tx.transactionDate)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
     if (sameDateTxs.length < 2) return;
 
@@ -1574,25 +1638,18 @@ export class PengaTransactions extends LitElement {
 
     if (targetIndex < 0 || targetIndex >= sameDateTxs.length) return;
 
-    const targetTx = sameDateTxs[targetIndex];
+    // Swap items in the ordered array
+    const [moved] = sameDateTxs.splice(currentIndex, 1);
+    sameDateTxs.splice(targetIndex, 0, moved);
 
-    // Swap sort orders
-    const currentOrder = tx.sortOrder;
-    const targetOrder = targetTx.sortOrder;
-
-    const newCurrentOrder = targetOrder;
-    const newTargetOrder =
-      currentOrder === targetOrder
-        ? direction === 'up'
-          ? currentOrder - 1
-          : currentOrder + 1
-        : currentOrder;
+    // Reassign sortOrder sequentially
+    const updatedMap = new Map<string, number>();
+    sameDateTxs.forEach((t, idx) => {
+      t.sortOrder = idx;
+      updatedMap.set(t.id, idx);
+    });
 
     // Optimistic reorder
-    const updatedMap = new Map<string, number>();
-    updatedMap.set(tx.id, newCurrentOrder);
-    updatedMap.set(targetTx.id, newTargetOrder);
-
     this.transactions = this.transactions
       .map((t) => {
         if (updatedMap.has(t.id)) {
@@ -1601,10 +1658,12 @@ export class PengaTransactions extends LitElement {
         return t;
       })
       .sort((a, b) => {
-        if (a.transactionDate !== b.transactionDate) {
-          return b.transactionDate.localeCompare(a.transactionDate);
-        }
-        return a.sortOrder - b.sortOrder;
+        const dateCmp =
+          this.dateSortDirection === 'asc'
+            ? a.transactionDate.localeCompare(b.transactionDate)
+            : b.transactionDate.localeCompare(a.transactionDate);
+        if (dateCmp !== 0) return dateCmp;
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
       });
 
     // Call backend batch reorder API
@@ -1613,10 +1672,7 @@ export class PengaTransactions extends LitElement {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: [
-            { id: tx.id, sortOrder: newCurrentOrder },
-            { id: targetTx.id, sortOrder: newTargetOrder },
-          ],
+          items: sameDateTxs.map((t) => ({ id: t.id, sortOrder: t.sortOrder })),
         }),
       });
     } catch (err) {
@@ -1696,7 +1752,8 @@ export class PengaTransactions extends LitElement {
     // Get all transactions on this date ordered by current sortOrder
     const sameDateTxs = this.transactions
       .filter((t) => t.transactionDate === targetTx.transactionDate)
-      .slice();
+      .slice()
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
     const fromIndex = sameDateTxs.findIndex((t) => t.id === draggedId);
     if (fromIndex === -1) return;
@@ -1727,10 +1784,12 @@ export class PengaTransactions extends LitElement {
         updatedMap.has(t.id) ? { ...t, sortOrder: updatedMap.get(t.id)! } : t,
       )
       .sort((a, b) => {
-        if (a.transactionDate !== b.transactionDate) {
-          return b.transactionDate.localeCompare(a.transactionDate);
-        }
-        return a.sortOrder - b.sortOrder;
+        const dateCmp =
+          this.dateSortDirection === 'asc'
+            ? a.transactionDate.localeCompare(b.transactionDate)
+            : b.transactionDate.localeCompare(a.transactionDate);
+        if (dateCmp !== 0) return dateCmp;
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
       });
 
     // Persist via backend batch reorder API
@@ -1971,27 +2030,41 @@ export class PengaTransactions extends LitElement {
   }
 
   override render() {
-    // Filter transactions based on selected filter
-    const filteredTxs = this.transactions.filter((tx) => {
-      if (
-        !inTransactionDateRange(tx.transactionDate, this.dateFrom, this.dateTo)
-      )
-        return false;
-      if (
-        !(tx.payee ?? '').toLowerCase().includes(this.searchText.toLowerCase())
-      )
-        return false;
-      const reconciled = tx.splits.some(
-        (s) =>
-          s.reconciliationId &&
-          (!this.selectedAccountId || s.accountId === this.selectedAccountId),
-      );
-      if (this.selectedFilter === 'RECONCILED') return reconciled;
-      if (reconciled && this.selectedFilter !== 'ALL') return false;
-      if (this.selectedFilter === 'CLEARED') return tx.isCleared;
-      if (this.selectedFilter === 'UNCLEARED') return !tx.isCleared;
-      return true;
-    });
+    // Filter transactions based on selected filter and sort by Date (primary) and manual UI sortOrder (secondary)
+    const filteredTxs = this.transactions
+      .filter((tx) => {
+        if (
+          !inTransactionDateRange(tx.transactionDate, this.dateFrom, this.dateTo)
+        )
+          return false;
+        if (
+          !(tx.payee ?? '').toLowerCase().includes(this.searchText.toLowerCase())
+        )
+          return false;
+        const reconciled = tx.splits.some(
+          (s) =>
+            s.reconciliationId &&
+            (!this.selectedAccountId || s.accountId === this.selectedAccountId),
+        );
+        if (this.selectedFilter === 'RECONCILED') return reconciled;
+        if (reconciled && this.selectedFilter !== 'ALL') return false;
+        if (this.selectedFilter === 'CLEARED') return tx.isCleared;
+        if (this.selectedFilter === 'UNCLEARED') return !tx.isCleared;
+        return true;
+      })
+      .sort((a, b) => {
+        const dateCmp =
+          this.dateSortDirection === 'asc'
+            ? a.transactionDate.localeCompare(b.transactionDate)
+            : b.transactionDate.localeCompare(a.transactionDate);
+        if (dateCmp !== 0) return dateCmp;
+        const orderCmp = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+        if (orderCmp !== 0) return orderCmp;
+        return (
+          String(a.createdAt || '').localeCompare(String(b.createdAt || '')) ||
+          a.id.localeCompare(b.id)
+        );
+      });
 
     // Compute reconciliation totals
     const clearedCount = this.transactions.filter((t) => t.isCleared).length;
@@ -2096,12 +2169,25 @@ export class PengaTransactions extends LitElement {
             .value=${this.searchText}
             @input=${(e: Event) => (this.searchText = (e.target as HTMLInputElement).value)}
         /></label>
+        <label
+          >Sort
+          <select
+            class="account-select"
+            .value="${this.dateSortDirection}"
+            @change="${this.handleSortChange}"
+            aria-label="Sort transactions"
+          >
+            <option value="asc">Date (Oldest first)</option>
+            <option value="desc">Date (Newest first)</option>
+          </select>
+        </label>
         <button
           class="btn-secondary"
           @click=${() => {
             this.dateFrom = '';
             this.dateTo = '';
             this.searchText = '';
+            this.dateSortDirection = 'asc';
           }}
         >
           Reset dates and search
@@ -2172,7 +2258,16 @@ export class PengaTransactions extends LitElement {
             title="Expand / collapse splits and notes"
             >${icon('chevron-down', 'ASSET', 14)}</span
           >
-          <span>Date</span>
+          <button
+            type="button"
+            class="header-sort-btn"
+            @click="${this.toggleDateSort}"
+            title="Sort by date (${this.dateSortDirection === 'asc' ? 'oldest first' : 'newest first'}). Click to toggle."
+            aria-label="Sort by date"
+          >
+            <span>Date</span>
+            <span class="sort-icon">${this.dateSortDirection === 'asc' ? '▲' : '▼'}</span>
+          </button>
           <span>Payee</span>
           <span>From Account</span>
           <span style="text-align: center;">Status</span>
@@ -2223,9 +2318,9 @@ export class PengaTransactions extends LitElement {
                 : html`
                     <div class="transactions-list">
                       ${filteredTxs.map((tx) => {
-                        const sameDateTxs = this.transactions.filter(
-                          (t) => t.transactionDate === tx.transactionDate,
-                        );
+                        const sameDateTxs = this.transactions
+                          .filter((t) => t.transactionDate === tx.transactionDate)
+                          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
                         const canReorder =
                           sameDateTxs.length > 1 && !this.isOpeningBalance(tx);
                         const sameDateIndex = sameDateTxs.findIndex(
