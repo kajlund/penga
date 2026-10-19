@@ -219,6 +219,20 @@ export class PengaTransactions extends LitElement {
         border-color: var(--color-primary);
       }
 
+      .account-select optgroup {
+        font-weight: 700;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        background: var(--bg-surface);
+      }
+
+      .account-select option {
+        font-weight: 500;
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        background: var(--bg-surface);
+      }
+
       /* Ledger List */
       .ledger-card {
         background: var(--bg-surface);
@@ -1562,6 +1576,61 @@ export class PengaTransactions extends LitElement {
     }
   }
 
+  private getAccountFilterLabel(acc: Account): string {
+    const parts: string[] = [acc.name];
+    let current = acc;
+    const visited = new Set<string>([acc.id]);
+    while (current.parentId) {
+      if (visited.has(current.parentId)) break;
+      visited.add(current.parentId);
+      const parent = this.accounts.find((a) => a.id === current.parentId);
+      if (!parent) break;
+      parts.unshift(parent.name);
+      current = parent;
+    }
+    return parts.join(' › ');
+  }
+
+  private getGroupedAccounts(): { label: string; accounts: Account[] }[] {
+    const categories: { label: string; type: AccountType }[] = [
+      { label: 'Assets', type: 'ASSET' },
+      { label: 'Liabilities', type: 'LIABILITY' },
+      { label: 'Settlements', type: 'SETTLEMENT' },
+      { label: 'Income', type: 'INCOME' },
+      { label: 'Expenses', type: 'EXPENSE' },
+      { label: 'Equity', type: 'EQUITY' },
+    ];
+
+    const knownTypes = new Set(categories.map((c) => c.type));
+    const groups: { label: string; accounts: Account[] }[] = [];
+
+    for (const cat of categories) {
+      const items = this.accounts
+        .filter((a) => a.type === cat.type)
+        .sort((a, b) =>
+          this.getAccountFilterLabel(a).localeCompare(
+            this.getAccountFilterLabel(b),
+          ),
+        );
+      if (items.length > 0) {
+        groups.push({ label: cat.label, accounts: items });
+      }
+    }
+
+    const otherItems = this.accounts
+      .filter((a) => !knownTypes.has(a.type))
+      .sort((a, b) =>
+        this.getAccountFilterLabel(a).localeCompare(
+          this.getAccountFilterLabel(b),
+        ),
+      );
+    if (otherItems.length > 0) {
+      groups.push({ label: 'Other', accounts: otherItems });
+    }
+
+    return groups;
+  }
+
   private handleAccountFilterChange(e: Event) {
     const target = e.target as HTMLSelectElement;
     this.selectedAccountId = target.value;
@@ -2127,9 +2196,17 @@ export class PengaTransactions extends LitElement {
             aria-label="Filter by account"
           >
             <option value="">All Accounts</option>
-            ${this.accounts.map(
-              (acc) => html`
-                <option value="${acc.id}">${acc.name} (${acc.type})</option>
+            ${this.getGroupedAccounts().map(
+              (group) => html`
+                <optgroup label="${group.label}">
+                  ${group.accounts.map(
+                    (acc) => html`
+                      <option value="${acc.id}">
+                        ${this.getAccountFilterLabel(acc)}
+                      </option>
+                    `,
+                  )}
+                </optgroup>
               `,
             )}
           </select>

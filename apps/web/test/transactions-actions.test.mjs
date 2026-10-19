@@ -563,3 +563,43 @@ test('within the same date, transactions follow sortOrder secondary order', asyn
   assert.deepEqual(payees, ['First Morning Coffee', 'Second Afternoon Tea']);
 });
 
+test('accounts filter in transactions view groups accounts by account type', async () => {
+  component.accounts = [
+    { id: 'a1', name: 'Checking', type: 'ASSET', parentId: null, icon: null },
+    { id: 'a2', name: 'Savings', type: 'ASSET', parentId: null, icon: null },
+    { id: 'l1', name: 'Credit Card', type: 'LIABILITY', parentId: null, icon: null },
+    { id: 'e1', name: 'Food', type: 'EXPENSE', parentId: null, icon: null },
+    { id: 'e2', name: 'Groceries', type: 'EXPENSE', parentId: 'e1', icon: null },
+    { id: 'i1', name: 'Salary', type: 'INCOME', parentId: null, icon: null },
+  ];
+  await settle();
+
+  const root = component.shadowRoot;
+  const select = root.querySelector('select[aria-label="Filter by account"]');
+  assert.ok(select, 'Account filter select exists');
+
+  const optgroups = [...select.querySelectorAll('optgroup')];
+  const groupLabels = optgroups.map((g) => g.label);
+
+  assert.deepEqual(groupLabels, ['Assets', 'Liabilities', 'Income', 'Expenses']);
+
+  const assetOptions = [...optgroups[0].querySelectorAll('option')].map((o) => ({
+    value: o.value,
+    text: o.textContent.trim(),
+  }));
+  assert.deepEqual(assetOptions, [
+    { value: 'a1', text: 'Checking' },
+    { value: 'a2', text: 'Savings' },
+  ]);
+
+  const expenseOptions = [...optgroups[3].querySelectorAll('option')].map((o) => ({
+    value: o.value,
+    text: o.textContent.trim(),
+  }));
+  assert.deepEqual(expenseOptions, [
+    { value: 'e1', text: 'Food' },
+    { value: 'e2', text: 'Food › Groceries' },
+  ]);
+});
+
+
