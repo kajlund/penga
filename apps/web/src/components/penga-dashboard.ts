@@ -499,6 +499,27 @@ export class PengaDashboard extends LitElement {
         text-overflow: ellipsis;
       }
 
+      .tx-split-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        vertical-align: middle;
+      }
+
+      .tx-split-icon {
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
+        color: var(--text-muted);
+      }
+
+      .tx-split-sep {
+        display: inline;
+        margin: 0 0.35rem;
+        color: var(--text-muted);
+        vertical-align: middle;
+      }
+
       .tx-right {
         text-align: right;
         flex-shrink: 0;
@@ -683,13 +704,14 @@ export class PengaDashboard extends LitElement {
     const assetPercent = Math.round((absAssets / totalRatio) * 100);
     const liabilityPercent = 100 - assetPercent;
 
-    const assetAccounts = data.accountBalances.filter(
+    const accountBalances = data.accountBalances || [];
+    const assetAccounts = accountBalances.filter(
       (a) => a.type === 'ASSET',
     );
-    const liabilityAccounts = data.accountBalances.filter(
+    const liabilityAccounts = accountBalances.filter(
       (a) => a.type === 'LIABILITY',
     );
-    const settlementAccounts = data.accountBalances.filter(
+    const settlementAccounts = accountBalances.filter(
       (a) => a.type === 'SETTLEMENT',
     );
     const keyAccounts = [...assetAccounts, ...liabilityAccounts];
@@ -1045,11 +1067,8 @@ export class PengaDashboard extends LitElement {
                       const amount = primarySplit
                         ? Math.abs(primarySplit.amountCents)
                         : 0;
-                      const splitSummary = tx.splits
-                        .map(
-                          (s) =>
-                            `${icon(s.accountIcon, s.accountType || 'EXPENSE')} ${s.accountName || 'Account'}`,
-                        )
+                      const splitText = tx.splits
+                        .map((s) => s.accountName || 'Account')
                         .join(' ⇄ ');
 
                       return html`
@@ -1064,9 +1083,25 @@ export class PengaDashboard extends LitElement {
                               </div>
                               <div
                                 class="tx-splits-summary"
-                                title="${splitSummary}"
+                                title="${splitText}"
                               >
-                                ${splitSummary}
+                                ${tx.splits.map(
+                                  (s, idx) => html`
+                                    ${idx > 0
+                                      ? html`<span class="tx-split-sep">⇄</span>`
+                                      : nothing}
+                                    <span class="tx-split-item">
+                                      <span class="tx-split-icon"
+                                        >${icon(
+                                          s.accountIcon,
+                                          s.accountType || 'EXPENSE',
+                                          12,
+                                        )}</span
+                                      >
+                                      <span>${s.accountName || 'Account'}</span>
+                                    </span>
+                                  `,
+                                )}
                               </div>
                             </div>
                           </div>
