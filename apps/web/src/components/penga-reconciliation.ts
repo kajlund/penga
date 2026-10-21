@@ -321,11 +321,11 @@ export class PengaReconciliation extends LitElement {
                     ${['ALL', 'UNCLEARED', 'CLEARED', 'RECONCILED'].map((v) => html`<option>${v}</option>`)}</select
                   ><button
                     @click=${() => {
-                    this.from = '';
-                    this.to = '';
-                    this.search = '';
-                    this.status = 'ALL';
-                  }}
+                      this.from = '';
+                      this.to = '';
+                      this.search = '';
+                      this.status = 'ALL';
+                    }}
                   >
                     Reset filters
                   </button>
@@ -349,30 +349,30 @@ export class PengaReconciliation extends LitElement {
                   </thead>
                   <tbody>
                     ${visible.map(
-                    (e) =>
-                      html`<tr>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label=${'Select ' + (e.payee ?? e.date)}
-                            .checked=${this.selected.has(e.id)}
-                            ?disabled=${!eligible(e) && !this.selected.has(e.id)}
-                            @change=${() => {
-                const next = new Set(this.selected);
-                if (next.has(e.id)) next.delete(e.id);
-                else next.add(e.id);
-                this.selected = next;
-              }}
-                          />
-                        </td>
-                        <td>${e.date}</td>
-                        <td>${e.payee}</td>
-                        <td>
-                          ${e.reconciliationId ? 'Reconciled' : e.isCleared ? 'Cleared' : 'Uncleared'}${e.voidedAt ? ' / Voided' : ''}
-                        </td>
-                        <td>${formatMoney(e.amountCents)}</td>
-                      </tr>`,
-                  )}
+                      (e) =>
+                        html`<tr>
+                          <td>
+                            <input
+                              type="checkbox"
+                              aria-label=${'Select ' + (e.payee ?? e.date)}
+                              .checked=${this.selected.has(e.id)}
+                              ?disabled=${!eligible(e) && !this.selected.has(e.id)}
+                              @change=${() => {
+                              const next = new Set(this.selected);
+                              if (next.has(e.id)) next.delete(e.id);
+                              else next.add(e.id);
+                              this.selected = next;
+                            }}
+                            />
+                          </td>
+                          <td>${e.date}</td>
+                          <td>${e.payee}</td>
+                          <td>
+                            ${e.reconciliationId ? 'Reconciled' : e.isCleared ? 'Cleared' : 'Uncleared'}${e.voidedAt ? ' / Voided' : ''}
+                          </td>
+                          <td>${formatMoney(e.amountCents)}</td>
+                        </tr>`,
+                    )}
                   </tbody>
                 </table>
               </section>
@@ -381,30 +381,32 @@ export class PengaReconciliation extends LitElement {
                 <button @click=${() => (this.inspect = '')}>
                   Show all entries</button
                 >${s.history.map((r) => html`<p><button ?disabled=${!!r.undoneAt} @click=${() => (this.inspect = r.id)}>${r.startDate} - ${r.closingDate}</button> ${formatMoney(r.closingBalanceCents)} | Completed ${new Date(r.completedAt).toLocaleString()} ${r.undoneAt ? '(undone)' : ''}</p>`)}${
-                s.latest
-                  ? html`<button
-                        ?disabled=${this.busy}
-                        @click=${() => (this.confirmUndo = true)}
-                      >
-                        Undo latest reconciliation</button
-                      >${
-              this.confirmUndo
-                ? html`<p>
-                      Release this statement's entries and retain their cleared
-                      status?
-                    </p>
-                    <button
-                      ?disabled=${this.busy}
-                      @click=${() => this.save(true)}
-                    >
-                      Confirm undo</button
-                    ><button @click=${() => (this.confirmUndo = false)}>
-                      Cancel
-                    </button>`
-                : ''
-            }`
-                  : ''
-              }
+                  s.latest
+                    ? html`<button
+                          ?disabled=${this.busy}
+                          @click=${() => (this.confirmUndo = true)}
+                        >
+                          Undo latest reconciliation</button
+                        >${
+                        this.confirmUndo
+                          ? html`<p>
+                                Release this statement's entries and retain
+                                their cleared status?
+                              </p>
+                              <button
+                                ?disabled=${this.busy}
+                                @click=${() => this.save(true)}
+                              >
+                                Confirm undo</button
+                              ><button
+                                @click=${() => (this.confirmUndo = false)}
+                              >
+                                Cancel
+                              </button>`
+                          : ''
+                      }`
+                    : ''
+                }
               </section>`
           : ''
       }`;

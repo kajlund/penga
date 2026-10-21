@@ -1562,8 +1562,9 @@ export class PengaTransactions extends LitElement {
           const orderCmp = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
           if (orderCmp !== 0) return orderCmp;
           return (
-            String(a.createdAt || '').localeCompare(String(b.createdAt || '')) ||
-            a.id.localeCompare(b.id)
+            String(a.createdAt || '').localeCompare(
+              String(b.createdAt || ''),
+            ) || a.id.localeCompare(b.id)
           );
         },
       );
@@ -1649,8 +1650,7 @@ export class PengaTransactions extends LitElement {
 
   private handleSortChange = (e: Event) => {
     this.dateSortDirection = (e.target as HTMLSelectElement).value as
-      | 'asc'
-      | 'desc';
+      'asc' | 'desc';
   };
 
   public async toggleCleared(tx: TransactionWithSplits) {
@@ -2103,11 +2103,17 @@ export class PengaTransactions extends LitElement {
     const filteredTxs = this.transactions
       .filter((tx) => {
         if (
-          !inTransactionDateRange(tx.transactionDate, this.dateFrom, this.dateTo)
+          !inTransactionDateRange(
+            tx.transactionDate,
+            this.dateFrom,
+            this.dateTo,
+          )
         )
           return false;
         if (
-          !(tx.payee ?? '').toLowerCase().includes(this.searchText.toLowerCase())
+          !(tx.payee ?? '')
+            .toLowerCase()
+            .includes(this.searchText.toLowerCase())
         )
           return false;
         const reconciled = tx.splits.some(
@@ -2343,7 +2349,9 @@ export class PengaTransactions extends LitElement {
             aria-label="Sort by date"
           >
             <span>Date</span>
-            <span class="sort-icon">${this.dateSortDirection === 'asc' ? '▲' : '▼'}</span>
+            <span class="sort-icon"
+              >${this.dateSortDirection === 'asc' ? '▲' : '▼'}</span
+            >
           </button>
           <span>Payee</span>
           <span>From Account</span>
@@ -2396,8 +2404,12 @@ export class PengaTransactions extends LitElement {
                     <div class="transactions-list">
                       ${filteredTxs.map((tx) => {
                         const sameDateTxs = this.transactions
-                          .filter((t) => t.transactionDate === tx.transactionDate)
-                          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+                          .filter(
+                            (t) => t.transactionDate === tx.transactionDate,
+                          )
+                          .sort(
+                            (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+                          );
                         const canReorder =
                           sameDateTxs.length > 1 && !this.isOpeningBalance(tx);
                         const sameDateIndex = sameDateTxs.findIndex(

@@ -864,7 +864,8 @@ export class PengaAccounts extends LitElement {
       this.createParentId !== this.initialFormState.parentId ||
       this.createIcon !== this.initialFormState.icon ||
       this.createInitialBalance !== this.initialFormState.initialBalance ||
-      this.createSettlementPosition !== this.initialFormState.settlementPosition ||
+      this.createSettlementPosition !==
+        this.initialFormState.settlementPosition ||
       this.createSettlementDate !== this.initialFormState.settlementDate
     );
   }
@@ -922,7 +923,8 @@ export class PengaAccounts extends LitElement {
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        const form = this.shadowRoot?.querySelector<HTMLFormElement>('.modal-box form');
+        const form =
+          this.shadowRoot?.querySelector<HTMLFormElement>('.modal-box form');
         if (form) {
           form.requestSubmit();
         } else {
@@ -1754,7 +1756,8 @@ export class PengaAccounts extends LitElement {
                               value="SETTLEMENT"
                               ?selected="${this.createType === 'SETTLEMENT'}"
                             >
-                              SETTLEMENT (Tracks money owed between you & others)
+                              SETTLEMENT (Tracks money owed between you &
+                              others)
                             </option>
                             <option
                               value="EQUITY"
@@ -1909,7 +1912,8 @@ export class PengaAccounts extends LitElement {
                                 }
                                 <p class="form-help">
                                   Positive means they owe you. Negative means
-                                  you owe them. Leave empty to keep existing balance.
+                                  you owe them. Leave empty to keep existing
+                                  balance.
                                 </p>
                               </div>
                             `
@@ -1936,7 +1940,9 @@ export class PengaAccounts extends LitElement {
                                   />
                                 </div>
                                 <div class="form-group">
-                                  <label class="form-label">Opening-balance date</label>
+                                  <label class="form-label"
+                                    >Opening-balance date</label
+                                  >
                                   <input
                                     type="date"
                                     class="form-input"
@@ -1946,7 +1952,10 @@ export class PengaAccounts extends LitElement {
                                 </div>
                               </div>
                               <p class="form-help">
-                                Balance at beginning of selected date (auto-creates opening transaction against Equity; negative amounts represent debt). Leave empty to keep existing balance.
+                                Balance at beginning of selected date
+                                (auto-creates opening transaction against
+                                Equity; negative amounts represent debt). Leave
+                                empty to keep existing balance.
                               </p>
                             `
                           : nothing

@@ -412,23 +412,39 @@ test('transaction row renders single summary row when collapsed and reveals spli
   assert.ok(expandBtn, 'Expand button exists');
 
   const dateCol = row.querySelector('.tx-date');
-  assert.ok(dateCol && dateCol.textContent.includes('2026-09-25'), 'Date column rendered');
+  assert.ok(
+    dateCol && dateCol.textContent.includes('2026-09-25'),
+    'Date column rendered',
+  );
 
   const payeeCol = row.querySelector('.tx-payee');
-  assert.ok(payeeCol && payeeCol.textContent.includes('Coffee Shop'), 'Payee column rendered');
+  assert.ok(
+    payeeCol && payeeCol.textContent.includes('Coffee Shop'),
+    'Payee column rendered',
+  );
 
   const fromAccCol = row.querySelector('.from-account-cell');
   assert.ok(fromAccCol, 'From Account column rendered');
-  assert.ok(fromAccCol.textContent.includes('Checking'), 'From Account name rendered');
+  assert.ok(
+    fromAccCol.textContent.includes('Checking'),
+    'From Account name rendered',
+  );
 
   const statusCol = row.querySelector('.status-cell .cleared-toggle');
   assert.ok(statusCol, 'Status toggle rendered');
 
   const amountCol = row.querySelector('.total-amount-cell .total-amount-value');
-  assert.ok(amountCol && amountCol.textContent.includes('5.50'), 'Total amount rendered');
+  assert.ok(
+    amountCol && amountCol.textContent.includes('5.50'),
+    'Total amount rendered',
+  );
 
   // Verify collapsed state: no splits or notes panel
-  assert.equal(row.querySelector('.tx-expanded-panel'), null, 'Expanded panel not visible when collapsed');
+  assert.equal(
+    row.querySelector('.tx-expanded-panel'),
+    null,
+    'Expanded panel not visible when collapsed',
+  );
 
   // Expand the row via expand button
   expandBtn.click();
@@ -440,7 +456,10 @@ test('transaction row renders single summary row when collapsed and reveals spli
 
   const note = expandedPanel.querySelector('.tx-expanded-note');
   assert.ok(note, 'Note is displayed in expanded panel');
-  assert.ok(note.textContent.includes('Morning latte'), 'Note text is displayed');
+  assert.ok(
+    note.textContent.includes('Morning latte'),
+    'Note text is displayed',
+  );
 
   const splitsList = expandedPanel.querySelector('.splits-detail-list');
   assert.ok(splitsList, 'Splits list is displayed in expanded panel');
@@ -450,13 +469,20 @@ test('transaction row renders single summary row when collapsed and reveals spli
   // Collapse again
   expandBtn.click();
   await settle();
-  assert.equal(row.querySelector('.tx-expanded-panel'), null, 'Panel collapses when clicking button again');
+  assert.equal(
+    row.querySelector('.tx-expanded-panel'),
+    null,
+    'Panel collapses when clicking button again',
+  );
 });
 
 test('expand all and collapse all toggles all transactions', async () => {
   const root = component.shadowRoot;
   const toggleAllBtn = root.querySelector('.btn-expand-toggle-all');
-  assert.ok(toggleAllBtn, 'Expand All / Collapse All button exists in filters bar');
+  assert.ok(
+    toggleAllBtn,
+    'Expand All / Collapse All button exists in filters bar',
+  );
   assert.ok(toggleAllBtn.textContent.includes('Expand All'));
 
   // Click Expand All
@@ -486,7 +512,9 @@ test('expand all and collapse all toggles all transactions', async () => {
 test('filtered transactions are sorted by date oldest first, with UI manual order as secondary', async () => {
   const root = component.shadowRoot;
   const rows = [...root.querySelectorAll('.transaction-row')];
-  const dates = rows.map((r) => r.querySelector('.tx-date')?.textContent?.trim());
+  const dates = rows.map((r) =>
+    r.querySelector('.tx-date')?.textContent?.trim(),
+  );
 
   // Check dates are in non-decreasing (oldest to newest) order
   for (let i = 0; i < dates.length - 1; i++) {
@@ -514,7 +542,9 @@ test('toggling date sort button switches between oldest first and newest first',
 
   assert.ok(sortBtn.textContent.includes('▼'));
   const rowsDesc = [...root.querySelectorAll('.transaction-row')];
-  const datesDesc = rowsDesc.map((r) => r.querySelector('.tx-date')?.textContent?.trim());
+  const datesDesc = rowsDesc.map((r) =>
+    r.querySelector('.tx-date')?.textContent?.trim(),
+  );
 
   for (let i = 0; i < datesDesc.length - 1; i++) {
     assert.ok(
@@ -531,7 +561,9 @@ test('toggling date sort button switches between oldest first and newest first',
 
   assert.ok(sortBtn.textContent.includes('▲'));
   const rowsAsc = [...root.querySelectorAll('.transaction-row')];
-  const datesAsc = rowsAsc.map((r) => r.querySelector('.tx-date')?.textContent?.trim());
+  const datesAsc = rowsAsc.map((r) =>
+    r.querySelector('.tx-date')?.textContent?.trim(),
+  );
   assert.equal(datesAsc[0], '2026-01-01');
   assert.equal(datesAsc[datesAsc.length - 1], '2026-09-25');
 });
@@ -556,8 +588,8 @@ test('within the same date, transactions follow sortOrder secondary order', asyn
   await settle();
 
   const root = component.shadowRoot;
-  const payees = [...root.querySelectorAll('.transaction-row .tx-payee')].map((p) =>
-    p.textContent.trim(),
+  const payees = [...root.querySelectorAll('.transaction-row .tx-payee')].map(
+    (p) => p.textContent.trim(),
   );
 
   assert.deepEqual(payees, ['First Morning Coffee', 'Second Afternoon Tea']);
@@ -567,9 +599,21 @@ test('accounts filter in transactions view groups accounts by account type', asy
   component.accounts = [
     { id: 'a1', name: 'Checking', type: 'ASSET', parentId: null, icon: null },
     { id: 'a2', name: 'Savings', type: 'ASSET', parentId: null, icon: null },
-    { id: 'l1', name: 'Credit Card', type: 'LIABILITY', parentId: null, icon: null },
+    {
+      id: 'l1',
+      name: 'Credit Card',
+      type: 'LIABILITY',
+      parentId: null,
+      icon: null,
+    },
     { id: 'e1', name: 'Food', type: 'EXPENSE', parentId: null, icon: null },
-    { id: 'e2', name: 'Groceries', type: 'EXPENSE', parentId: 'e1', icon: null },
+    {
+      id: 'e2',
+      name: 'Groceries',
+      type: 'EXPENSE',
+      parentId: 'e1',
+      icon: null,
+    },
     { id: 'i1', name: 'Salary', type: 'INCOME', parentId: null, icon: null },
   ];
   await settle();
@@ -581,25 +625,32 @@ test('accounts filter in transactions view groups accounts by account type', asy
   const optgroups = [...select.querySelectorAll('optgroup')];
   const groupLabels = optgroups.map((g) => g.label);
 
-  assert.deepEqual(groupLabels, ['Assets', 'Liabilities', 'Income', 'Expenses']);
+  assert.deepEqual(groupLabels, [
+    'Assets',
+    'Liabilities',
+    'Income',
+    'Expenses',
+  ]);
 
-  const assetOptions = [...optgroups[0].querySelectorAll('option')].map((o) => ({
-    value: o.value,
-    text: o.textContent.trim(),
-  }));
+  const assetOptions = [...optgroups[0].querySelectorAll('option')].map(
+    (o) => ({
+      value: o.value,
+      text: o.textContent.trim(),
+    }),
+  );
   assert.deepEqual(assetOptions, [
     { value: 'a1', text: 'Checking' },
     { value: 'a2', text: 'Savings' },
   ]);
 
-  const expenseOptions = [...optgroups[3].querySelectorAll('option')].map((o) => ({
-    value: o.value,
-    text: o.textContent.trim(),
-  }));
+  const expenseOptions = [...optgroups[3].querySelectorAll('option')].map(
+    (o) => ({
+      value: o.value,
+      text: o.textContent.trim(),
+    }),
+  );
   assert.deepEqual(expenseOptions, [
     { value: 'e1', text: 'Food' },
     { value: 'e2', text: 'Food › Groceries' },
   ]);
 });
-
-

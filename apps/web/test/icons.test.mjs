@@ -354,7 +354,9 @@ test('modal submits via Ctrl+Enter keyboard shortcut', async () => {
     await settle(component);
     component.createName = 'Savings';
     await settle(component);
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }),
+    );
     await settle(component);
     assert.equal(submitted, true);
     assert.equal(component.isCreateModalOpen, false);
@@ -425,33 +427,48 @@ test('editing account displays parent account and allows clearing to top-level',
     component.openEditModal(childNode);
     await settle(component);
 
-    const parentSelect = component.shadowRoot.querySelector('#parent-account-select');
+    const parentSelect = component.shadowRoot.querySelector(
+      '#parent-account-select',
+    );
     assert.ok(parentSelect, 'Parent account select exists');
     assert.equal(parentSelect.value, 'parent-1', 'Parent account is selected');
     assert.equal(component.createParentId, 'parent-1');
 
     // Verify descendant (grandchild-1) and self (child-1) are excluded from options
-    const optionValues = [...parentSelect.querySelectorAll('option')].map((o) => o.value);
+    const optionValues = [...parentSelect.querySelectorAll('option')].map(
+      (o) => o.value,
+    );
     assert.ok(optionValues.includes(''), 'None option is available');
     assert.ok(optionValues.includes('parent-1'), 'Parent is available');
     assert.ok(optionValues.includes('other-1'), 'Other account is available');
     assert.equal(optionValues.includes('child-1'), false, 'Self is excluded');
-    assert.equal(optionValues.includes('grandchild-1'), false, 'Descendant is excluded');
+    assert.equal(
+      optionValues.includes('grandchild-1'),
+      false,
+      'Descendant is excluded',
+    );
 
     // Clear parent account to None
     parentSelect.value = '';
     parentSelect.dispatchEvent(new Event('change'));
     await settle(component);
     assert.equal(component.createParentId, '', 'createParentId is cleared');
-    assert.equal(component.isFormDirty(), true, 'Form is marked dirty after clearing parent');
+    assert.equal(
+      component.isFormDirty(),
+      true,
+      'Form is marked dirty after clearing parent',
+    );
 
     // Submit form and verify PATCH payload has parentId: null
     await component.submitCreate(new Event('submit'));
     assert.ok(patchPayload, 'PATCH was sent');
-    assert.equal(patchPayload.parentId, null, 'parentId sent as null to clear parent');
+    assert.equal(
+      patchPayload.parentId,
+      null,
+      'parentId sent as null to clear parent',
+    );
   } finally {
     component.remove();
     globalThis.fetch = prevFetch;
   }
 });
-

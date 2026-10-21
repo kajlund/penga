@@ -71,8 +71,8 @@ The shared TypeScript library:
 
 ## Prerequisites
 
-- **Node.js**: v20+ or v24+
-- **npm**: v10+
+- **Node.js**: Node 24 LTS is the DreamQuest target (`.nvmrc`: `24`); local compatibility verification is blocked by NVM trust enforcement.
+- **npm**: Use npm and the single committed root lockfile; no specific npm version is mandated.
 - **PostgreSQL**: Local or remote PostgreSQL instance accessible via `DATABASE_URL`
 
 ---
@@ -84,12 +84,12 @@ The shared TypeScript library:
 ```bash
 git clone <repository-url>
 cd Penga
-npm install
+npm ci --include=dev
 ```
 
 ### 2. Configure Environment Variables
 
-Create a `.env` file in the repository root:
+Copy `.env.example` to `.env` in the repository root and replace the placeholders:
 
 ```env
 NODE_ENV=development
@@ -124,18 +124,18 @@ Open [http://localhost:5173/](http://localhost:5173/) in your browser.
 
 ## Common Scripts Reference
 
-| Command                             | Description                                                                 |
-| :---------------------------------- | :-------------------------------------------------------------------------- |
-| `npm run dev`                       | Runs API (`node/tsx watch`) and Web (`vite`) concurrently with colored logs |
-| `npm run dev:api`                   | Starts only the API backend                                                 |
-| `npm run dev:web`                   | Starts only the Vite frontend                                               |
-| `npm run dev:all`                   | Runs shared library watcher alongside API and Web                           |
-| `npm run build`                     | Compiles TypeScript solution project references across all workspaces       |
-| `npm run typecheck`                 | Type-checks all packages without emitting output                            |
-| `npm run clean`                     | Cleans TypeScript build artifacts and `.tsbuildinfo` caches                 |
-| `npm run db:generate -w @penga/api` | Generates Drizzle migration files                                           |
-| `npm run db:migrate -w @penga/api`  | Applies pending migrations to PostgreSQL                                    |
-| `npm run db:seed -w @penga/api`     | Runs idempotent database seeding                                            |
+| Command                             | Description                                                                     |
+| :---------------------------------- | :------------------------------------------------------------------------------ |
+| `npm run dev`                       | Runs API (`node/tsx watch`) and Web (`vite`) concurrently with colored logs     |
+| `npm run dev:api`                   | Starts only the API backend                                                     |
+| `npm run dev:web`                   | Starts only the Vite frontend                                                   |
+| `npm run dev:all`                   | Runs shared library watcher alongside API and Web                               |
+| `npm run build`                     | Compiles project references and builds the Vite production bundle               |
+| `npm run typecheck`                 | Checks project references and emits ignored JS, declarations and build metadata |
+| `npm run clean`                     | Cleans TypeScript build artifacts and `.tsbuildinfo` caches                     |
+| `npm run db:generate -w @penga/api` | Generates Drizzle migration files                                               |
+| `npm run db:migrate -w @penga/api`  | Applies pending migrations to PostgreSQL                                        |
+| `npm run db:seed -w @penga/api`     | Runs idempotent database seeding                                                |
 
 ---
 
@@ -156,7 +156,7 @@ Record Transaction defaults to Expense, with Income, Transfer, Adjustment and a 
 
 The current schema has no currency field or exchange-rate model. Entry formatting uses the shared EUR application default; cross-currency conversion is outside this change.
 
-Run `npm test` for domain, component and API contract tests. To also run database integration tests in PowerShell, use `$env:PENGA_DATABASE_TESTS = '1'; npm test`. Integration fixtures and transactions are rolled back. `npm run build -w @penga/web` verifies the production frontend bundle.
+Run `npm test` for domain, component and API contract tests. Database tests require an explicitly configured disposable database. Never enable `PENGA_DATABASE_TESTS`, `PENGA_RESET_DATABASE_TESTS` or `PENGA_SCHEMA_DATABASE_TESTS` against personal or production data, even with rollback or temporary-schema isolation. Leave all three flags unset for ordinary verification. `npm run build -w @penga/web` verifies the production frontend bundle.
 
 - [Clear all transactions](doc/clear-transactions.md): Reset scope, confirmation, concurrency and safe verification.
 
@@ -164,7 +164,7 @@ Run `npm test` for domain, component and API contract tests. To also run databas
 
 ## Linting and formatting
 
-All Dreamquest projects use the same ESLint and Prettier configuration, based on Activus. Run these commands from the repository root:
+Penga uses root ESLint and Prettier configuration following DreamQuest conventions. Run these commands from the repository root:
 
 ```sh
 npm run lint
@@ -198,3 +198,26 @@ The ledger has no per-account currency model. Budget uses the existing `APP_CURR
 Set **Historical coverage** only when expense records are complete from that date. Averages use fully covered, completed months before the viewed month, counting confirmed zero-spending months and reporting the actual sample size. A partial first month is excluded. Until coverage is set, averages show **Not enough history**. Current-month pace uses spending through today and elapsed calendar days; it is an estimate and is unavailable for past/future months. The browser supplies its local calendar date; API requests without a date default to Europe/Helsinki.
 
 Apply migration `0010_wild_whistler.sql` with `npm run db:migrate -w @penga/api` before running this version. It makes budget targets nullable to preserve notes on removal and adds the historical-coverage setting; existing targets and notes are unchanged. Budget database tests can run with `PENGA_SCHEMA_DATABASE_TESTS=1 node --test apps/api/test/budgets.test.mjs` after building; they use isolated temporary schemas.
+
+## Validation and production operation
+
+| Root command           | Behavior                                                                |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `npm start`            | Starts compiled API; serves built web assets when present               |
+| `npm test`             | Builds, then runs shared, API and web suites once; missing scripts fail |
+| `npm run lint`         | ESLint validation with zero warnings                                    |
+| `npm run format`       | Applies Prettier; review scope to avoid unrelated formatting            |
+| `npm run format:check` | Checks formatting without rewriting                                     |
+| `npm run check`        | Typecheck, lint, then tests; stops at first failure                     |
+
+Typecheck uses `tsc -b` and emits ignored output. Check includes the existing build prerequisite through test: tests import compiled modules, and static-serving tests require the Vite bundle. Formatting remains separate. No coverage collection or threshold is configured. Historical design documents remain in `doc/`; see [standardization record](docs/dreamquest-standardization.md).
+
+Builds need development dependencies: run `npm ci --include=dev` then `npm run build` from root. Retain shared/API/web output, workspace manifests and links, and `apps/api/drizzle` including metadata. Production starts with `npm start`; startup does not migrate. Back up the database and explicitly apply reviewed pending migrations when required. Source migration commands need development tooling; after building, the existing compiled runner is `node apps/api/dist/db/migrate.js` from root. Validate that procedure in staging before production use. Generate migrations only for intentional schema changes; seeding is optional data creation, not routine deployment.
+
+External `../../deploy.apps.json` identifies service `penga`, directory `/srv/storage/apps/penga`, environment file `/etc/penga/penga.env`, and health URL `http://127.0.0.1:5010/health`. External `../../deploy.ps1` archives local files, installs/builds in staging, prunes devDependencies, and restarts the service with health checking and rollback. These files were inspected, not modified. Confirm the live unit, runtime, working directory, environment, backup procedure and reverse proxy. Ensure the build install includes devDependencies even under a production environment.
+
+Default API port is 3000; production PORT must match deployment health checks. Both health routes query PostgreSQL but return HTTP 200 with status ok even on database errors. HTTP success alone does not establish readiness. Missing web output only produces a startup warning.
+
+Root dotenv loading preserves process variables; a different cwd-local .env overrides them. npm workspace commands normally run from the workspace. The database module also loads configuration during import. Avoid unintended local environment files in production; changing precedence requires a separate decision.
+
+Keep private financial inputs, exports, backups and reports in ignored `data/`, `exports/`, `backups/` or `reports/` directories. Arbitrarily named JSON, PDF or SQL dumps outside these locations are not universally ignored; review staging before committing. Intentional fixtures belong in test directories. Git ignore rules do not control deployment packaging: the external archive does not exclude these private directories. Review packaging before deploying a checkout containing private files.

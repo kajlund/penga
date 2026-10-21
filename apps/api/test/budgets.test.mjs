@@ -120,15 +120,13 @@ test(
           .insert(transactions)
           .values({ transactionDate: date, ...extra })
           .returning();
-        await db
-          .insert(splits)
-          .values(
-            lines.map(([accountId, amountCents]) => ({
-              transactionId: tx.id,
-              accountId,
-              amountCents,
-            })),
-          );
+        await db.insert(splits).values(
+          lines.map(([accountId, amountCents]) => ({
+            transactionId: tx.id,
+            accountId,
+            amountCents,
+          })),
+        );
       };
       await record('2026-10-01', [
         [food.id, 1200],

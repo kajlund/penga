@@ -26,7 +26,6 @@ export default tseslint.config(
   js.configs.recommended,
   tseslint.configs.recommended,
   {
-    languageOptions: { globals: { ...globals.node, ...globals.browser } },
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -37,6 +36,14 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    files: ['apps/api/**/*.ts', '**/test/**/*.mjs', '*.mjs', '**/*.config.ts'],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['apps/web/src/**/*.ts', 'apps/web/test/**/*.mjs'],
+    languageOptions: { globals: globals.browser },
   },
   prettier,
 );

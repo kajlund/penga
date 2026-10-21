@@ -705,9 +705,7 @@ export class PengaDashboard extends LitElement {
     const liabilityPercent = 100 - assetPercent;
 
     const accountBalances = data.accountBalances || [];
-    const assetAccounts = accountBalances.filter(
-      (a) => a.type === 'ASSET',
-    );
+    const assetAccounts = accountBalances.filter((a) => a.type === 'ASSET');
     const liabilityAccounts = accountBalances.filter(
       (a) => a.type === 'LIABILITY',
     );
@@ -1087,9 +1085,13 @@ export class PengaDashboard extends LitElement {
                               >
                                 ${tx.splits.map(
                                   (s, idx) => html`
-                                    ${idx > 0
-                                      ? html`<span class="tx-split-sep">⇄</span>`
-                                      : nothing}
+                                    ${
+                                      idx > 0
+                                        ? html`<span class="tx-split-sep"
+                                            >⇄</span
+                                          >`
+                                        : nothing
+                                    }
                                     <span class="tx-split-item">
                                       <span class="tx-split-icon"
                                         >${icon(

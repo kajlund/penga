@@ -488,11 +488,11 @@ export class PengaBudgets extends LitElement {
                     aria-label=${`${open ? 'Collapse' : 'Expand'} ${item.name}`}
                     aria-expanded=${open}
                     @click=${() => {
-                const next = new Set(this.collapsed);
-                if (open) next.add(item.accountId);
-                else next.delete(item.accountId);
-                this.collapsed = next;
-              }}
+                      const next = new Set(this.collapsed);
+                      if (open) next.add(item.accountId);
+                      else next.delete(item.accountId);
+                      this.collapsed = next;
+                    }}
                   >
                     ${icon(open ? 'chevron-down' : 'chevron-right', 'EXPENSE', 14)}
                   </button>`

@@ -12,6 +12,9 @@
 **/.cache/
 **/.vite/
 **/data/
+exports/
+backups/
+reports/
 **/package-lock.json
 **/*.tsbuildinfo
 **/.compiled/
