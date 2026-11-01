@@ -15,6 +15,8 @@ type Entry = {
   isCleared: boolean;
   voidedAt: string | null;
   reconciliationId: string | null;
+  sortOrder?: number;
+  createdAt?: string;
 };
 type Record = {
   id: string;
@@ -205,18 +207,29 @@ export class PengaReconciliation extends LitElement {
       !this.opening(e) &&
       !!this.closing &&
       e.date <= this.closing;
-    const visible = (s?.entries ?? []).filter(
-      (e) =>
-        inTransactionDateRange(e.date, this.from, this.to) &&
-        (e.payee ?? '').toLowerCase().includes(this.search.toLowerCase()) &&
-        (this.status === 'ALL' ||
-          (this.status === 'RECONCILED'
-            ? !!e.reconciliationId
-            : this.status === 'CLEARED'
-              ? e.isCleared && !e.reconciliationId
-              : !e.isCleared && !e.reconciliationId)) &&
-        (!this.inspect || e.reconciliationId === this.inspect),
-    );
+    const visible = (s?.entries ?? [])
+      .filter(
+        (e) =>
+          inTransactionDateRange(e.date, this.from, this.to) &&
+          (e.payee ?? '').toLowerCase().includes(this.search.toLowerCase()) &&
+          (this.status === 'ALL' ||
+            (this.status === 'RECONCILED'
+              ? !!e.reconciliationId
+              : this.status === 'CLEARED'
+                ? e.isCleared && !e.reconciliationId
+                : !e.isCleared && !e.reconciliationId)) &&
+          (!this.inspect || e.reconciliationId === this.inspect),
+      )
+      .sort((a, b) => {
+        const dateCmp = a.date.localeCompare(b.date);
+        if (dateCmp !== 0) return dateCmp;
+        const orderCmp = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+        if (orderCmp !== 0) return orderCmp;
+        return (
+          String(a.createdAt || '').localeCompare(String(b.createdAt || '')) ||
+          a.id.localeCompare(b.id)
+        );
+      });
     const hidden = chosen.filter((e) => !visible.includes(e));
     const valid =
       this.start &&
@@ -358,11 +371,11 @@ export class PengaReconciliation extends LitElement {
                               .checked=${this.selected.has(e.id)}
                               ?disabled=${!eligible(e) && !this.selected.has(e.id)}
                               @change=${() => {
-                              const next = new Set(this.selected);
-                              if (next.has(e.id)) next.delete(e.id);
-                              else next.add(e.id);
-                              this.selected = next;
-                            }}
+                                const next = new Set(this.selected);
+                                if (next.has(e.id)) next.delete(e.id);
+                                else next.add(e.id);
+                                this.selected = next;
+                              }}
                             />
                           </td>
                           <td>${e.date}</td>
@@ -388,23 +401,23 @@ export class PengaReconciliation extends LitElement {
                         >
                           Undo latest reconciliation</button
                         >${
-                        this.confirmUndo
-                          ? html`<p>
-                                Release this statement's entries and retain
-                                their cleared status?
-                              </p>
-                              <button
-                                ?disabled=${this.busy}
-                                @click=${() => this.save(true)}
-                              >
-                                Confirm undo</button
-                              ><button
-                                @click=${() => (this.confirmUndo = false)}
-                              >
-                                Cancel
-                              </button>`
-                          : ''
-                      }`
+                          this.confirmUndo
+                            ? html`<p>
+                                  Release this statement's entries and retain
+                                  their cleared status?
+                                </p>
+                                <button
+                                  ?disabled=${this.busy}
+                                  @click=${() => this.save(true)}
+                                >
+                                  Confirm undo</button
+                                ><button
+                                  @click=${() => (this.confirmUndo = false)}
+                                >
+                                  Cancel
+                                </button>`
+                            : ''
+                        }`
                     : ''
                 }
               </section>`

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { and, eq, desc, sql } from 'drizzle-orm';
+import { and, eq, desc, asc, sql } from 'drizzle-orm';
 import {
   db,
   accounts,
@@ -35,6 +35,8 @@ export async function reconciliationState(tx: Tx, accountId: string) {
       transactionId: transactions.id,
       amountCents: splits.amountCents,
       date: transactions.transactionDate,
+      sortOrder: transactions.sortOrder,
+      createdAt: transactions.createdAt,
       payee: transactions.payee,
       note: transactions.note,
       isCleared: transactions.isCleared,
@@ -47,7 +49,14 @@ export async function reconciliationState(tx: Tx, accountId: string) {
       reconciliationEntries,
       eq(reconciliationEntries.splitId, splits.id),
     )
-    .where(eq(splits.accountId, accountId));
+    .where(eq(splits.accountId, accountId))
+    .orderBy(
+      asc(transactions.transactionDate),
+      asc(transactions.sortOrder),
+      asc(transactions.createdAt),
+      asc(splits.createdAt),
+      asc(splits.id),
+    );
   const latest = history.find((r) => !r.undoneAt);
   const openings = entries.filter((e) => !e.voidedAt && isOpeningBalance(e));
   return { account, history, entries, latest, openings };
