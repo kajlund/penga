@@ -82,13 +82,6 @@ export class TransactionForm extends LitElement {
       .more-details > div {
         margin-bottom: 1rem;
       }
-      .split-row-controls {
-        flex-wrap: wrap;
-        min-width: 0;
-      }
-      .split-row-controls label {
-        width: 125px;
-      }
       .template-quick-bar {
         flex-wrap: wrap;
         gap: 0.5rem;
@@ -407,7 +400,7 @@ export class TransactionForm extends LitElement {
       .split-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
+        align-items: start;
         gap: 0.75rem;
         background: var(--bg-surface);
         padding: 0.65rem 0.85rem;
@@ -427,11 +420,35 @@ export class TransactionForm extends LitElement {
       }
 
       .split-row-controls {
-        display: flex;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        grid-template-columns: 125px;
+        column-gap: 0.5rem;
+        row-gap: 0.35rem;
         align-items: center;
-        gap: 0.5rem;
-        flex-shrink: 1;
-        max-width: 340px;
+        min-width: 0;
+      }
+
+      .split-row-controls label {
+        display: contents;
+      }
+
+      .split-row-controls .form-label {
+        grid-column: 1;
+        grid-row: 1;
+        white-space: nowrap;
+      }
+
+      .split-row-controls .amount-input,
+      .split-row-controls .btn-auto-balance,
+      .split-row-controls .btn-remove-row {
+        grid-row: 2;
+      }
+
+      .split-row-controls .field-error {
+        grid-column: 1;
+        grid-row: 3;
       }
 
       .amount-input-wrap {
@@ -568,6 +585,7 @@ export class TransactionForm extends LitElement {
         }
         .split-row-controls {
           width: 100%;
+          grid-template-columns: minmax(0, 1fr);
         }
         .amount-input-wrap {
           flex: 1;
@@ -1693,9 +1711,9 @@ export class TransactionForm extends LitElement {
       const converted =
         this.entry.kind === 'advanced'
           ? entryFromSplits(
-              entrySplits(this.entry, this.entryContext),
-              this.availableAccounts,
-            )
+            entrySplits(this.entry, this.entryContext),
+            this.availableAccounts,
+          )
           : null;
       if (converted?.kind === kind) this.entry = converted;
       else {
@@ -1790,8 +1808,8 @@ export class TransactionForm extends LitElement {
       const account = this.transactionToEdit!.splits.find((s) =>
         ['ASSET', 'LIABILITY', 'SETTLEMENT'].includes(
           s.accountType ||
-            this.availableAccounts.find((a) => a.id === s.accountId)?.type ||
-            '',
+          this.availableAccounts.find((a) => a.id === s.accountId)?.type ||
+          '',
         ),
       );
       const row = entry.rows.find((r) => r.accountId === account?.accountId);
@@ -1812,24 +1830,24 @@ export class TransactionForm extends LitElement {
                 inputmode="decimal"
                 .value=${row.amount}
                 @input=${(e: Event) => {
-                  const amount = (
-                    e.target as
-                      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-                  ).value;
-                  const cents = parseMoney(amount);
-                  this.entry = {
-                    kind: 'advanced',
-                    rows: entry.rows.map((r) => ({
-                      ...r,
-                      amount:
-                        r.id === row.id
-                          ? amount
-                          : Number.isFinite(cents)
-                            ? this.formatCentsToDecimal(-cents)
-                            : '',
-                    })),
-                  };
-                }}
+            const amount = (
+              e.target as
+              HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+            ).value;
+            const cents = parseMoney(amount);
+            this.entry = {
+              kind: 'advanced',
+              rows: entry.rows.map((r) => ({
+                ...r,
+                amount:
+                  r.id === row.id
+                    ? amount
+                    : Number.isFinite(cents)
+                      ? this.formatCentsToDecimal(-cents)
+                      : '',
+              })),
+            };
+          }}
             /></label>
           </div>
           <label class="form-group"
@@ -1863,53 +1881,50 @@ export class TransactionForm extends LitElement {
         >
         ${entry.kind === 'expense' || entry.kind === 'income' || entry.kind === 'advanced' ? html`<label class="form-group"><span class="form-label">${entry.kind === 'income' ? 'Payer/source' : entry.kind === 'advanced' ? 'Payee (optional)' : 'Payee'}</span><input class="form-input" ?disabled=${this.isOpeningEdit()} .value=${this.payee} @input=${(e: Event) => (this.payee = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)} @blur=${() => this.touch('payee')} />${this.fieldError('payee')}</label>` : nothing}
       </div>
-      ${
-        'accountId' in entry
-          ? html`<div class="grid-2">
+      ${'accountId' in entry
+        ? html`<div class="grid-2">
               ${this.accountField(entry.kind === 'expense' ? 'Paid from' : entry.kind === 'income' ? 'Received into' : entry.kind === 'transfer' ? 'From account' : 'Account', 'account', entry.accountId, balanceAccounts, (accountId) => this.updateEntry({ accountId }))}
-              ${
-                entry.kind === 'transfer'
-                  ? this.accountField(
-                      'To account',
-                      'destination',
-                      entry.toAccountId,
-                      balanceAccounts.filter((a) => a.id !== entry.accountId),
-                      (toAccountId) => this.updateEntry({ toAccountId }),
-                    )
-                  : nothing
-              }
+              ${entry.kind === 'transfer'
+            ? this.accountField(
+              'To account',
+              'destination',
+              entry.toAccountId,
+              balanceAccounts.filter((a) => a.id !== entry.accountId),
+              (toAccountId) => this.updateEntry({ toAccountId }),
+            )
+            : nothing
+          }
             </div>`
-          : nothing
+        : nothing
       }
-      ${
-        entry.kind === 'adjustment'
-          ? html`<label class="form-group"
+      ${entry.kind === 'adjustment'
+        ? html`<label class="form-group"
                 ><span class="form-label">Adjustment method</span
                 ><select
                   class="form-select"
                   .value=${entry.method}
                   @change=${(e: Event) => {
-                    if (
-                      !entry.total ||
-                      confirm('Changing method clears the amount. Continue?')
-                    )
-                      this.updateEntry({
-                        method: (
-                          e.target as
-                            | HTMLInputElement
-                            | HTMLSelectElement
-                            | HTMLTextAreaElement
-                        ).value,
-                        total: '',
-                      });
-                    else
-                      (
-                        e.target as
-                          | HTMLInputElement
-                          | HTMLSelectElement
-                          | HTMLTextAreaElement
-                      ).value = entry.method;
-                  }}
+            if (
+              !entry.total ||
+              confirm('Changing method clears the amount. Continue?')
+            )
+              this.updateEntry({
+                method: (
+                  e.target as
+                  | HTMLInputElement
+                  | HTMLSelectElement
+                  | HTMLTextAreaElement
+                ).value,
+                total: '',
+              });
+            else
+              (
+                e.target as
+                | HTMLInputElement
+                | HTMLSelectElement
+                | HTMLTextAreaElement
+              ).value = entry.method;
+          }}
                 >
                   <option value="balance">Set account balance</option>
                   <option value="amount">Enter adjustment amount</option>
@@ -1921,12 +1936,11 @@ export class TransactionForm extends LitElement {
                 Includes all recorded dates, excluding child accounts. Negative
                 balances represent debt; positive adjustments reduce debt.
               </p>`
-          : nothing
+        : nothing
       }
       ${'total' in entry ? html`<label class="form-group"><span class="form-label">${entry.kind === 'adjustment' && entry.method === 'balance' ? 'Resulting balance' : entry.kind === 'expense' || entry.kind === 'income' ? 'Total amount' : 'Amount'} (${APP_CURRENCY})</span><input class="form-input" inputmode="decimal" .value=${entry.total} @input=${(e: Event) => this.updateEntry({ total: (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value })} @blur=${() => this.touch('total')} />${this.fieldError('total')}</label>` : nothing}
-      ${
-        'rows' in entry
-          ? html`<section class="splits-section">
+      ${'rows' in entry
+        ? html`<section class="splits-section">
               <div class="splits-header">
                 <span class="splits-title"
                   >${entry.kind === 'advanced' ? 'Ledger lines' : entry.kind === 'income' ? 'Income allocations' : 'Allocations'}</span
@@ -1936,36 +1950,36 @@ export class TransactionForm extends LitElement {
               </div>
               ${entry.kind === 'advanced' ? html`<p class="entry-help">Signed amounts must sum to zero. Positive amounts increase assets and expenses, and decrease liabilities, income and equity. Negative amounts do the reverse.</p>` : nothing}
               ${repeat(
-                entry.rows,
-                (r) => r.id,
-                (row, index) =>
-                  html`<div class="split-row">
+          entry.rows,
+          (r) => r.id,
+          (row, index) =>
+            html`<div class="split-row">
                     ${this.accountField(
-                      `Account/category ${index + 1}`,
-                      `account-${row.id}`,
-                      row.accountId,
-                      this.availableAccounts
-                        .filter(
-                          (a) =>
-                            !('accountId' in entry) || a.id !== entry.accountId,
-                        )
-                        .sort(
-                          (a, b) =>
-                            Number(
-                              b.type ===
-                                (entry.kind === 'income'
-                                  ? 'INCOME'
-                                  : 'EXPENSE'),
-                            ) -
-                            Number(
-                              a.type ===
-                                (entry.kind === 'income'
-                                  ? 'INCOME'
-                                  : 'EXPENSE'),
-                            ),
-                        ),
-                      (id) => this.handleAccountSelect(row.id, id),
-                    )}
+              `Account/category ${index + 1}`,
+              `account-${row.id}`,
+              row.accountId,
+              this.availableAccounts
+                .filter(
+                  (a) =>
+                    !('accountId' in entry) || a.id !== entry.accountId,
+                )
+                .sort(
+                  (a, b) =>
+                    Number(
+                      b.type ===
+                      (entry.kind === 'income'
+                        ? 'INCOME'
+                        : 'EXPENSE'),
+                    ) -
+                    Number(
+                      a.type ===
+                      (entry.kind === 'income'
+                        ? 'INCOME'
+                        : 'EXPENSE'),
+                    ),
+                ),
+              (id) => this.handleAccountSelect(row.id, id),
+            )}
                     <div class="split-row-controls">
                       <label class="form-group"
                         ><span class="form-label">Amount (${APP_CURRENCY})</span
@@ -1989,7 +2003,7 @@ export class TransactionForm extends LitElement {
                       </button>
                     </div>
                   </div>`,
-              )}
+        )}
               ${this.fieldError('rows')}
               <div
                 class="balance-summary"
@@ -1997,9 +2011,8 @@ export class TransactionForm extends LitElement {
                 aria-live="polite"
                 aria-atomic="true"
               >
-                ${
-                  entry.kind !== 'advanced'
-                    ? html`<span
+                ${entry.kind !== 'advanced'
+            ? html`<span
                           >Total
                           <strong>${formatMoney(summary.total)}</strong></span
                         ><span
@@ -2008,14 +2021,14 @@ export class TransactionForm extends LitElement {
                             >${formatMoney(summary.allocated)}</strong
                           ></span
                         >`
-                    : nothing
-                }<span
+            : nothing
+          }<span
                   >Remaining
                   <strong>${formatMoney(summary.remaining)}</strong></span
                 >${summary.remaining === 0 && entry.rows.length && entry.rows.every((r) => parseMoney(r.amount)) ? html`<span>Balanced</span>` : nothing}
               </div>
             </section>`
-          : nothing
+        : nothing
       }
     `;
   }
@@ -2047,18 +2060,18 @@ export class TransactionForm extends LitElement {
       const payload =
         this.isOpeningEdit() && this.entry.kind === 'advanced'
           ? {
-              ...details,
-              splits: this.entry.rows.map((row) => ({
-                accountId: row.accountId,
-                amountCents: parseMoney(row.amount),
-              })),
-            }
+            ...details,
+            splits: this.entry.rows.map((row) => ({
+              accountId: row.accountId,
+              amountCents: parseMoney(row.amount),
+            })),
+          }
           : this.entry.kind === 'adjustment'
             ? {
-                ...details,
-                adjustment: this.entry,
-                expectedBalanceCents: this.entryContext.currentBalanceCents,
-              }
+              ...details,
+              adjustment: this.entry,
+              expectedBalanceCents: this.entryContext.currentBalanceCents,
+            }
             : buildEntryTransaction(this.entry, this.entryContext, details);
 
       const res = await fetch(url, {
@@ -2071,7 +2084,7 @@ export class TransactionForm extends LitElement {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(
           errJson.error ||
-            `Failed to ${isEditing ? 'update' : 'record'} transaction`,
+          `Failed to ${isEditing ? 'update' : 'record'} transaction`,
         );
       }
 
@@ -2106,8 +2119,8 @@ export class TransactionForm extends LitElement {
       <div
         class="modal-backdrop"
         @click="${(e: MouseEvent) => {
-          if (e.target === e.currentTarget) this.requestCloseModal();
-        }}"
+        if (e.target === e.currentTarget) this.requestCloseModal();
+      }}"
       >
         <div
           class="modal-card"
@@ -2122,11 +2135,10 @@ export class TransactionForm extends LitElement {
                 ${this.transactionToEdit ? 'Edit Transaction' : 'Record Transaction'}
               </h3>
               <p>
-                ${
-                  this.transactionToEdit
-                    ? 'Modify payee, transaction date, notes, and balanced split lines'
-                    : 'Record everyday spending, income and account changes'
-                }
+                ${this.transactionToEdit
+        ? 'Modify payee, transaction date, notes, and balanced split lines'
+        : 'Record everyday spending, income and account changes'
+      }
               </p>
             </div>
             <button
@@ -2143,9 +2155,8 @@ export class TransactionForm extends LitElement {
           <div class="modal-body">
             ${this.renderTypeSelector()}
             <!-- Templates Quick-Bar (when recording new transaction) -->
-            ${
-              !this.transactionToEdit
-                ? html`
+            ${!this.transactionToEdit
+        ? html`
                     <div class="template-quick-bar">
                       <div class="template-dropdown-wrapper">
                         <button
@@ -2163,23 +2174,21 @@ export class TransactionForm extends LitElement {
                           >
                         </button>
 
-                        ${
-                          this.isTemplateDropdownOpen
-                            ? html`
+                        ${this.isTemplateDropdownOpen
+            ? html`
                                 <div class="template-dropdown-menu">
                                   <div class="template-dropdown-header">
                                     Saved Templates
                                   </div>
-                                  ${
-                                    this.availableTemplates.length === 0
-                                      ? html`
+                                  ${this.availableTemplates.length === 0
+                ? html`
                                           <div class="template-dropdown-empty">
                                             No templates yet. Set up split lines
                                             and click "Save as Template" below.
                                           </div>
                                         `
-                                      : this.availableTemplates.map(
-                                          (tpl) => html`
+                : this.availableTemplates.map(
+                  (tpl) => html`
                                             <button
                                               type="button"
                                               class="template-item-btn"
@@ -2202,12 +2211,12 @@ export class TransactionForm extends LitElement {
                                               </div>
                                             </button>
                                           `,
-                                        )
-                                  }
+                )
+              }
                                 </div>
                               `
-                            : nothing
-                        }
+            : nothing
+          }
                       </div>
                       <span
                         style="font-size: 0.775rem; color: var(--text-muted);"
@@ -2216,8 +2225,8 @@ export class TransactionForm extends LitElement {
                       </span>
                     </div>
                   `
-                : nothing
-            }
+        : nothing
+      }
             ${this.submitError ? html`<p role="alert" class="entry-help">${this.submitError}</p>` : nothing}
             ${this.renderEntry()}
             <details class="more-details">
@@ -2259,10 +2268,10 @@ export class TransactionForm extends LitElement {
                 <div class="tag-input-box" @click="${this.focusTagInput}">
                   <div class="selected-tags-list">
                     ${Array.from(this.selectedTagIds).map((id) => {
-                      const tag = this.availableTags.find((t) => t.id === id);
-                      if (!tag) return nothing;
-                      const color = tag.color || 'var(--tag-default)';
-                      return html`
+        const tag = this.availableTags.find((t) => t.id === id);
+        if (!tag) return nothing;
+        const color = tag.color || 'var(--tag-default)';
+        return html`
                         <span
                           class="tag-chip"
                           style="background: color-mix(in srgb, ${color} 11%, var(--bg-surface)); color: ${color}; border-color: color-mix(in srgb, ${color} 28%, var(--border-subtle));"
@@ -2279,7 +2288,7 @@ export class TransactionForm extends LitElement {
                           </button>
                         </span>
                       `;
-                    })}
+      })}
                     <input
                       type="text"
                       id="tag-input-field"
@@ -2294,32 +2303,32 @@ export class TransactionForm extends LitElement {
                 </div>
 
                 ${(() => {
-                  const rawSearch = this.normalizeTagName(this.tagSearchInput);
-                  const unselectedTags = this.availableTags.filter(
-                    (t) => !this.selectedTagIds.has(t.id),
-                  );
-                  const suggestedTags = rawSearch
-                    ? unselectedTags.filter((t) =>
-                        t.name.toLowerCase().includes(rawSearch),
-                      )
-                    : unselectedTags;
-                  const exactMatchExists = this.availableTags.some(
-                    (t) => t.name.toLowerCase() === rawSearch,
-                  );
-                  const canCreateNewTag =
-                    rawSearch.length > 0 && !exactMatchExists;
+        const rawSearch = this.normalizeTagName(this.tagSearchInput);
+        const unselectedTags = this.availableTags.filter(
+          (t) => !this.selectedTagIds.has(t.id),
+        );
+        const suggestedTags = rawSearch
+          ? unselectedTags.filter((t) =>
+            t.name.toLowerCase().includes(rawSearch),
+          )
+          : unselectedTags;
+        const exactMatchExists = this.availableTags.some(
+          (t) => t.name.toLowerCase() === rawSearch,
+        );
+        const canCreateNewTag =
+          rawSearch.length > 0 && !exactMatchExists;
 
-                  if (
-                    !this.isTagDropdownOpen ||
-                    (suggestedTags.length === 0 && !canCreateNewTag)
-                  ) {
-                    return nothing;
-                  }
+        if (
+          !this.isTagDropdownOpen ||
+          (suggestedTags.length === 0 && !canCreateNewTag)
+        ) {
+          return nothing;
+        }
 
-                  return html`
+        return html`
                     <div class="tag-dropdown">
                       ${suggestedTags.map(
-                        (tag) => html`
+          (tag) => html`
                           <button
                             type="button"
                             class="tag-dropdown-item"
@@ -2332,10 +2341,9 @@ export class TransactionForm extends LitElement {
                             <span>#${tag.name}</span>
                           </button>
                         `,
-                      )}
-                      ${
-                        canCreateNewTag
-                          ? html`
+        )}
+                      ${canCreateNewTag
+            ? html`
                               <button
                                 type="button"
                                 class="tag-dropdown-item create-new"
@@ -2348,11 +2356,11 @@ export class TransactionForm extends LitElement {
                                 >
                               </button>
                             `
-                          : nothing
-                      }
+            : nothing
+          }
                     </div>
                   `;
-                })()}
+      })()}
               </div>
             </details>
           </div>
@@ -2391,17 +2399,16 @@ export class TransactionForm extends LitElement {
                 ?disabled="${!this.canSubmit()}"
                 title="${validation.isValid ? (this.transactionToEdit ? 'Save changes (Ctrl+Enter)' : 'Record transaction (Ctrl+Enter)') : validation.message}"
               >
-                ${
-                  this.isSubmitting
-                    ? this.transactionToEdit
-                      ? 'Saving...'
-                      : 'Recording...'
-                    : this.transactionToEdit
-                      ? 'Save Changes'
-                      : this.entry.kind === 'advanced'
-                        ? 'Record transaction'
-                        : `Record ${this.entry.kind}`
-                }
+                ${this.isSubmitting
+        ? this.transactionToEdit
+          ? 'Saving...'
+          : 'Recording...'
+        : this.transactionToEdit
+          ? 'Save Changes'
+          : this.entry.kind === 'advanced'
+            ? 'Record transaction'
+            : `Record ${this.entry.kind}`
+      }
               </button>
             </div>
           </div>
@@ -2409,15 +2416,14 @@ export class TransactionForm extends LitElement {
       </div>
 
       <!-- Save as Template Mini Modal -->
-      ${
-        this.isSaveTemplateModalOpen
-          ? html`
+      ${this.isSaveTemplateModalOpen
+        ? html`
               <div
                 class="modal-backdrop sub-modal"
                 @click="${(e: MouseEvent) => {
-                  if (e.target === e.currentTarget)
-                    this.isSaveTemplateModalOpen = false;
-                }}"
+            if (e.target === e.currentTarget)
+              this.isSaveTemplateModalOpen = false;
+          }}"
               >
                 <div class="mini-modal-card">
                   <div class="mini-modal-header">
@@ -2450,11 +2456,11 @@ export class TransactionForm extends LitElement {
                         .value="${this.saveTemplateName}"
                         @input="${(e: Event) => (this.saveTemplateName = (e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value)}"
                         @keydown="${(e: KeyboardEvent) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            this.confirmSaveAsTemplate();
-                          }
-                        }}"
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              this.confirmSaveAsTemplate();
+            }
+          }}"
                         autofocus
                       />
                     </div>
@@ -2477,7 +2483,7 @@ export class TransactionForm extends LitElement {
                 </div>
               </div>
             `
-          : nothing
+        : nothing
       }
     `;
   }
